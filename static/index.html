@@ -76,7 +76,7 @@
                 const { bookmarkId } = await res.json();
 
                 // 2. 第一次轮询：等待 15 秒
-                await sleep(15000);
+                await sleep(20000);
                 let checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
                 let checkData = await checkRes.json();
 
@@ -87,7 +87,7 @@
 
                 // 3. 第二次轮询：再等待 10 秒
                 statusText.innerText = '还在处理中，再等 10 秒...';
-                await sleep(10000);
+                await sleep(15000);
                 checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
                 checkData = await checkRes.json();
 
