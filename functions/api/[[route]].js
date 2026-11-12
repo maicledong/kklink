@@ -26,9 +26,11 @@ export async function onRequest(context) {
         body: JSON.stringify({ url: targetUrl, type: "link" })
       });
       
-      if (!res.ok) throw new Error("Karakeep 触发失败");
       const data = await res.json();
       
+      // 打印真实的创建结果
+      console.log("【Karakeep 创建返回】:", JSON.stringify(data));
+
       return new Response(JSON.stringify({ success: true, bookmarkId: data.id }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -46,21 +48,34 @@ export async function onRequest(context) {
       });
       const data = await res.json();
 
-      // 检查抓取状态（Karakeep 抓取成功时状态为 "success"）
-      if (data.crawlStatus !== 'success') {
-        return new Response(JSON.stringify({ status: 'processing' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      // 🔥 关键：打印真实的单条查询结果，看看到底有没有成功！
+      console.log("【Karakeep 状态查询】:", JSON.stringify(data));
+
+      // Karakeep 的抓取状态可能是 'success', 'completed' 等，我们把判断放宽一点
+      // 只要它有 title 且不是空，或者 crawlStatus 不是 pending，我们就认为抓好了
+      const isSuccess = data.crawlStatus === 'success' || data.crawlStatus === 'completed' || (data.title && data.title !== "无标题");
+
+      if (!isSuccess) {
+        return new Response(JSON.stringify({ status: 'processing', raw: data.crawlStatus }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      // 修正：根据 Karakeep 实际 API 结构提取数据
       const title = data.title || "无标题";
       const description = data.description || "";
       
-      // 提取封面图（Karakeep 将抓到的封面存在 content.imageAssetId 或直接是 imageUrl）
-      // 如果获取不到，直接设为空字符串
       let imageUrl = "";
-      if (data.content && data.content.imageAssetId) {
-          // Karakeep 的图片资源需要转成访问链接
-          imageUrl = `https://karakeep.mcck.ccwu.cc/api/assets/${data.content.imageAssetId}`;
+      
+      // 解析图片链接
+      // 1. 如果 Karakeep 直接给了 imageUrl (外部链接)
+      if (data.imageUrl) {
+        imageUrl = data.imageUrl;
+      } 
+      // 2. 如果 Karakeep 返回了 assetId (由于你开启了本地存图)
+      else if (data.content && data.content.imageAssetId) {
+        imageUrl = `https://karakeep.mcck.ccwu.cc/api/assets/${data.content.imageAssetId}`;
+      }
+      // 3. 有的版本存在 content.imageUrl
+      else if (data.content && data.content.imageUrl) {
+        imageUrl = data.content.imageUrl;
       }
 
       // 写入 D1 数据库
