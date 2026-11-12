@@ -12,16 +12,13 @@
 </head>
 <body class="p-6">
     <div class="max-w-6xl mx-auto">
-        <!-- 头部输入区 -->
         <div class="flex gap-2 mb-8">
-            <input type="text" id="urlInput" placeholder="粘贴网页或视频链接，自动生成卡片..." class="flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500">
+            <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500">
             <button id="saveBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold transition">保存链接</button>
         </div>
-        <p id="statusText" class="text-blue-400 mb-4 hidden">Karakeep 正在抓取中，请稍候... (大约需要 10 秒)</p>
+        <p id="statusText" class="text-blue-400 mb-4 hidden">Karakeep 正在抓取中...</p>
 
-        <!-- 卡片列表区 -->
         <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            <!-- 卡片将由 JS 渲染 -->
         </div>
     </div>
 
@@ -31,13 +28,15 @@
         const urlInput = document.getElementById('urlInput');
         const saveBtn = document.getElementById('saveBtn');
 
-        // 加载列表
+        // 延迟函数
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
         async function loadCards() {
             try {
                 const res = await fetch('/api/list');
                 const { data } = await res.json();
                 
-                if (data.length === 0) {
+                if (!data || data.length === 0) {
                     cardsContainer.innerHTML = '<p class="text-slate-500 col-span-full text-center">还没有收藏任何链接</p>';
                     return;
                 }
@@ -55,11 +54,10 @@
                     </div>
                 `).join('');
             } catch (e) {
-                console.error(e);
+                console.error("加载列表失败", e);
             }
         }
 
-        // 保存链接并轮询
         saveBtn.onclick = async () => {
             const url = urlInput.value.trim();
             if (!url) return alert('请输入链接');
@@ -67,6 +65,7 @@
             saveBtn.disabled = true;
             saveBtn.innerText = '提交中...';
             statusText.classList.remove('hidden');
+            statusText.innerText = 'Karakeep 正在抓取中... (预计等待 15-25 秒)';
 
             try {
                 // 1. 触发抓取
@@ -76,30 +75,49 @@
                 });
                 const { bookmarkId } = await res.json();
 
-                // 2. 开始轮询 (每 3 秒查一次)
-                const timer = setInterval(async () => {
-                    const checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
-                    const checkData = await checkRes.json();
+                // 2. 第一次轮询：等待 15 秒
+                await sleep(15000);
+                let checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
+                let checkData = await checkRes.json();
 
-                    if (checkData.status === 'success') {
-                        clearInterval(timer);
-                        statusText.classList.add('hidden');
-                        urlInput.value = '';
-                        saveBtn.disabled = false;
-                        saveBtn.innerText = '保存链接';
-                        loadCards(); // 刷新列表
-                    }
-                }, 3000);
+                if (checkData.status === 'success') {
+                    finishSave();
+                    return;
+                }
+
+                // 3. 第二次轮询：再等待 10 秒
+                statusText.innerText = '还在处理中，再等 10 秒...';
+                await sleep(10000);
+                checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
+                checkData = await checkRes.json();
+
+                if (checkData.status === 'success') {
+                    finishSave();
+                } else {
+                    // 两次都没成功，强制结束状态，刷新列表看看
+                    statusText.innerText = '抓取时间较长，已尝试刷新列表';
+                    setTimeout(() => finishSave(), 2000);
+                }
 
             } catch (e) {
                 alert('保存失败');
-                statusText.classList.add('hidden');
-                saveBtn.disabled = false;
-                saveBtn.innerText = '保存链接';
+                resetButton();
             }
         };
 
-        // 页面初始化
+        function finishSave() {
+            statusText.classList.add('hidden');
+            urlInput.value = '';
+            resetButton();
+            loadCards();
+        }
+
+        function resetButton() {
+            saveBtn.disabled = false;
+            saveBtn.innerText = '保存链接';
+            statusText.classList.add('hidden');
+        }
+
         loadCards();
     </script>
 </body>
