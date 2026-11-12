@@ -13,7 +13,7 @@ export async function onRequest(context) {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // 1. 触发 Karakeep 抓取
+  // 1. 触发抓取
   if (path === '/api/save' && request.method === 'POST') {
     try {
       const { url: targetUrl } = await request.json();
@@ -26,7 +26,9 @@ export async function onRequest(context) {
         body: JSON.stringify({ url: targetUrl, type: "link" })
       });
       
+      if (!res.ok) throw new Error("Karakeep 拒绝请求，请检查 Token");
       const data = await res.json();
+      
       return new Response(JSON.stringify({ success: true, bookmarkId: data.id }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -35,7 +37,7 @@ export async function onRequest(context) {
     }
   }
 
-  // 2. 轮询状态并写入 D1
+  // 2. 轮询并写入 D1
   if (path === '/api/check-status' && request.method === 'GET') {
     try {
       const bookmarkId = url.searchParams.get('id');
@@ -44,22 +46,16 @@ export async function onRequest(context) {
       });
       const data = await res.json();
 
-      // 🔥 核心修复：状态在 data.content.crawlStatus 里！
-      if (!data.content || data.content.crawlStatus !== 'success') {
+      // 🎯 直接判断真实数据：只要 content 里有 title，就算抓取完成
+      if (!data.content || !data.content.title) {
         return new Response(JSON.stringify({ status: 'processing' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      // 🔥 核心修复：提取正确的字段
-      const title = data.content.title || "无标题";
+      const title = data.content.title;
       const description = data.content.description || "";
-      
-      // 🔥 优先使用 imageUrl（外部链接），如果没有再用本地图库
-      let imageUrl = data.content.imageUrl || "";
-      if (!imageUrl && data.content.imageAssetId) {
-        imageUrl = `https://karakeep.mcck.ccwu.cc/api/assets/${data.content.imageAssetId}`;
-      }
+      let imageUrl = data.content.imageUrl || (data.content.imageAssetId ? `https://karakeep.mcck.ccwu.cc/api/assets/${data.content.imageAssetId}` : "");
 
-      // 写入 D1 数据库 (使用 INSERT OR REPLACE 防止重复保存)
+      // 写入 D1 (防止重复)
       await env.DB.prepare(
         `INSERT OR REPLACE INTO bookmarks (url, title, description, image_url) VALUES (?, ?, ?, ?)`
       ).bind(data.content.url, title, description, imageUrl).run();
@@ -70,11 +66,11 @@ export async function onRequest(context) {
     }
   }
 
-  // 3. 获取 D1 列表
+  // 3. 读取列表
   if (path === '/api/list' && request.method === 'GET') {
     try {
       const { results } = await env.DB.prepare(`SELECT * FROM bookmarks ORDER BY created_at DESC`).all();
-      return new Response(JSON.stringify({ success: true, data: results }), {
+      return new Response(JSON.stringify({ success: true, data: results || [] }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     } catch (e) {
