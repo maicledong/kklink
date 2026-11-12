@@ -42,7 +42,7 @@
 
                 cardsContainer.innerHTML = data.map(item => `
                     <div class="bg-slate-800 rounded-xl overflow-hidden shadow-lg border border-slate-700 flex flex-col">
-                        ${item.image_url ? `<img src="${item.image_url}" class="card-img" onerror="this.style.display='none'">` : `<div class="card-img bg-slate-700 flex items-center justify-center text-4xl">🔗</div>`}
+                        ${item.image_url ? `<img src="${item.image_url}" class="card-img" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : `<div class="card-img bg-slate-700 flex items-center justify-center text-4xl">🔗</div>`}
                         <div class="p-4 flex flex-col flex-1">
                             <h3 class="font-bold text-lg mb-2 line-clamp-2">${item.title}</h3>
                             <p class="text-sm text-slate-400 mb-4 line-clamp-2">${item.description || '无描述'}</p>
