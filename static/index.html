@@ -16,7 +16,7 @@
             <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500">
             <button id="saveBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold transition">保存链接</button>
         </div>
-        <p id="statusText" class="text-blue-400 mb-4 hidden">Karakeep 正在抓取中，请稍候...</p>
+        <p id="statusText" class="text-blue-400 mb-4 hidden">Karakeep 正在抓取中...</p>
 
         <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         </div>
@@ -64,7 +64,7 @@
             saveBtn.disabled = true;
             saveBtn.innerText = '提交中...';
             statusText.classList.remove('hidden');
-            statusText.innerText = 'Karakeep 正在抓取中... (需要等待约 15 秒)';
+            statusText.innerText = 'Karakeep 正在抓取中... 请耐心等待 30 秒';
 
             try {
                 // 1. 触发抓取
@@ -74,20 +74,29 @@
                 });
                 const { bookmarkId } = await res.json();
 
-                // 2. 等待 15 秒（给 Karakeep 充足的时间去抓）
-                await sleep(15000);
+                // ==========================================
+                // 🕒 第一次等待：足足等 30 秒，让 Karakeep 彻底抓完并更新
+                // ==========================================
+                await sleep(30000);
+                
+                // 让 Worker 去拉取并写入 D1
+                let checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
+                let checkData = await checkRes.json();
 
-                // 3. 只触发一次状态检查，让 Worker 写入数据库
-                await fetch(`/api/check-status?id=${bookmarkId}`);
+                // 如果 30 秒了它居然还没抓完（极少见情况），再给它 15 秒
+                if (checkData.status !== 'success') {
+                    statusText.innerText = 'YouTube/B站 响应较慢，再等 15 秒...';
+                    await sleep(15000);
+                    await fetch(`/api/check-status?id=${bookmarkId}`);
+                }
 
-                // 4. 刷新列表
+                // 刷新列表
                 await loadCards();
 
             } catch (e) {
                 console.error(e);
                 alert('保存过程出现异常');
             } finally {
-                // 无论成功失败，重置按钮
                 statusText.classList.add('hidden');
                 urlInput.value = '';
                 saveBtn.disabled = false;
@@ -95,7 +104,6 @@
             }
         };
 
-        // 页面初始化
         loadCards();
     </script>
 </body>
