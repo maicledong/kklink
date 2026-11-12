@@ -27,10 +27,6 @@ export async function onRequest(context) {
       });
       
       const data = await res.json();
-      
-      // 打印真实的创建结果
-      console.log("【Karakeep 创建返回】:", JSON.stringify(data));
-
       return new Response(JSON.stringify({ success: true, bookmarkId: data.id }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -48,40 +44,25 @@ export async function onRequest(context) {
       });
       const data = await res.json();
 
-      // 🔥 关键：打印真实的单条查询结果，看看到底有没有成功！
-      console.log("【Karakeep 状态查询】:", JSON.stringify(data));
-
-      // Karakeep 的抓取状态可能是 'success', 'completed' 等，我们把判断放宽一点
-      // 只要它有 title 且不是空，或者 crawlStatus 不是 pending，我们就认为抓好了
-      const isSuccess = data.crawlStatus === 'success' || data.crawlStatus === 'completed' || (data.title && data.title !== "无标题");
-
-      if (!isSuccess) {
-        return new Response(JSON.stringify({ status: 'processing', raw: data.crawlStatus }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      // 🔥 核心修复：状态在 data.content.crawlStatus 里！
+      if (!data.content || data.content.crawlStatus !== 'success') {
+        return new Response(JSON.stringify({ status: 'processing' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      const title = data.title || "无标题";
-      const description = data.description || "";
+      // 🔥 核心修复：提取正确的字段
+      const title = data.content.title || "无标题";
+      const description = data.content.description || "";
       
-      let imageUrl = "";
-      
-      // 解析图片链接
-      // 1. 如果 Karakeep 直接给了 imageUrl (外部链接)
-      if (data.imageUrl) {
-        imageUrl = data.imageUrl;
-      } 
-      // 2. 如果 Karakeep 返回了 assetId (由于你开启了本地存图)
-      else if (data.content && data.content.imageAssetId) {
+      // 🔥 优先使用 imageUrl（外部链接），如果没有再用本地图库
+      let imageUrl = data.content.imageUrl || "";
+      if (!imageUrl && data.content.imageAssetId) {
         imageUrl = `https://karakeep.mcck.ccwu.cc/api/assets/${data.content.imageAssetId}`;
       }
-      // 3. 有的版本存在 content.imageUrl
-      else if (data.content && data.content.imageUrl) {
-        imageUrl = data.content.imageUrl;
-      }
 
-      // 写入 D1 数据库
+      // 写入 D1 数据库 (使用 INSERT OR REPLACE 防止重复保存)
       await env.DB.prepare(
-        `INSERT OR IGNORE INTO bookmarks (url, title, description, image_url) VALUES (?, ?, ?, ?)`
-      ).bind(data.url, title, description, imageUrl).run();
+        `INSERT OR REPLACE INTO bookmarks (url, title, description, image_url) VALUES (?, ?, ?, ?)`
+      ).bind(data.content.url, title, description, imageUrl).run();
 
       return new Response(JSON.stringify({ status: 'success' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     } catch (e) {
