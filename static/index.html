@@ -74,27 +74,66 @@
             saveBtn.disabled = true;
             saveBtn.innerText = '提交中...';
             statusText.classList.remove('hidden');
+            statusText.innerText = '正在抓取中... 请等待 40 秒';
 
             try {
-                const res = await fetch('/api/save', {
-                    method: 'POST',
-                    body: JSON.stringify({ url })
-                });
-                const { bookmarkId } = await res.json();
+                // 1. 触发抓取
+                const saveRes = await fetch('/api/save', { method: 'POST', body: JSON.stringify({ url }) });
+                const { bookmarkId } = await saveRes.json();
 
-                // 强制等待 40 秒，让 Karakeep 抓取 + Oracle 转存 TG 完成
+                // 2. 硬等 40 秒
                 await sleep(40000);
                 
+                // 3. 查状态拿数据
                 let checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
                 let checkData = await checkRes.json();
 
                 if (checkData.status !== 'success') {
-                    statusText.innerText = '还在处理中，再等 15 秒...';
+                    statusText.innerText = '抓取较慢，再等 15 秒...';
                     await sleep(15000);
-                    await fetch(`/api/check-status?id=${bookmarkId}`);
+                    checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
+                    checkData = await checkRes.json();
                 }
 
-                await loadCards();
+                if (checkData.status === 'success') {
+                    statusText.innerText = '正在将封面图转存至 Telegram...';
+                    // ⭐ 注意这里：拿到了 Worker 返回的本地图链接 karakeepLocalImage
+                    const { url: targetUrl, title, description, imageUrl, karakeepLocalImage } = checkData.data;
+                    let imgFileId = "";
+
+                    // 4. 浏览器去请求 Oracle 转存
+                    if (karakeepLocalImage) {
+                        try {
+                            const proxyRes = await fetch(`${ORACLE_DOMAIN}/proxy-image?url=${encodeURIComponent(karakeepLocalImage)}`);
+                            if (proxyRes.ok) {
+                                const proxyData = await proxyRes.json();
+                                if (proxyData.success) {
+                                    imgFileId = proxyData.file_id;
+                                }
+                            }
+                        } catch (e) {
+                            console.error("浏览器请求 Oracle 转存失败", e);
+                        }
+                    }
+
+                    // 5. 将最终结果存入 D1 (调用新的 /api/store)
+                    statusText.innerText = '正在写入数据库...';
+                    await fetch('/api/store', {
+                        method: 'POST',
+                        body: JSON.stringify({ 
+                            url: targetUrl, 
+                            title, 
+                            description, 
+                            imageUrl, 
+                            imgFileId 
+                        })
+                    });
+
+                    await loadCards();
+                } else {
+                    alert("抓取超时，请稍后刷新查看");
+                }
+
             } catch (e) {
                 console.error(e);
                 alert('保存过程出现异常');
