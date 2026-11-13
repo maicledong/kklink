@@ -37,7 +37,7 @@ export async function onRequest(context) {
     }
   }
 
-  // 2. 轮询并写入 D1（通杀版：抓取 -> 转存TG -> 阅后即焚）
+  // 2. 轮询并写入 D1（通杀版）
   if (path === '/api/check-status' && request.method === 'GET') {
     try {
       const bookmarkId = url.searchParams.get('id');
@@ -55,7 +55,7 @@ export async function onRequest(context) {
       let description = data.content.description || "";
       const originalUrl = data.content.url;
       const imageUrl = data.content.imageUrl || ""; 
-      let tgFileId = "";
+      let imgFileId = ""; // ⭐ 改为 imgFileId
 
       // 微信视频号标题兜底
       if (originalUrl.includes("weixin.qq.com") && (title === "视频号" || title === "")) {
@@ -66,14 +66,14 @@ export async function onRequest(context) {
       // 通杀转存 TG
       if (imageUrl) {
         try {
-          // 🔥 务必替换为你真实的 Oracle TG 代理域名！
+          // 替换为你真实的 Oracle 域名
           const proxyApi = `https://oracle.mcck.ccwu.cc/proxy-image?url=${encodeURIComponent(imageUrl)}`;
           const proxyRes = await fetch(proxyApi);
           
           if (proxyRes.ok) {
             const proxyData = await proxyRes.json();
             if (proxyData.success) {
-              tgFileId = proxyData.file_id;
+              imgFileId = proxyData.file_id;
             }
           }
         } catch (e) {
@@ -81,12 +81,12 @@ export async function onRequest(context) {
         }
       }
 
-      // 写入 D1
+      // 写入 D1（⭐ 字段名改为 img_file_id）
       await env.DB.prepare(
-        `INSERT OR REPLACE INTO bookmarks (url, title, description, image_url, tg_file_id) VALUES (?, ?, ?, ?, ?)`
-      ).bind(originalUrl, title, description, imageUrl, tgFileId).run();
+        `INSERT OR REPLACE INTO bookmarks (url, title, description, image_url, img_file_id) VALUES (?, ?, ?, ?, ?)`
+      ).bind(originalUrl, title, description, imageUrl, imgFileId).run();
 
-      // 🔥 阅后即焚：立刻从 Karakeep 删除
+      // 🔥 阅后即焚
       try {
         await fetch(`https://karakeep.mcck.ccwu.cc/api/v1/bookmarks/${bookmarkId}`, {
           method: 'DELETE',
