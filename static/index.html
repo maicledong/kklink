@@ -27,6 +27,9 @@
         const urlInput = document.getElementById('urlInput');
         const saveBtn = document.getElementById('saveBtn');
 
+        // 🌟 定义 Oracle 服务器的基础 URL
+        const ORACLE_DOMAIN = 'https://oracle.mcck.ccwu.cc'; //不能写在 Cloudflare 后台环境变量里
+
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
         async function loadCards() {
@@ -47,7 +50,8 @@
                                 onerror="
                                     if('${item.img_file_id}' && !this.dataset.fallback) {
                                         this.dataset.fallback = '1'; 
-                                        this.src = 'https://oracle.mcck.ccwu.cc/image/${item.img_file_id}';  
+                                        /* 使用 ORACLE_DOMAIN 变量 */
+                                        this.src = '${ORACLE_DOMAIN}/image/${item.img_file_id}';  
                                     } else { 
                                         this.style.display='none'; 
                                     }
@@ -97,13 +101,13 @@
 
                 if (checkData.status === 'success') {
                     statusText.innerText = '正在将封面图转存至 Telegram...';
-                    // ⭐ 注意这里：拿到了 Worker 返回的本地图链接 karakeepLocalImage
                     const { url: targetUrl, title, description, imageUrl, karakeepLocalImage } = checkData.data;
                     let imgFileId = "";
 
                     // 4. 浏览器去请求 Oracle 转存
                     if (karakeepLocalImage) {
                         try {
+                            /* 使用 ORACLE_DOMAIN 变量 */
                             const proxyRes = await fetch(`${ORACLE_DOMAIN}/proxy-image?url=${encodeURIComponent(karakeepLocalImage)}`);
                             if (proxyRes.ok) {
                                 const proxyData = await proxyRes.json();
@@ -116,7 +120,7 @@
                         }
                     }
 
-                    // 5. 将最终结果存入 D1 (调用新的 /api/store)
+                    // 5. 将最终结果存入 D1
                     statusText.innerText = '正在写入数据库...';
                     await fetch('/api/store', {
                         method: 'POST',
