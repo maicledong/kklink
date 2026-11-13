@@ -942,35 +942,32 @@ async def get_image_by_file_id(file_id: str):
         if not file_path:
             raise HTTPException(status_code=404, detail="TG 文件不存在")
 
-        # 2. 定位本地物理文件路径
-        local_file = (TG_ROOT / TG_BOT_TOKEN / file_path.lstrip("/")).resolve()
-        
-        # 🔥 核心修复：如果本地文件不存在，自动从 TG 云端下载！
-        if not local_file.is_file():
-            print(f"⚠️ 本地缓存丢失，正在从 TG 云端回源拉取: {file_id}")
-            # Telegram 云端下载文件的接口地址
-            download_url = f"{TG_LOCAL_API}/file/bot{TG_BOT_TOKEN}/{file_path}"
-            
-            # 确保父目录存在
-            local_file.parent.mkdir(parents=True, exist_ok=True)
-            
-            # 发起请求下载并写入本地
-            cloud_res = requests.get(download_url, stream=True)
-            if cloud_res.status_code == 200:
+        # 🔥 关键修复：判断 file_path 是不是本地绝对路径
+        if file_path.startswith('/'):
+            # 如果是绝对路径，直接读！不要发 HTTP 请求
+            local_file = Path(file_path)
+            if not local_file.is_file():
+                # 如果绝对路径下也没文件，说明真的丢了
+                raise HTTPException(status_code=404, detail="本地绝对路径文件不存在")
+        else:
+            # 如果不是绝对路径，走你原来的逻辑（拼接 TG_ROOT）
+            local_file = (TG_ROOT / TG_BOT_TOKEN / file_path.lstrip("/")).resolve()
+            if not local_file.is_file():
+                # 尝试回源（但鉴于你现在的情况，回源可能依然 404）
+                print(f"⚠️ 本地缓存丢失，尝试回源: {file_id}")
+                download_url = f"{TG_LOCAL_API}/file/bot{TG_BOT_TOKEN}/{file_path}"
+                cloud_res = requests.get(download_url, stream=True)
+                if cloud_res.status_code != 200:
+                    raise HTTPException(status_code=404, detail=f"回源失败，TG 返回 {cloud_res.status_code}")
+                local_file.parent.mkdir(parents=True, exist_ok=True)
                 with open(local_file, "wb") as f:
-                    for chunk in cloud_res.iter_content(chunk_size=8192):
+                    for chunk in cloud_res.iter_content(8192):
                         f.write(chunk)
-                print(f"✅ 回源拉取成功，已重新缓存: {file_path}")
-            else:
-                print(f"❌ 回源失败，TG 返回状态码: {cloud_res.status_code}")
-                raise HTTPException(status_code=404, detail="回源拉取失败，无法获取文件")
 
         # 3. 返回文件流
         content_type, _ = mimetypes.guess_type(str(local_file))
         if not content_type: content_type = "image/jpeg"
-
         return StreamingResponse(open(local_file, "rb"), media_type=content_type)
     except Exception as e:
         print(f"❌ /image 接口报错: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
