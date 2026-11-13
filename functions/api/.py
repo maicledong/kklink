@@ -1092,17 +1092,21 @@ import json
 @app.get("/yt-dlp-meta")
 async def yt_dlp_meta(url: str):
     try:
-        # 🌟 终极参数组合：Deno 运行环境 + GitHub 挑战脚本 + Cookie
         cmd = [
-            "yt-dlp", "--dump-json", "--no-download",
+            "/home/ubuntu/ffmpeg-worker/venv/bin/yt-dlp",
+            "--dump-json", "--no-download",
             "--js-runtimes", "deno:/home/ubuntu/.deno/bin/deno",
             "--remote-components", "ejs:github",
             "--cookies", "/home/ubuntu/ffmpeg-worker/cookies.txt",
             url
         ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        # 🔥 把超时从 60 改到 120
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        
         if result.returncode != 0:
-            raise HTTPException(status_code=500, detail=f"yt-dlp 失败: {result.stderr[:200]}")
+            # 🔥 打印真实错误，方便排查
+            print(f"❌ yt-dlp 失败，stderr: {result.stderr}")
+            raise HTTPException(status_code=500, detail=f"yt-dlp 失败: {result.stderr[-300:]}")
         
         data = json.loads(result.stdout)
         return {
@@ -1112,6 +1116,10 @@ async def yt_dlp_meta(url: str):
             "uploader": data.get("uploader"),
             "thumbnail": data.get("thumbnail")
         }
+    except subprocess.TimeoutExpired:
+        print("❌ yt-dlp 执行超时（超过120秒）")
+        raise HTTPException(status_code=500, detail="yt-dlp 执行超时")
     except Exception as e:
+        print(f"❌ yt-dlp-meta 接口异常: {repr(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
