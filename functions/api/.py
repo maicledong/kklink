@@ -1086,3 +1086,26 @@ async def get_image_by_file_id(file_id: str):
             detail=str(e)
         )
 
+import subprocess
+import json
+
+@app.get("/yt-dlp-meta")
+async def yt_dlp_meta(url: str):
+    try:
+        # 只获取元数据，不下载视频
+        cmd = ["yt-dlp", "--dump-json", "--no-download", url]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail=f"yt-dlp 失败: {result.stderr[:200]}")
+        
+        data = json.loads(result.stdout)
+        return {
+            "success": True,
+            "title": data.get("title"),
+            "description": data.get("description"),  # 这才是真实简介
+            "uploader": data.get("uploader"),
+            "thumbnail": data.get("thumbnail")
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
