@@ -45,9 +45,8 @@
                         ${item.image_url ? `
                             <img src="${item.image_url}" class="card-img" referrerpolicy="no-referrer" 
                                 onerror="
-                                    if('${item.tg_file_id}' && !this.dataset.fallback) { 
+                                    if('${item.img_file_id}' && !this.dataset.fallback) {
                                         this.dataset.fallback = '1'; 
-                                        /* ⚠️ 这里填写你真实的 Oracle 域名 */
                                         this.src = 'https://oracle.mcck.ccwu.cc/image/${item.img_file_id}';  
                                     } else { 
                                         this.style.display='none'; 
