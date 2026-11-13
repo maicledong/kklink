@@ -54,6 +54,23 @@ export async function onRequest(context) {
           localKarakeepImageUrl = externalImageUrl; // 如果没有资产，只能用外链
       }
 
+      // 🌟 新增：如果是 YouTube 链接，尝试用 Oracle 的 yt-dlp 拿真实简介
+      if (originalUrl.includes("youtube.com") || originalUrl.includes("youtu.be")) {
+          try {
+              // 调用你 Oracle 微服务上新增的接口
+              const metaRes = await fetch(`https://oracle.mcck.ccwu.cc/yt-dlp-meta?url=${encodeURIComponent(originalUrl)}`);
+              if (metaRes.ok) {
+                  const meta = await metaRes.json();
+                  if (meta.success && meta.description) {
+                      description = meta.description; // 覆盖掉那个通用的 "Enjoy the videos..."
+                  }
+              }
+          } catch (e) {
+              console.error("yt-dlp 简介获取失败，回退使用 Karakeep 的原简介", e);
+          }
+      }
+
+      // 微信视频号标题兜底
       if (originalUrl.includes("weixin.qq.com") && (title === "视频号" || title === "")) {
           title = `微信视频号收藏 - ${new Date().toLocaleDateString('zh-CN')}`;
           description = "微信视频号内容暂不支持自动提取文本，请点击查看原文。";
@@ -64,7 +81,7 @@ export async function onRequest(context) {
           data: { 
               url: originalUrl, 
               title, 
-              description, 
+              description, // 这里返回的 description 已经是覆盖后的真实简介了
               imageUrl: externalImageUrl,       // 用于前端极速展示（如果不挂的话）
               karakeepLocalImage: localKarakeepImageUrl // 用于转存 TG（绝对不失效）
           } 
