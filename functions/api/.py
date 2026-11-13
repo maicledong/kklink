@@ -873,29 +873,52 @@ async def tg_file(file_path: str, request: Request, x_oracle_secret: str = Heade
 @app.get("/proxy-image")
 async def proxy_image(url: str):
     try:
+        print(f"===== 开始处理转存: {url}")
+        
         # 伪装 UA 和 Referer 绕过防盗链
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Referer": "https://www.bilibili.com/"
         }
         img_res = requests.get(url, headers=headers, timeout=15)
+        print(f"1. 图片下载状态: {img_res.status_code}")
+        
         if img_res.status_code != 200:
-            raise HTTPException(status_code=400, detail="图片下载失败，可能是防盗链")
+            print(f"❌ 图片下载失败，状态码: {img_res.status_code}, 内容: {img_res.text[:200]}")
+            raise HTTPException(status_code=400, detail=f"图片下载失败，状态码: {img_res.status_code}")
+
+        print(f"2. 图片大小: {len(img_res.content)} bytes")
 
         # 上传到 TG Local API
         tg_url = f"{TG_LOCAL_API}/bot{TG_BOT_TOKEN}/sendPhoto"
         files = {'photo': ('cover.jpg', io.BytesIO(img_res.content), 'image/jpeg')}
         data = {'chat_id': TG_CHAT_ID}
         
-        tg_res = requests.post(tg_url, files=files, data=data, timeout=15)
-        result = tg_res.json()
-        
+        tg_res = requests.post(tg_url, files=files, data=data, timeout=30)
+        print(f"3. TG 上传响应状态: {tg_res.status_code}")
+        print(f"4. TG 响应内容: {tg_res.text[:500]}")
+
+        try:
+            result = tg_res.json()
+        except Exception as e:
+            print(f"❌ TG 返回非 JSON 格式: {e}")
+            raise HTTPException(status_code=500, detail=f"TG 接口返回异常: {tg_res.text[:100]}")
+
         if not result.get("ok"):
+            print(f"❌ TG 返回失败: {result}")
             raise HTTPException(status_code=500, detail="TG 上传失败")
 
         file_id = result['result']['photo'][-1]['file_id']
+        print(f"✅ 转存成功，file_id: {file_id}")
         return {"success": True, "file_id": file_id}
+        
     except Exception as e:
+        # 🔥 最关键的一步：打印详细的异常栈
+        import traceback
+        print("=" * 50)
+        print(f"❌ /proxy-image 接口报错: {repr(e)}")
+        traceback.print_exc()  # 打印报错在哪个文件哪一行
+        print("=" * 50)
         raise HTTPException(status_code=500, detail=str(e))
 
 
