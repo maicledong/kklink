@@ -67,7 +67,7 @@ export async function onRequest(context) {
       if (imageUrl) {
         try {
           // 🔥 务必替换为你真实的 Oracle TG 代理域名！
-          const proxyApi = `https://tg-img.mcck.ccwu.cc/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+          const proxyApi = `https://oracle.mcck.ccwu.cc/proxy-image?url=${encodeURIComponent(imageUrl)}`;
           const proxyRes = await fetch(proxyApi);
           
           if (proxyRes.ok) {
