@@ -30,6 +30,7 @@ from urllib.parse import quote
 from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
+KARAKEEP_TOKEN = os.getenv("KARAKEEP_TOKEN", "")
 required_env = ["PROCESS_SECRET", "UPDATE_STATUS_URL", "ORACLE_SECRET", "R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "MY_BUCKET", "TG_LOCAL_API", "TG_BOT_TOKEN", "TG_CHAT_ID"]
 for key in required_env:
     if not os.getenv(key): raise RuntimeError(f"缺少环境变量: {key}")
@@ -875,11 +876,13 @@ async def proxy_image(url: str):
     try:
         print(f"===== 开始处理转存: {url}")
         
-        # 伪装 UA 和 Referer 绕过防盗链
+        # 🔥 关键修复：加上 Authorization 头
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Referer": "https://www.bilibili.com/"
+            "Referer": "https://www.bilibili.com/",
+            "Authorization": f"Bearer {KARAKEEP_TOKEN}" # 🔥 新增这一行
         }
+        
         img_res = requests.get(url, headers=headers, timeout=15)
         print(f"1. 图片下载状态: {img_res.status_code}")
         
