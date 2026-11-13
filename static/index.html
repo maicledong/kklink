@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -6,19 +7,48 @@
     <title>我的资源库</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; }
-        .card-img { height: 12rem; object-fit: cover; width: 100%; }
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: sans-serif;
+        }
+
+        .card-img {
+            height: 12rem;
+            object-fit: cover;
+            width: 100%;
+        }
     </style>
 </head>
+
 <body class="p-6">
     <div class="max-w-6xl mx-auto">
-        <div class="flex gap-2 mb-8">
-            <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500">
-            <button id="saveBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold transition">保存链接</button>
-        </div>
-        <p id="statusText" class="text-blue-400 mb-4 hidden">Karakeep 正在抓取并转存 TG... 请耐心等待 40 秒</p>
 
-        <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+        <div class="flex gap-2 mb-8">
+            <input
+                type="text"
+                id="urlInput"
+                placeholder="粘贴网页或视频链接..."
+                class="flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500"
+            >
+
+            <button
+                id="saveBtn"
+                class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold transition"
+            >
+                保存链接
+            </button>
+        </div>
+
+        <p id="statusText" class="text-blue-400 mb-4 hidden">
+            Karakeep 正在抓取并转存 TG... 请耐心等待 40 秒
+        </p>
+
+        <div
+            id="cardsContainer"
+            class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+        ></div>
+
     </div>
 
     <script>
@@ -27,129 +57,301 @@
         const urlInput = document.getElementById('urlInput');
         const saveBtn = document.getElementById('saveBtn');
 
-        // 🌟 定义 Oracle 服务器的基础 URL
-        const ORACLE_DOMAIN = 'https://oracle.mcck.ccwu.cc'; //不能写在 Cloudflare 后台环境变量里
+        // Oracle 服务器基础 URL
+        const ORACLE_DOMAIN = 'https://oracle.mcck.ccwu.cc';
 
-        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        const sleep = (ms) =>
+            new Promise(resolve => setTimeout(resolve, ms));
+
+
+        // =========================================
+        // 加载收藏列表
+        // 图片优先级：TG 图片 > 外部图片 > 默认占位图
+        // =========================================
 
         async function loadCards() {
             try {
                 const res = await fetch('/api/list');
-                const { data } = await res.json();
-                
+
+                if (!res.ok) {
+                    throw new Error(`列表请求失败：${res.status}`);
+                }
+
+                const result = await res.json();
+                const data = result.data;
+
                 if (!data || data.length === 0) {
-                    cardsContainer.innerHTML = '<p class="text-slate-500 col-span-full text-center">还没有收藏任何链接</p>';
+                    cardsContainer.innerHTML = `
+                        <p class="text-slate-500 col-span-full text-center">
+                            还没有收藏任何链接
+                        </p>
+                    `;
                     return;
                 }
 
-                // 这里的 onerror 实现了：优先外链，挂了立刻去 Oracle 拿 TG 里的图
-                cardsContainer.innerHTML = data.map(item => `
-                    <div class="bg-slate-800 rounded-xl overflow-hidden shadow-lg border border-slate-700 flex flex-col">
-                        ${item.image_url ? `
-                            <img src="${item.image_url}" class="card-img" referrerpolicy="no-referrer" 
+                cardsContainer.innerHTML = data.map(item => {
+
+                    // TG 图片地址
+                    const tgImageUrl = item.img_file_id
+                        ? `${ORACLE_DOMAIN}/image/${encodeURIComponent(item.img_file_id)}`
+                        : '';
+
+                    // 外部图片地址
+                    const externalImageUrl = item.image_url || '';
+
+                    // 优先加载 TG 图片
+                    const firstImageUrl = tgImageUrl || externalImageUrl;
+
+                    // TG 图片失败后，才使用外部图片
+                    const fallbackImageUrl = tgImageUrl
+                        ? externalImageUrl
+                        : '';
+
+                    // 对图片地址进行属性转义
+                    const escapeAttr = (value) => String(value)
+                        .replace(/&/g, '&amp;')
+                        .replace(/"/g, '&quot;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;');
+
+                    const safeFirstImageUrl = escapeAttr(firstImageUrl);
+                    const safeFallbackImageUrl = escapeAttr(fallbackImageUrl);
+
+                    const imageHtml = firstImageUrl
+                        ? `
+                            <img
+                                src="${safeFirstImageUrl}"
+                                class="card-img"
+                                alt="封面图片"
+                                loading="lazy"
+                                referrerpolicy="no-referrer"
                                 onerror="
-                                    if('${item.img_file_id}' && !this.dataset.fallback) {
-                                        this.dataset.fallback = '1'; 
-                                        /* 使用 ORACLE_DOMAIN 变量 */
-                                        this.src = '${ORACLE_DOMAIN}/image/${item.img_file_id}';  
-                                    } else { 
-                                        this.style.display='none'; 
+                                    const fallback = this.dataset.fallbackUrl;
+
+                                    if (fallback && !this.dataset.fallback) {
+                                        this.dataset.fallback = '1';
+                                        this.src = fallback;
+                                    } else {
+                                        this.style.display = 'none';
+                                        this.nextElementSibling.style.display = 'flex';
                                     }
-                                ">
-                        ` : `<div class="card-img bg-slate-700 flex items-center justify-center text-4xl">🔗</div>`}
-                        <div class="p-4 flex flex-col flex-1">
-                            <h3 class="font-bold text-lg mb-2 line-clamp-2">${item.title}</h3>
-                            <p class="text-sm text-slate-400 mb-4 line-clamp-2">${item.description || '无描述'}</p>
-                            <div class="mt-auto">
-                                <a href="${item.url}" target="_blank" class="block text-center bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm transition">查看原文</a>
+                                "
+                                data-fallback-url="${safeFallbackImageUrl}"
+                            >
+
+                            <div
+                                class="card-img bg-slate-700 items-center justify-center text-4xl"
+                                style="display:none;"
+                            >
+                                🔗
+                            </div>
+                        `
+                        : `
+                            <div class="card-img bg-slate-700 flex items-center justify-center text-4xl">
+                                🔗
+                            </div>
+                        `;
+
+                    return `
+                        <div class="bg-slate-800 rounded-xl overflow-hidden shadow-lg border border-slate-700 flex flex-col">
+
+                            ${imageHtml}
+
+                            <div class="p-4 flex flex-col flex-1">
+
+                                <h3 class="font-bold text-lg mb-2 line-clamp-2">
+                                    ${item.title || '未命名'}
+                                </h3>
+
+                                <p class="text-sm text-slate-400 mb-4 line-clamp-2">
+                                    ${item.description || '无描述'}
+                                </p>
+
+                                <div class="mt-auto">
+                                    <a
+                                        href="${escapeAttr(item.url || '#')}"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="block text-center bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm transition"
+                                    >
+                                        查看原文
+                                    </a>
+                                </div>
+
                             </div>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
+
             } catch (e) {
                 console.error("加载列表失败", e);
+
+                cardsContainer.innerHTML = `
+                    <p class="text-red-400 col-span-full text-center">
+                        加载收藏列表失败，请刷新页面重试
+                    </p>
+                `;
             }
         }
 
+
+        // =========================================
+        // 保存链接
+        // =========================================
+
         saveBtn.onclick = async () => {
+
             const url = urlInput.value.trim();
-            if (!url) return alert('请输入链接');
+
+            if (!url) {
+                return alert('请输入链接');
+            }
 
             saveBtn.disabled = true;
             saveBtn.innerText = '提交中...';
+
             statusText.classList.remove('hidden');
             statusText.innerText = '正在抓取中... 请等待 40 秒';
 
             try {
-                // 1. 触发抓取
-                const saveRes = await fetch('/api/save', { method: 'POST', body: JSON.stringify({ url }) });
-                const { bookmarkId } = await saveRes.json();
 
-                // 2. 硬等 40 秒
+                // 1. 触发 Karakeep 抓取
+                const saveRes = await fetch('/api/save', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url })
+                });
+
+                if (!saveRes.ok) {
+                    throw new Error('提交抓取任务失败');
+                }
+
+                const saveData = await saveRes.json();
+                const bookmarkId = saveData.bookmarkId;
+
+                if (!bookmarkId) {
+                    throw new Error('未获取到 bookmarkId');
+                }
+
+
+                // 2. 等待 40 秒
                 await sleep(40000);
-                
-                // 3. 查状态拿数据
-                let checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
+
+
+                // 3. 查询抓取状态
+                let checkRes = await fetch(
+                    `/api/check-status?id=${encodeURIComponent(bookmarkId)}`
+                );
+
                 let checkData = await checkRes.json();
 
                 if (checkData.status !== 'success') {
+
                     statusText.innerText = '抓取较慢，再等 15 秒...';
+
                     await sleep(15000);
-                    checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
+
+                    checkRes = await fetch(
+                        `/api/check-status?id=${encodeURIComponent(bookmarkId)}`
+                    );
+
                     checkData = await checkRes.json();
                 }
 
-                if (checkData.status === 'success') {
-                    statusText.innerText = '正在将封面图转存至 Telegram...';
-                    const { url: targetUrl, title, description, imageUrl, karakeepLocalImage } = checkData.data;
-                    let imgFileId = "";
 
-                    // 4. 浏览器去请求 Oracle 转存
+                if (checkData.status === 'success') {
+
+                    statusText.innerText = '正在将封面图转存至 Telegram...';
+
+                    const {
+                        url: targetUrl,
+                        title,
+                        description,
+                        imageUrl,
+                        karakeepLocalImage
+                    } = checkData.data;
+
+                    let imgFileId = '';
+
+
+                    // 4. 请求 Oracle，将图片转存至 Telegram
                     if (karakeepLocalImage) {
+
                         try {
-                            /* 使用 ORACLE_DOMAIN 变量 */
-                            const proxyRes = await fetch(`${ORACLE_DOMAIN}/proxy-image?url=${encodeURIComponent(karakeepLocalImage)}`);
+
+                            const proxyRes = await fetch(
+                                `${ORACLE_DOMAIN}/proxy-image?url=${encodeURIComponent(karakeepLocalImage)}`
+                            );
+
                             if (proxyRes.ok) {
+
                                 const proxyData = await proxyRes.json();
-                                if (proxyData.success) {
+
+                                if (proxyData.success && proxyData.file_id) {
                                     imgFileId = proxyData.file_id;
                                 }
                             }
+
                         } catch (e) {
-                            console.error("浏览器请求 Oracle 转存失败", e);
+                            console.error('请求 Oracle 转存失败', e);
                         }
                     }
 
-                    // 5. 将最终结果存入 D1
+
+                    // 5. 将最终结果保存到 D1
                     statusText.innerText = '正在写入数据库...';
-                    await fetch('/api/store', {
+
+                    const storeRes = await fetch('/api/store', {
                         method: 'POST',
-                        body: JSON.stringify({ 
-                            url: targetUrl, 
-                            title, 
-                            description, 
-                            imageUrl, 
-                            imgFileId 
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            url: targetUrl,
+                            title,
+                            description,
+                            imageUrl,
+                            imgFileId
                         })
                     });
 
+                    if (!storeRes.ok) {
+                        throw new Error('写入数据库失败');
+                    }
+
+
+                    // 6. 刷新收藏列表
                     await loadCards();
+
                 } else {
-                    alert("抓取超时，请稍后刷新查看");
+
+                    alert('抓取超时，请稍后刷新查看');
+
                 }
 
             } catch (e) {
+
                 console.error(e);
-                alert('保存过程出现异常');
+                alert('保存过程出现异常：' + e.message);
+
             } finally {
+
                 statusText.classList.add('hidden');
+
                 urlInput.value = '';
+
                 saveBtn.disabled = false;
                 saveBtn.innerText = '保存链接';
+
             }
         };
 
+
+        // 页面初始化
         loadCards();
+
     </script>
 </body>
 </html>
