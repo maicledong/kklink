@@ -16,7 +16,7 @@
             <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500">
             <button id="saveBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold transition">保存链接</button>
         </div>
-        <p id="statusText" class="text-blue-400 mb-4 hidden">Karakeep 正在抓取并转存 TG... 请耐心等待 30 秒</p>
+        <p id="statusText" class="text-blue-400 mb-4 hidden">Karakeep 正在抓取并转存 TG... 请耐心等待 40 秒</p>
 
         <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
     </div>
@@ -82,8 +82,8 @@
                 });
                 const { bookmarkId } = await res.json();
 
-                // 强制等待 30 秒，让 Karakeep 抓取 + Oracle 转存 TG 完成
-                await sleep(30000);
+                // 强制等待 40 秒，让 Karakeep 抓取 + Oracle 转存 TG 完成
+                await sleep(40000);
                 
                 let checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
                 let checkData = await checkRes.json();
