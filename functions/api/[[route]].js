@@ -37,28 +37,64 @@ export async function onRequest(context) {
     }
   }
 
-  // 2. 轮询并写入 D1
+  // 2. 轮询并写入 D1（通杀版：抓取 -> 转存TG -> 阅后即焚）
   if (path === '/api/check-status' && request.method === 'GET') {
     try {
       const bookmarkId = url.searchParams.get('id');
+      
       const res = await fetch(`https://karakeep.mcck.ccwu.cc/api/v1/bookmarks/${bookmarkId}`, {
         headers: { 'Authorization': `Bearer ${env.KARAKEEP_TOKEN}` }
       });
       const data = await res.json();
 
-      // 🎯 直接判断真实数据：只要 content 里有 title，就算抓取完成
-      if (!data.content || !data.content.title) {
+      if (!data.content || data.content.crawlStatus !== 'success') {
         return new Response(JSON.stringify({ status: 'processing' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
-      const title = data.content.title;
-      const description = data.content.description || "";
-      let imageUrl = data.content.imageUrl || (data.content.imageAssetId ? `https://karakeep.mcck.ccwu.cc/api/assets/${data.content.imageAssetId}` : "");
+      let title = data.content.title || "";
+      let description = data.content.description || "";
+      const originalUrl = data.content.url;
+      const imageUrl = data.content.imageUrl || ""; 
+      let tgFileId = "";
 
-      // 写入 D1 (防止重复)
+      // 微信视频号标题兜底
+      if (originalUrl.includes("weixin.qq.com") && (title === "视频号" || title === "")) {
+          title = `微信视频号收藏 - ${new Date().toLocaleDateString('zh-CN')}`;
+          description = "微信视频号内容暂不支持自动提取文本，请点击查看原文。";
+      }
+
+      // 通杀转存 TG
+      if (imageUrl) {
+        try {
+          // 🔥 务必替换为你真实的 Oracle TG 代理域名！
+          const proxyApi = `https://tg-img.mcck.ccwu.cc/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+          const proxyRes = await fetch(proxyApi);
+          
+          if (proxyRes.ok) {
+            const proxyData = await proxyRes.json();
+            if (proxyData.success) {
+              tgFileId = proxyData.file_id;
+            }
+          }
+        } catch (e) {
+          console.error("转存TG失败，仅使用外链兜底", e);
+        }
+      }
+
+      // 写入 D1
       await env.DB.prepare(
-        `INSERT OR REPLACE INTO bookmarks (url, title, description, image_url) VALUES (?, ?, ?, ?)`
-      ).bind(data.content.url, title, description, imageUrl).run();
+        `INSERT OR REPLACE INTO bookmarks (url, title, description, image_url, tg_file_id) VALUES (?, ?, ?, ?, ?)`
+      ).bind(originalUrl, title, description, imageUrl, tgFileId).run();
+
+      // 🔥 阅后即焚：立刻从 Karakeep 删除
+      try {
+        await fetch(`https://karakeep.mcck.ccwu.cc/api/v1/bookmarks/${bookmarkId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${env.KARAKEEP_TOKEN}` }
+        });
+      } catch (e) {
+        console.error("删除 Karakeep 失败", e);
+      }
 
       return new Response(JSON.stringify({ status: 'success' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     } catch (e) {
