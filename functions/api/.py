@@ -926,11 +926,13 @@ async def proxy_image(url: str):
 
 
 # ==========================================
-# 🌟 新增：前端兜底拿图接口 (通过 file_id，无需鉴权)
+# 🌟 终极兜底：前端拿图接口 (云端回源版)
 # ==========================================
 @app.get("/image/{file_id}")
 async def get_image_by_file_id(file_id: str):
     try:
+        print(f"===== 开始请求图片: {file_id}")
+        
         # 1. 查 TG 获取 file_path
         get_file_url = f"{TG_LOCAL_API}/bot{TG_BOT_TOKEN}/getFile"
         file_res = requests.get(get_file_url, params={"file_id": file_id}).json()
@@ -942,32 +944,32 @@ async def get_image_by_file_id(file_id: str):
         if not file_path:
             raise HTTPException(status_code=404, detail="TG 文件不存在")
 
-        # 🔥 关键修复：判断 file_path 是不是本地绝对路径
+        # 2. 确定本地路径（兼容绝对路径和相对路径）
         if file_path.startswith('/'):
-            # 如果是绝对路径，直接读！不要发 HTTP 请求
             local_file = Path(file_path)
-            if not local_file.is_file():
-                # 如果绝对路径下也没文件，说明真的丢了
-                raise HTTPException(status_code=404, detail="本地绝对路径文件不存在")
         else:
-            # 如果不是绝对路径，走你原来的逻辑（拼接 TG_ROOT）
             local_file = (TG_ROOT / TG_BOT_TOKEN / file_path.lstrip("/")).resolve()
-            if not local_file.is_file():
-                # 尝试回源（但鉴于你现在的情况，回源可能依然 404）
-                print(f"⚠️ 本地缓存丢失，尝试回源: {file_id}")
-                download_url = f"{TG_LOCAL_API}/file/bot{TG_BOT_TOKEN}/{file_path}"
-                cloud_res = requests.get(download_url, stream=True)
-                if cloud_res.status_code != 200:
-                    raise HTTPException(status_code=404, detail=f"回源失败，TG 返回 {cloud_res.status_code}")
-                local_file.parent.mkdir(parents=True, exist_ok=True)
-                with open(local_file, "wb") as f:
-                    for chunk in cloud_res.iter_content(8192):
-                        f.write(chunk)
 
-        # 3. 返回文件流
+        # 3. 如果本地没文件，直接从 TG 云端拉取并返回
+        if not local_file.is_file():
+            print(f"⚠️ 本地缓存丢失，直接从 TG 云端拉取: {file_id}")
+            # 注意这里：使用 TG 官方的 /file/ 下载接口
+            download_url = f"{TG_LOCAL_API}/file/bot{TG_BOT_TOKEN}/{file_path}"
+            cloud_res = requests.get(download_url, stream=True)
+            
+            if cloud_res.status_code == 200:
+                print(f"✅ 云端拉取成功: {file_path}")
+                # 直接把云端的数据流转发给前端，不落盘
+                return StreamingResponse(cloud_res.iter_content(chunk_size=8192), media_type="image/jpeg")
+            else:
+                print(f"❌ 云端拉取失败，状态码: {cloud_res.status_code}")
+                raise HTTPException(status_code=404, detail="云端拉取失败，图片可能已丢失")
+
+        # 4. 如果本地有文件，直接读本地（速度最快）
         content_type, _ = mimetypes.guess_type(str(local_file))
         if not content_type: content_type = "image/jpeg"
         return StreamingResponse(open(local_file, "rb"), media_type=content_type)
+        
     except Exception as e:
         print(f"❌ /image 接口报错: {e}")
         raise HTTPException(status_code=500, detail=str(e))
