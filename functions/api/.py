@@ -26,7 +26,8 @@ from fastapi.responses import StreamingResponse, Response
 from fastapi import Request
 from pathlib import Path
 from email.utils import formatdate, parsedate_to_datetime
-from urllib.parse import quote 
+from urllib.parse import quote
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 required_env = ["PROCESS_SECRET", "UPDATE_STATUS_URL", "ORACLE_SECRET", "R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "MY_BUCKET", "TG_LOCAL_API", "TG_BOT_TOKEN", "TG_CHAT_ID"]
@@ -45,6 +46,18 @@ def mask_token(s):
 
 s3 = boto3.client("s3", endpoint_url=R2_ENDPOINT, aws_access_key_id=R2_ACCESS_KEY_ID, aws_secret_access_key=R2_SECRET_ACCESS_KEY, config=Config(connect_timeout=10, read_timeout=3600,retries={"max_attempts":3}))
 app = FastAPI()
+# 🌟 允许特定的前端域名跨域
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://bookmarks.mcck.ccwu.cc",
+        "https://kklink.pages.dev"
+    ], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 migration_lock = set()
 class TelegramUploadedException(Exception):
     """
