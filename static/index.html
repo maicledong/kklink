@@ -16,10 +16,9 @@
             <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500">
             <button id="saveBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold transition">保存链接</button>
         </div>
-        <p id="statusText" class="text-blue-400 mb-4 hidden">Karakeep 正在抓取中...</p>
+        <p id="statusText" class="text-blue-400 mb-4 hidden">Karakeep 正在抓取并转存 TG... 请耐心等待 30 秒</p>
 
-        <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        </div>
+        <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
     </div>
 
     <script>
@@ -40,9 +39,21 @@
                     return;
                 }
 
+                // 这里的 onerror 实现了：优先外链，挂了立刻去 Oracle 拿 TG 里的图
                 cardsContainer.innerHTML = data.map(item => `
                     <div class="bg-slate-800 rounded-xl overflow-hidden shadow-lg border border-slate-700 flex flex-col">
-                        ${item.image_url ? `<img src="${item.image_url}" class="card-img" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : `<div class="card-img bg-slate-700 flex items-center justify-center text-4xl">🔗</div>`}
+                        ${item.image_url ? `
+                            <img src="${item.image_url}" class="card-img" referrerpolicy="no-referrer" 
+                                onerror="
+                                    if('${item.tg_file_id}' && !this.dataset.fallback) { 
+                                        this.dataset.fallback = '1'; 
+                                        /* ⚠️ 这里填写你真实的 Oracle 域名 */
+                                        this.src = 'https://oracle.mcck.ccwu.cc/image/${item.tg_file_id}'; 
+                                    } else { 
+                                        this.style.display='none'; 
+                                    }
+                                ">
+                        ` : `<div class="card-img bg-slate-700 flex items-center justify-center text-4xl">🔗</div>`}
                         <div class="p-4 flex flex-col flex-1">
                             <h3 class="font-bold text-lg mb-2 line-clamp-2">${item.title}</h3>
                             <p class="text-sm text-slate-400 mb-4 line-clamp-2">${item.description || '无描述'}</p>
@@ -64,35 +75,27 @@
             saveBtn.disabled = true;
             saveBtn.innerText = '提交中...';
             statusText.classList.remove('hidden');
-            statusText.innerText = 'Karakeep 正在抓取中... 请耐心等待 50 秒';
 
             try {
-                // 1. 触发抓取
                 const res = await fetch('/api/save', {
                     method: 'POST',
                     body: JSON.stringify({ url })
                 });
                 const { bookmarkId } = await res.json();
 
-                // ==========================================
-                // 🕒 第一次等待：足足等 30 秒，让 Karakeep 彻底抓完并更新
-                // ==========================================
-                await sleep(50000);
+                // 强制等待 30 秒，让 Karakeep 抓取 + Oracle 转存 TG 完成
+                await sleep(30000);
                 
-                // 让 Worker 去拉取并写入 D1
                 let checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
                 let checkData = await checkRes.json();
 
-                // 如果 30 秒了它居然还没抓完（极少见情况），再给它 15 秒
                 if (checkData.status !== 'success') {
-                    statusText.innerText = 'YouTube/B站 响应较慢，再等 15 秒...';
+                    statusText.innerText = '还在处理中，再等 15 秒...';
                     await sleep(15000);
                     await fetch(`/api/check-status?id=${bookmarkId}`);
                 }
 
-                // 刷新列表
                 await loadCards();
-
             } catch (e) {
                 console.error(e);
                 alert('保存过程出现异常');
