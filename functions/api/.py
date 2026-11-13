@@ -22,7 +22,7 @@ from dotenv import load_dotenv
 from botocore.exceptions import ClientError
 from fastapi import BackgroundTasks
 from concurrent.futures import ThreadPoolExecutor
-from fastapi.responses import StreamingResponse, Response
+from fastapi.responses import StreamingResponse, FileResponse, Response
 from fastapi import Request
 from pathlib import Path
 from email.utils import formatdate, parsedate_to_datetime
@@ -925,51 +925,164 @@ async def proxy_image(url: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
 # ==========================================
-# 🌟 终极兜底：前端拿图接口 (云端回源版)
+# 🌟 终极兜底：前端拿图接口（本地优先版）
 # ==========================================
 @app.get("/image/{file_id}")
 async def get_image_by_file_id(file_id: str):
     try:
         print(f"===== 开始请求图片: {file_id}")
-        
-        # 1. 查 TG 获取 file_path
+
+        # 1. 查询 Telegram 获取 file_path
         get_file_url = f"{TG_LOCAL_API}/bot{TG_BOT_TOKEN}/getFile"
-        file_res = requests.get(get_file_url, params={"file_id": file_id}).json()
-        
+
+        file_response = requests.get(
+            get_file_url,
+            params={"file_id": file_id},
+            timeout=30
+        )
+
+        file_response.raise_for_status()
+        file_res = file_response.json()
+
         if not file_res.get("ok"):
-            raise HTTPException(status_code=404, detail="获取 TG 文件路径失败")
-            
-        file_path = file_res['result'].get('file_path', '')
+            raise HTTPException(
+                status_code=404,
+                detail="获取 TG 文件路径失败"
+            )
+
+        file_path = file_res.get("result", {}).get("file_path", "")
+
         if not file_path:
-            raise HTTPException(status_code=404, detail="TG 文件不存在")
+            raise HTTPException(
+                status_code=404,
+                detail="TG 文件不存在"
+            )
 
-        # 2. 确定本地路径（兼容绝对路径和相对路径）
-        if file_path.startswith('/'):
-            local_file = Path(file_path)
+        # 2. 将 Telegram 返回的路径映射到实际存储目录
+        #
+        # Telegram 返回：
+        # /var/lib/telegram-bot-api/{TOKEN}/photos/file_1307.jpg
+        #
+        # 实际存储：
+        # /data/telegram-bot-api/{TOKEN}/photos/file_1307.jpg
+
+        telegram_root = Path("/var/lib/telegram-bot-api")
+        returned_path = Path(file_path)
+
+        if returned_path.is_absolute():
+            try:
+                relative_path = returned_path.relative_to(telegram_root)
+
+                local_file = (
+                    TG_ROOT / relative_path
+                ).resolve()
+
+                # 防止路径越界
+                if not local_file.is_relative_to(TG_ROOT.resolve()):
+                    raise HTTPException(
+                        status_code=403,
+                        detail="非法文件路径"
+                    )
+
+            except ValueError:
+                # 如果不是 Telegram 标准存储路径，则尝试直接读取
+                local_file = returned_path
+
         else:
-            local_file = (TG_ROOT / TG_BOT_TOKEN / file_path.lstrip("/")).resolve()
+            local_file = (
+                TG_ROOT / TG_BOT_TOKEN / file_path.lstrip("/")
+            ).resolve()
 
-        # 3. 如果本地没文件，直接从 TG 云端拉取并返回
-        if not local_file.is_file():
-            print(f"⚠️ 本地缓存丢失，直接从 TG 云端拉取: {file_id}")
-            # 注意这里：使用 TG 官方的 /file/ 下载接口
-            download_url = f"{TG_LOCAL_API}/file/bot{TG_BOT_TOKEN}/{file_path}"
-            cloud_res = requests.get(download_url, stream=True)
-            
-            if cloud_res.status_code == 200:
-                print(f"✅ 云端拉取成功: {file_path}")
-                # 直接把云端的数据流转发给前端，不落盘
-                return StreamingResponse(cloud_res.iter_content(chunk_size=8192), media_type="image/jpeg")
-            else:
-                print(f"❌ 云端拉取失败，状态码: {cloud_res.status_code}")
-                raise HTTPException(status_code=404, detail="云端拉取失败，图片可能已丢失")
+            if not local_file.is_relative_to(TG_ROOT.resolve()):
+                raise HTTPException(
+                    status_code=403,
+                    detail="非法文件路径"
+                )
 
-        # 4. 如果本地有文件，直接读本地（速度最快）
-        content_type, _ = mimetypes.guess_type(str(local_file))
-        if not content_type: content_type = "image/jpeg"
-        return StreamingResponse(open(local_file, "rb"), media_type=content_type)
-        
+        print(f"Telegram 返回路径: {file_path}")
+        print(f"实际读取路径: {local_file}")
+
+        # 3. 优先读取本地文件
+        if local_file.is_file():
+
+            print(f"✅ 本地图片读取成功: {local_file}")
+
+            content_type, _ = mimetypes.guess_type(str(local_file))
+
+            if not content_type:
+                content_type = "application/octet-stream"
+
+            return FileResponse(
+                path=str(local_file),
+                media_type=content_type
+            )
+
+        # 4. 本地文件不存在时，尝试通过 Telegram Local Bot API 下载
+        print(f"⚠️ 本地文件不存在，尝试通过 TG API 下载: {file_id}")
+
+        download_url = (
+            f"{TG_LOCAL_API}/file/bot{TG_BOT_TOKEN}/{file_path}"
+        )
+
+        download_response = requests.get(
+            download_url,
+            stream=True,
+            timeout=60
+        )
+
+        if download_response.status_code == 200:
+
+            print(f"✅ TG 文件接口返回成功: {file_path}")
+
+            content_type = download_response.headers.get(
+                "Content-Type",
+                "application/octet-stream"
+            )
+
+            def generate():
+                try:
+                    for chunk in download_response.iter_content(
+                        chunk_size=8192
+                    ):
+                        if chunk:
+                            yield chunk
+                finally:
+                    download_response.close()
+
+            return StreamingResponse(
+                generate(),
+                media_type=content_type
+            )
+
+        else:
+            print(
+                f"❌ TG 文件接口下载失败，状态码: "
+                f"{download_response.status_code}"
+            )
+
+            raise HTTPException(
+                status_code=404,
+                detail="本地文件不存在，TG 文件接口下载也失败"
+            )
+
+    except HTTPException:
+        raise
+
+    except requests.RequestException as e:
+        print(f"❌ TG 请求失败: {e}")
+
+        raise HTTPException(
+            status_code=502,
+            detail=f"Telegram API 请求失败: {str(e)}"
+        )
+
     except Exception as e:
         print(f"❌ /image 接口报错: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
