@@ -1092,8 +1092,14 @@ import json
 @app.get("/yt-dlp-meta")
 async def yt_dlp_meta(url: str):
     try:
-        # 只获取元数据，不下载视频
-        cmd = ["yt-dlp", "--dump-json", "--no-download", url]
+        # 🌟 终极参数组合：Deno 运行环境 + GitHub 挑战脚本 + Cookie
+        cmd = [
+            "yt-dlp", "--dump-json", "--no-download",
+            "--js-runtimes", "deno:/home/ubuntu/.deno/bin/deno",
+            "--remote-components", "ejs:github",
+            "--cookies", "/home/ubuntu/ffmpeg-worker/cookies.txt",
+            url
+        ]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
             raise HTTPException(status_code=500, detail=f"yt-dlp 失败: {result.stderr[:200]}")
@@ -1102,7 +1108,7 @@ async def yt_dlp_meta(url: str):
         return {
             "success": True,
             "title": data.get("title"),
-            "description": data.get("description"),  # 这才是真实简介
+            "description": data.get("description"),
             "uploader": data.get("uploader"),
             "thumbnail": data.get("thumbnail")
         }
