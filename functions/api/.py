@@ -942,15 +942,35 @@ async def get_image_by_file_id(file_id: str):
         if not file_path:
             raise HTTPException(status_code=404, detail="TG 文件不存在")
 
-        # 2. 从本地 TG 目录读取文件流
+        # 2. 定位本地物理文件路径
         local_file = (TG_ROOT / TG_BOT_TOKEN / file_path.lstrip("/")).resolve()
+        
+        # 🔥 核心修复：如果本地文件不存在，自动从 TG 云端下载！
         if not local_file.is_file():
-            raise HTTPException(status_code=404, detail="本地缓存中找不到该图")
+            print(f"⚠️ 本地缓存丢失，正在从 TG 云端回源拉取: {file_id}")
+            # Telegram 云端下载文件的接口地址
+            download_url = f"{TG_LOCAL_API}/file/bot{TG_BOT_TOKEN}/{file_path}"
+            
+            # 确保父目录存在
+            local_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            # 发起请求下载并写入本地
+            cloud_res = requests.get(download_url, stream=True)
+            if cloud_res.status_code == 200:
+                with open(local_file, "wb") as f:
+                    for chunk in cloud_res.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                print(f"✅ 回源拉取成功，已重新缓存: {file_path}")
+            else:
+                print(f"❌ 回源失败，TG 返回状态码: {cloud_res.status_code}")
+                raise HTTPException(status_code=404, detail="回源拉取失败，无法获取文件")
 
+        # 3. 返回文件流
         content_type, _ = mimetypes.guess_type(str(local_file))
         if not content_type: content_type = "image/jpeg"
 
         return StreamingResponse(open(local_file, "rb"), media_type=content_type)
     except Exception as e:
+        print(f"❌ /image 接口报错: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
