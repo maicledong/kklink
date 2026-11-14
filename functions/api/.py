@@ -1123,3 +1123,42 @@ async def yt_dlp_meta(url: str):
         print(f"❌ yt-dlp-meta 接口异常: {repr(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+import re
+
+# ==========================================
+# 🌟 新增：微信视频号 OCR 提取文字接口
+# ==========================================
+@app.get("/ocr")
+async def extract_text_from_image(image_url: str):
+    try:
+        print(f"===== 开始 OCR 识别: {image_url}")
+        
+        # 1. 下载图片（带上请求头防拦截）
+        headers = {"User-Agent": "Mozilla/5.0"}
+        img_res = requests.get(image_url, headers=headers, timeout=15)
+        if img_res.status_code != 200:
+            raise HTTPException(status_code=400, detail="图片下载失败")
+
+        # 2. 保存到临时文件
+        temp_img = f"/tmp/ocr_{int(time.time())}.jpg"
+        with open(temp_img, "wb") as f:
+            f.write(img_res.content)
+
+        # 3. 调用 Tesseract 识别（--psm 6 表示假设是一整块统一的文本）
+        cmd = ["tesseract", temp_img, "stdout", "-l", "chi_sim", "--psm", "6"]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        
+        # 4. 清理临时文件
+        os.remove(temp_img)
+
+        # 5. 提取结果并清洗（去掉多余空格和空行）
+        text = result.stdout.strip()
+        text = re.sub(r'\s+', ' ', text) # 把所有换行和连续空格变成一个空格
+        
+        print(f"✅ OCR 识别成功: {text[:50]}...")
+        return {"success": True, "text": text}
+
+    except Exception as e:
+        print(f"❌ OCR 接口报错: {repr(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
