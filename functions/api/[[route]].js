@@ -45,35 +45,41 @@ export async function onRequest(context) {
       let description = data.content.description || "";
       const originalUrl = data.content.url;
       const externalImageUrl = data.content.imageUrl || ""; 
-      
-      // 🎯 核心：取 Karakeep 本地的图片（防止视频号外链失效）
+
+      // 🎯 核心：取 Karakeep 本地的图片
       let localKarakeepImageUrl = "";
       if (data.content.imageAssetId) {
           localKarakeepImageUrl = `https://karakeep.mcck.ccwu.cc/api/assets/${data.content.imageAssetId}`;
       } else {
-          localKarakeepImageUrl = externalImageUrl; // 如果没有资产，只能用外链
+          localKarakeepImageUrl = externalImageUrl;
       }
 
-      // 🌟 新增：如果是 YouTube 链接，尝试用 Oracle 的 yt-dlp 拿真实简介
-      if (originalUrl.includes("youtube.com") || originalUrl.includes("youtu.be")) {
+      // 🌟 新增：微信视频号的专属处理逻辑
+      if (originalUrl.includes("weixin.qq.com") || originalUrl.includes("channels.weixin.qq.com")) {
+          // 1. 如果 Karakeep 成功提取了正文，就拿来当描述
+          if (data.content.content && data.content.content.trim().length > 0) {
+              description = data.content.content.trim();
+          } 
+          // 2. 如果正文也没有，再用你之前的兜底
+          else if (title === "视频号" || title === "") {
+              title = `微信视频号收藏 - ${new Date().toLocaleDateString('zh-CN')}`;
+              description = "微信视频号内容暂不支持自动提取文本，请点击查看原文。";
+          }
+      }
+
+      // 🌟 注意：YouTube 的 yt-dlp 拦截逻辑要放后面，或者用 else if
+      else if (originalUrl.includes("youtube.com") || originalUrl.includes("youtu.be")) {
           try {
-              // 调用你 Oracle 微服务上新增的接口
               const metaRes = await fetch(`https://oracle.mcck.ccwu.cc/yt-dlp-meta?url=${encodeURIComponent(originalUrl)}`);
               if (metaRes.ok) {
                   const meta = await metaRes.json();
                   if (meta.success && meta.description) {
-                      description = meta.description; // 覆盖掉那个通用的 "Enjoy the videos..."
+                      description = meta.description; 
                   }
               }
           } catch (e) {
               console.error("yt-dlp 简介获取失败，回退使用 Karakeep 的原简介", e);
           }
-      }
-
-      // 微信视频号标题兜底
-      if (originalUrl.includes("weixin.qq.com") && (title === "视频号" || title === "")) {
-          title = `微信视频号收藏 - ${new Date().toLocaleDateString('zh-CN')}`;
-          description = "微信视频号内容暂不支持自动提取文本，请点击查看原文。";
       }
 
       return new Response(JSON.stringify({ 
@@ -82,8 +88,8 @@ export async function onRequest(context) {
               url: originalUrl, 
               title, 
               description, // 这里返回的 description 已经是覆盖后的真实简介了
-              imageUrl: externalImageUrl,       // 用于前端极速展示（如果不挂的话）
-              karakeepLocalImage: localKarakeepImageUrl // 用于转存 TG（绝对不失效）
+              imageUrl: externalImageUrl,       
+              karakeepLocalImage: localKarakeepImageUrl 
           } 
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     } catch (e) {
