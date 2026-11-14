@@ -1134,7 +1134,7 @@ async def extract_text_from_image(image_url: str):
         print(f"===== 开始 OCR 识别: {image_url}")
         
         # 1. 下载图片（带上请求头防拦截）
-        headers = {"User-Agent": "Mozilla/5.0"}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Referer": "https://channels.weixin.qq.com/"}
         img_res = requests.get(image_url, headers=headers, timeout=15)
         if img_res.status_code != 200:
             raise HTTPException(status_code=400, detail="图片下载失败")
