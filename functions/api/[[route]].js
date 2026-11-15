@@ -56,66 +56,26 @@ export async function onRequest(context) {
 
       // 🌟 微信视频号专属处理
       if (originalUrl.includes("weixin.qq.com") || originalUrl.includes("channels.weixin.qq.com")) {
+          // 1. 提取作者
           let authorName = data.content.author || "";
-          let extractedDescription = "";
-
-          // --- 1. 智能提取作者名字 ---
           if (authorName) {
-              // 正则优化：允许作者名中有空格，并在遇到 4 个以上连续数字或"万"时切断
               const match = authorName.match(/^(.*?)(?=\d{4,}|\d+\.\d+万|$)/);
-              if (match && match[1]) {
-                  authorName = match[1].trim();
-              } else {
-                  authorName = authorName.replace(/[\d\.]+万?[\d]*$/, '').trim();
-              }
+              if (match && match[1]) authorName = match[1].trim();
           }
-          
-          // --- 2. 组合成新的标题 ---
-          if (authorName) {
-              title = `视频号：${authorName}`;
-          } else {
-              title = `微信视频号收藏 - ${new Date().toLocaleDateString('zh-CN')}`;
-          }
+          title = authorName ? `视频号：${authorName}` : `微信视频号收藏 - ${new Date().toLocaleDateString('zh-CN')}`;
 
-          // --- 3. 尝试去网页源码里抓取真实的文案 ---
+          // 2. 请求 Oracle 的 Playwright 接口去提文字
+          description = "微信视频号内容暂不支持自动提取文本，请点击查看原文。"; // 默认兜底
           try {
-              const previewUrl = `https://karakeep.mcck.ccwu.cc/dashboard/preview/${bookmarkId}?section=cached`;
-              const htmlRes = await fetch(previewUrl, {
-                  headers: {
-                      "Authorization": `Bearer ${env.KARAKEEP_TOKEN}`,
-                      "User-Agent": "Mozilla/5.0"
-                  }
-              });
-
-              if (htmlRes.ok) {
-                  const htmlText = await htmlRes.text();
-                  
-                  // 策略一：包含 "#" 号的 <p> 标签
-                  const pMatches = htmlText.match(/<p[^>]*>([^<]*?#[^<]*?)<\/p>/g);
-                  if (pMatches && pMatches.length > 0) {
-                      let bestText = pMatches[0].replace(/<\/?p[^>]*>/g, '').trim();
-                      if (bestText.length > 5) {
-                          extractedDescription = bestText;
-                      }
-                  }
-                  
-                  // 策略二：带标点符号的长段落
-                  if (!extractedDescription) {
-                      const fallbackMatch = htmlText.match(/<p[^>]*>([^<]{15,}?[，。！？；：][^<]*?)<\/p>/);
-                      if (fallbackMatch && fallbackMatch[1]) {
-                          extractedDescription = fallbackMatch[1].trim();
-                      }
+              const extractRes = await fetch(`https://oracle.mcck.ccwu.cc/extract-wechat-text?bookmark_id=${bookmarkId}`);
+              if (extractRes.ok) {
+                  const extractData = await extractRes.json();
+                  if (extractData.success && extractData.text) {
+                      description = extractData.text;
                   }
               }
           } catch (e) {
-              console.error("抓取阅读器 HTML 失败:", e);
-          }
-
-          // --- 4. 最终决定描述内容 ---
-          if (extractedDescription) {
-              description = extractedDescription; // 抓到了就完美显示文案
-          } else {
-              description = "微信视频号内容暂不支持自动提取文本，请点击查看原文。"; // 抓不到就兜底
+              console.error("Oracle Playwright 提取失败", e);
           }
       }
       // 🌟 注意：YouTube 的 yt-dlp 拦截逻辑要放后面，或者用 else if
