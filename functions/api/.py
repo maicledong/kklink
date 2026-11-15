@@ -1131,18 +1131,33 @@ from playwright.sync_api import sync_playwright
 from concurrent.futures import ThreadPoolExecutor
 
 def run_playwright_extract(target_url):
-    """在独立线程中运行的同步 Playwright"""
+    """在独立线程中运行的同步 Playwright，包含自动登录逻辑"""
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             context = browser.new_context()
-            context.set_extra_http_headers({
-                "Authorization": f"Bearer {KARAKEEP_TOKEN}"
-            })
             page = context.new_page()
+            
+            # 1. 先访问登录页
+            print("正在尝试登录 Karakeep...")
+            page.goto("https://karakeep.mcck.ccwu.cc/signin", timeout=30000)
+            page.wait_for_timeout(2000) # 等页面加载完
+            
+            # 2. 自动填入账号密码并点击登录
+            # 🚨 请替换为你真实的账号和密码
+            page.fill('input[type="email"]', 'maiclezxd@gmail.com') 
+            page.fill('input[type="password"]', 'Zxd8966901')
+            page.click('button[type="submit"]')
+            
+            # 3. 等待登录完成（等待页面跳转，或者等个 5 秒）
+            page.wait_for_timeout(5000)
+            print("登录动作执行完毕，准备访问目标页面...")
+            
+            # 4. 登录成功后，再去访问那个带有文字的预览网页
             page.goto(target_url, timeout=30000, wait_until="networkidle")
             page.wait_for_timeout(3000)
             
+            # 5. 抓取文字
             texts = page.evaluate("""() => {
                 const ps = Array.from(document.querySelectorAll('p'));
                 return ps.map(p => p.innerText.trim());
