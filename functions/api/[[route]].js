@@ -54,16 +54,53 @@ export async function onRequest(context) {
           localKarakeepImageUrl = externalImageUrl;
       }
 
-      // 🌟 新增：微信视频号的专属处理逻辑
+      // 🌟 微信视频号专属处理
       if (originalUrl.includes("weixin.qq.com") || originalUrl.includes("channels.weixin.qq.com")) {
-          // 1. 如果 Karakeep 成功提取了正文，就拿来当描述
-          if (data.content.content && data.content.content.trim().length > 0) {
-              description = data.content.content.trim();
-          } 
-          // 2. 如果正文也没有，再用你之前的兜底
-          else if (title === "视频号" || title === "") {
+          let extracted = false;
+          try {
+              // 构造 Karakeep 的阅读器预览网页 URL
+              const previewUrl = `https://karakeep.mcck.ccwu.cc/dashboard/preview/${bookmarkId}?section=cached`;
+              
+              const htmlRes = await fetch(previewUrl, {
+                  headers: {
+                      "Authorization": `Bearer ${env.KARAKEEP_TOKEN}`,
+                      "User-Agent": "Mozilla/5.0"
+                  }
+              });
+
+              if (htmlRes.ok) {
+                  const htmlText = await htmlRes.text();
+                  
+                  // 🎯 策略一：精准匹配包含 "#" 号的 <p> 标签
+                  const pMatches = htmlText.match(/<p[^>]*>([^<]*?#[^<]*?)<\/p>/g);
+                  
+                  if (pMatches && pMatches.length > 0) {
+                      let bestText = pMatches[0].replace(/<\/?p[^>]*>/g, '').trim();
+                      if (bestText.length > 5) {
+                          description = bestText;
+                          extracted = true;
+                      }
+                  }
+                  
+                  // 🎯 策略二：如果没找到带 # 号的，就找带有“中文标点符号”的长段落
+                  if (!extracted) {
+                      // [^<]{15,}? 匹配 15 个以上的非标签字符
+                      // [，。！？；：] 确保内容像正常文本，而不是纯数字或无意义代码
+                      const fallbackMatch = htmlText.match(/<p[^>]*>([^<]{15,}?[，。！？；：][^<]*?)<\/p>/);
+                      if (fallbackMatch && fallbackMatch[1]) {
+                          description = fallbackMatch[1].trim();
+                          extracted = true;
+                      }
+                  }
+              }
+          } catch (e) {
+              console.error("抓取阅读器 HTML 失败:", e);
+          }
+
+          // 如果 HTML 里死活没找到，用终极兜底
+          if (!extracted || !description) {
               title = `微信视频号收藏 - ${new Date().toLocaleDateString('zh-CN')}`;
-              description = "微信视频号内容暂不支持自动提取文本，请点击查看原文。";
+              description = "微信视频号正文提取失败，请查看原文。";
           }
       }
 
