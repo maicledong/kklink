@@ -1096,10 +1096,15 @@ async def extract_wechat_text(bookmark_id: str):
             
         best_text = ""
         # 系统自带的废话黑名单
-        ignore_words = ["Sign in", "Karakeep", "登录", "注册"] 
+        ignore_words = ["Sign in", "Karakeep", "登录", "注册", "LISTS", "Tags", "Settings", "Home", "Archive"] 
         for t in texts:
-            # 只要长度大于 3，且不包含系统废话，就把它提出来
-            if len(t) > 3 and not any(word in t for word in ignore_words):
+            # 1. 长度必须大于 8
+            # 2. 必须包含中文字符（排除掉纯英文的菜单）
+            # 3. 绝不能包含黑名单里的词
+            has_chinese = any('\u4e00' <= char <= '\u9fa5' for char in t)
+            is_ignored = any(word.lower() in t.lower() for word in ignore_words)
+            
+            if len(t) > 8 and has_chinese and not is_ignored:
                 best_text = t
                 break
         
