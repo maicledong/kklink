@@ -1093,13 +1093,16 @@ async def extract_wechat_text(bookmark_id: str):
             texts = await asyncio.get_event_loop().run_in_executor(
                 pool, run_playwright_extract, target_url
             )
-        
+            
         best_text = ""
+        # 系统自带的废话黑名单
+        ignore_words = ["Sign in", "Karakeep", "登录", "注册"] 
         for t in texts:
-            if len(t) > 5 and ("#" in t or len(t) > 15):
+            # 只要长度大于 3，且不包含系统废话，就把它提出来
+            if len(t) > 3 and not any(word in t for word in ignore_words):
                 best_text = t
                 break
-                
+        
         print(f"✅ Playwright 提取结果: {best_text[:50] if best_text else '没找到文字'}")
         return {"success": True, "text": best_text}
         
