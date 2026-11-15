@@ -18,7 +18,7 @@ sudo systemctl daemon-reload
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-import os, io, time, shutil, subprocess, requests, boto3, mimetypes
+import os, io, time, shutil, subprocess, requests, boto3, mimetypes, asyncio
 from requests_toolbelt import MultipartEncoder
 from botocore.config import Config
 from pathlib import Path
@@ -1128,51 +1128,52 @@ async def yt_dlp_meta(url: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 from playwright.sync_api import sync_playwright
+from concurrent.futures import ThreadPoolExecutor
+
+def run_playwright_extract(target_url):
+    """在独立线程中运行的同步 Playwright"""
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context()
+            context.set_extra_http_headers({
+                "Authorization": f"Bearer {KARAKEEP_TOKEN}"
+            })
+            page = context.new_page()
+            page.goto(target_url, timeout=30000, wait_until="networkidle")
+            page.wait_for_timeout(3000)
+            
+            texts = page.evaluate("""() => {
+                const ps = Array.from(document.querySelectorAll('p'));
+                return ps.map(p => p.innerText.trim());
+            }""")
+            browser.close()
+            return texts
+    except Exception as e:
+        print(f"Playwright 内部执行报错: {repr(e)}")
+        return []
 
 @app.get("/extract-wechat-text")
 async def extract_wechat_text(bookmark_id: str):
     try:
         print(f"===== 开始用 Playwright 提取视频号文案: {bookmark_id}")
-        # 构造预览页 URL
         target_url = f"https://karakeep.mcck.ccwu.cc/dashboard/preview/{bookmark_id}?section=cached"
         
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            context = browser.new_context()
-            
-            # 🔥 核心：给浏览器塞入 Karakeep 的鉴权 Cookie 或者 Token
-            # 因为 Karakeep 的 API 认 Bearer Token，我们把 Token 加进请求头里
-            context.set_extra_http_headers({
-                "Authorization": f"Bearer {KARAKEEP_TOKEN}",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            })
-            
-            page = context.new_page()
-            
-            # 访问页面，等待网络空闲（确保 JS 渲染完毕）
-            page.goto(target_url, timeout=30000, wait_until="networkidle")
-            
-            # 稍等一下，确保 DOM 彻底挂载
-            page.wait_for_timeout(3000)
-            
-            # 直接提取所有 <p> 标签的文字
-            texts = page.evaluate("""() => {
-                const ps = Array.from(document.querySelectorAll('p'));
-                return ps.map(p => p.innerText.trim());
-            }""")
-            
-            browser.close()
-            
-            best_text = ""
-            for t in texts:
-                # 只要包含 # 号，或者长度大于 15 个字，就认为是我们要的文案
-                if len(t) > 5 and ("#" in t or len(t) > 15):
-                    best_text = t
-                    break
-                    
-            print(f"✅ Playwright 提取结果: {best_text[:50] if best_text else '没找到文字'}")
-            return {"success": True, "text": best_text}
-            
+        # 🔥 核心修复：把同步任务丢到线程池里执行，避开 asyncio 冲突
+        with ThreadPoolExecutor() as pool:
+            texts = await asyncio.get_event_loop().run_in_executor(
+                pool, run_playwright_extract, target_url
+            )
+        
+        best_text = ""
+        for t in texts:
+            if len(t) > 5 and ("#" in t or len(t) > 15):
+                best_text = t
+                break
+                
+        print(f"✅ Playwright 提取结果: {best_text[:50] if best_text else '没找到文字'}")
+        return {"success": True, "text": best_text}
+        
     except Exception as e:
         print(f"❌ Playwright 接口报错: {repr(e)}")
         raise HTTPException(status_code=500, detail=str(e))
