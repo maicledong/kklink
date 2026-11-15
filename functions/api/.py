@@ -34,6 +34,7 @@ from urllib.parse import quote
 from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
+KARAKEEP_URL = os.getenv("KARAKEEP_URL", "")
 KARAKEEP_TOKEN = os.getenv("KARAKEEP_TOKEN", "")
 KARAKEEP_EMAIL = os.getenv("KARAKEEP_EMAIL", "")
 KARAKEEP_PASSWORD = os.getenv("KARAKEEP_PASSWORD", "")
