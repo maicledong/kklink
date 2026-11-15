@@ -35,6 +35,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 KARAKEEP_TOKEN = os.getenv("KARAKEEP_TOKEN", "")
+KARAKEEP_EMAIL = os.getenv("KARAKEEP_EMAIL", "")
+KARAKEEP_PASSWORD = os.getenv("KARAKEEP_PASSWORD", "")
 required_env = ["PROCESS_SECRET", "UPDATE_STATUS_URL", "ORACLE_SECRET", "R2_ENDPOINT", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "MY_BUCKET", "TG_LOCAL_API", "TG_BOT_TOKEN", "TG_CHAT_ID"]
 for key in required_env:
     if not os.getenv(key): raise RuntimeError(f"缺少环境变量: {key}")
@@ -1145,8 +1147,8 @@ def run_playwright_extract(target_url):
             
             # 2. 自动填入账号密码并点击登录
             # 🚨 请替换为你真实的账号和密码
-            page.fill('input[type="email"]', 'maiclezxd@gmail.com') 
-            page.fill('input[type="password"]', 'Zxd8966901')
+            page.fill('input[type="email"]', KARAKEEP_EMAIL) 
+            page.fill('input[type="password"]', KARAKEEP_PASSWORD)
             page.click('button[type="submit"]')
             
             # 3. 等待登录完成（等待页面跳转，或者等个 5 秒）
