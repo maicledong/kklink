@@ -56,11 +56,30 @@ export async function onRequest(context) {
 
       // 🌟 微信视频号专属处理
       if (originalUrl.includes("weixin.qq.com") || originalUrl.includes("channels.weixin.qq.com")) {
-          let extracted = false;
+          let authorName = data.content.author || "";
+          let extractedDescription = "";
+
+          // --- 1. 智能提取作者名字 ---
+          if (authorName) {
+              // 正则优化：允许作者名中有空格，并在遇到 4 个以上连续数字或"万"时切断
+              const match = authorName.match(/^(.*?)(?=\d{4,}|\d+\.\d+万|$)/);
+              if (match && match[1]) {
+                  authorName = match[1].trim();
+              } else {
+                  authorName = authorName.replace(/[\d\.]+万?[\d]*$/, '').trim();
+              }
+          }
+          
+          // --- 2. 组合成新的标题 ---
+          if (authorName) {
+              title = `视频号：${authorName}`;
+          } else {
+              title = `微信视频号收藏 - ${new Date().toLocaleDateString('zh-CN')}`;
+          }
+
+          // --- 3. 尝试去网页源码里抓取真实的文案 ---
           try {
-              // 构造 Karakeep 的阅读器预览网页 URL
               const previewUrl = `https://karakeep.mcck.ccwu.cc/dashboard/preview/${bookmarkId}?section=cached`;
-              
               const htmlRes = await fetch(previewUrl, {
                   headers: {
                       "Authorization": `Bearer ${env.KARAKEEP_TOKEN}`,
@@ -71,30 +90,20 @@ export async function onRequest(context) {
               if (htmlRes.ok) {
                   const htmlText = await htmlRes.text();
                   
-                  // 🎯 策略一：精准匹配包含 "#" 号的 <p> 标签
-                  // 修改了正则：匹配 <p> 标签内的任意非标签字符，并且内部必须包含 #
+                  // 策略一：包含 "#" 号的 <p> 标签
                   const pMatches = htmlText.match(/<p[^>]*>([^<]*?#[^<]*?)<\/p>/g);
-                  
                   if (pMatches && pMatches.length > 0) {
-                      // 找到后，用正则把 <p> 标签剥掉
                       let bestText = pMatches[0].replace(/<\/?p[^>]*>/g, '').trim();
-                      // 清理掉多余的 HTML 实体（比如 &quot;）
-                      bestText = bestText.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
-                      
                       if (bestText.length > 5) {
-                          description = bestText;
-                          extracted = true;
+                          extractedDescription = bestText;
                       }
                   }
                   
-                  // 🎯 策略二：如果没找到带 # 号的，就找带有“中文标点符号”的长段落
-                  if (!extracted) {
-                      // [^<]{15,}? 匹配 15 个以上的非标签字符
-                      // [，。！？；：] 确保内容像正常文本，而不是纯数字或无意义代码
+                  // 策略二：带标点符号的长段落
+                  if (!extractedDescription) {
                       const fallbackMatch = htmlText.match(/<p[^>]*>([^<]{15,}?[，。！？；：][^<]*?)<\/p>/);
                       if (fallbackMatch && fallbackMatch[1]) {
-                          description = fallbackMatch[1].trim();
-                          extracted = true;
+                          extractedDescription = fallbackMatch[1].trim();
                       }
                   }
               }
@@ -102,13 +111,13 @@ export async function onRequest(context) {
               console.error("抓取阅读器 HTML 失败:", e);
           }
 
-          // 如果 HTML 里死活没找到，用终极兜底
-          if (!extracted || !description) {
-              title = `微信视频号收藏 - ${new Date().toLocaleDateString('zh-CN')}`;
-              description = "微信视频号正文提取失败，请查看原文。";
+          // --- 4. 最终决定描述内容 ---
+          if (extractedDescription) {
+              description = extractedDescription; // 抓到了就完美显示文案
+          } else {
+              description = "微信视频号内容暂不支持自动提取文本，请点击查看原文。"; // 抓不到就兜底
           }
       }
-
       // 🌟 注意：YouTube 的 yt-dlp 拦截逻辑要放后面，或者用 else if
       else if (originalUrl.includes("youtube.com") || originalUrl.includes("youtu.be")) {
           try {
