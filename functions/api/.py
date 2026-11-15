@@ -886,7 +886,7 @@ async def proxy_image(url: str):
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Referer": "https://www.bilibili.com/",
-            "Authorization": f"Bearer {KARAKEEP_TOKEN}" # 🔥 新增这一行
+            "Authorization": f"Bearer {KARAKEEP_TOKEN}"
         }
         
         img_res = requests.get(url, headers=headers, timeout=15)
@@ -922,14 +922,12 @@ async def proxy_image(url: str):
         return {"success": True, "file_id": file_id}
         
     except Exception as e:
-        # 🔥 最关键的一步：打印详细的异常栈
         import traceback
         print("=" * 50)
         print(f"❌ /proxy-image 接口报错: {repr(e)}")
-        traceback.print_exc()  # 打印报错在哪个文件哪一行
+        traceback.print_exc()
         print("=" * 50)
         raise HTTPException(status_code=500, detail=str(e))
-
 
 
 # ==========================================
@@ -940,39 +938,17 @@ async def get_image_by_file_id(file_id: str):
     try:
         print(f"===== 开始请求图片: {file_id}")
 
-        # 1. 查询 Telegram 获取 file_path
         get_file_url = f"{TG_LOCAL_API}/bot{TG_BOT_TOKEN}/getFile"
-
-        file_response = requests.get(
-            get_file_url,
-            params={"file_id": file_id},
-            timeout=30
-        )
-
+        file_response = requests.get(get_file_url, params={"file_id": file_id}, timeout=30)
         file_response.raise_for_status()
         file_res = file_response.json()
 
         if not file_res.get("ok"):
-            raise HTTPException(
-                status_code=404,
-                detail="获取 TG 文件路径失败"
-            )
+            raise HTTPException(status_code=404, detail="获取 TG 文件路径失败")
 
         file_path = file_res.get("result", {}).get("file_path", "")
-
         if not file_path:
-            raise HTTPException(
-                status_code=404,
-                detail="TG 文件不存在"
-            )
-
-        # 2. 将 Telegram 返回的路径映射到实际存储目录
-        #
-        # Telegram 返回：
-        # /var/lib/telegram-bot-api/{TOKEN}/photos/file_1307.jpg
-        #
-        # 实际存储：
-        # /data/telegram-bot-api/{TOKEN}/photos/file_1307.jpg
+            raise HTTPException(status_code=404, detail="TG 文件不存在")
 
         telegram_root = Path("/var/lib/telegram-bot-api")
         returned_path = Path(file_path)
@@ -980,117 +956,54 @@ async def get_image_by_file_id(file_id: str):
         if returned_path.is_absolute():
             try:
                 relative_path = returned_path.relative_to(telegram_root)
-
-                local_file = (
-                    TG_ROOT / relative_path
-                ).resolve()
-
-                # 防止路径越界
+                local_file = (TG_ROOT / relative_path).resolve()
                 if not local_file.is_relative_to(TG_ROOT.resolve()):
-                    raise HTTPException(
-                        status_code=403,
-                        detail="非法文件路径"
-                    )
-
+                    raise HTTPException(status_code=403, detail="非法文件路径")
             except ValueError:
-                # 如果不是 Telegram 标准存储路径，则尝试直接读取
                 local_file = returned_path
-
         else:
-            local_file = (
-                TG_ROOT / TG_BOT_TOKEN / file_path.lstrip("/")
-            ).resolve()
-
+            local_file = (TG_ROOT / TG_BOT_TOKEN / file_path.lstrip("/")).resolve()
             if not local_file.is_relative_to(TG_ROOT.resolve()):
-                raise HTTPException(
-                    status_code=403,
-                    detail="非法文件路径"
-                )
+                raise HTTPException(status_code=403, detail="非法文件路径")
 
         print(f"Telegram 返回路径: {file_path}")
         print(f"实际读取路径: {local_file}")
 
-        # 3. 优先读取本地文件
         if local_file.is_file():
-
             print(f"✅ 本地图片读取成功: {local_file}")
-
             content_type, _ = mimetypes.guess_type(str(local_file))
-
             if not content_type:
                 content_type = "application/octet-stream"
+            return FileResponse(path=str(local_file), media_type=content_type)
 
-            return FileResponse(
-                path=str(local_file),
-                media_type=content_type
-            )
-
-        # 4. 本地文件不存在时，尝试通过 Telegram Local Bot API 下载
         print(f"⚠️ 本地文件不存在，尝试通过 TG API 下载: {file_id}")
-
-        download_url = (
-            f"{TG_LOCAL_API}/file/bot{TG_BOT_TOKEN}/{file_path}"
-        )
-
-        download_response = requests.get(
-            download_url,
-            stream=True,
-            timeout=60
-        )
+        download_url = f"{TG_LOCAL_API}/file/bot{TG_BOT_TOKEN}/{file_path}"
+        download_response = requests.get(download_url, stream=True, timeout=60)
 
         if download_response.status_code == 200:
-
             print(f"✅ TG 文件接口返回成功: {file_path}")
-
-            content_type = download_response.headers.get(
-                "Content-Type",
-                "application/octet-stream"
-            )
-
+            content_type = download_response.headers.get("Content-Type", "application/octet-stream")
             def generate():
                 try:
-                    for chunk in download_response.iter_content(
-                        chunk_size=8192
-                    ):
+                    for chunk in download_response.iter_content(chunk_size=8192):
                         if chunk:
                             yield chunk
                 finally:
                     download_response.close()
-
-            return StreamingResponse(
-                generate(),
-                media_type=content_type
-            )
-
+            return StreamingResponse(generate(), media_type=content_type)
         else:
-            print(
-                f"❌ TG 文件接口下载失败，状态码: "
-                f"{download_response.status_code}"
-            )
-
-            raise HTTPException(
-                status_code=404,
-                detail="本地文件不存在，TG 文件接口下载也失败"
-            )
+            print(f"❌ TG 文件接口下载失败，状态码: {download_response.status_code}")
+            raise HTTPException(status_code=404, detail="本地文件不存在，TG 文件接口下载也失败")
 
     except HTTPException:
         raise
-
     except requests.RequestException as e:
         print(f"❌ TG 请求失败: {e}")
-
-        raise HTTPException(
-            status_code=502,
-            detail=f"Telegram API 请求失败: {str(e)}"
-        )
-
+        raise HTTPException(status_code=502, detail=f"Telegram API 请求失败: {str(e)}")
     except Exception as e:
         print(f"❌ /image 接口报错: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
 
 import subprocess
 import json
@@ -1106,11 +1019,9 @@ async def yt_dlp_meta(url: str):
             "--cookies", "/home/ubuntu/ffmpeg-worker/cookies.txt",
             url
         ]
-        # 🔥 把超时从 60 改到 120
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         
         if result.returncode != 0:
-            # 🔥 打印真实错误，方便排查
             print(f"❌ yt-dlp 失败，stderr: {result.stderr}")
             raise HTTPException(status_code=500, detail=f"yt-dlp 失败: {result.stderr[-300:]}")
         
@@ -1129,6 +1040,7 @@ async def yt_dlp_meta(url: str):
         print(f"❌ yt-dlp-meta 接口异常: {repr(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 from playwright.sync_api import sync_playwright
 from concurrent.futures import ThreadPoolExecutor
 
@@ -1140,18 +1052,17 @@ def run_playwright_extract(target_url):
             context = browser.new_context()
             page = context.new_page()
             
-            # 1. 先访问登录页
-            print("正在尝试登录 Karakeep...")
-            page.goto("https://karakeep.mcck.ccwu.cc/signin", timeout=30000)
-            page.wait_for_timeout(2000) # 等页面加载完
+            # 1. 先访问登录页（🌟 这里使用了环境变量）
+            print(f"正在尝试登录 {KARAKEEP_URL} ...")
+            page.goto(f"{KARAKEEP_URL}/signin", timeout=30000)
+            page.wait_for_timeout(2000)
             
             # 2. 自动填入账号密码并点击登录
-            # 🚨 请替换为你真实的账号和密码
             page.fill('input[type="email"]', KARAKEEP_EMAIL) 
             page.fill('input[type="password"]', KARAKEEP_PASSWORD)
             page.click('button[type="submit"]')
             
-            # 3. 等待登录完成（等待页面跳转，或者等个 5 秒）
+            # 3. 等待登录完成
             page.wait_for_timeout(5000)
             print("登录动作执行完毕，准备访问目标页面...")
             
@@ -1174,9 +1085,9 @@ def run_playwright_extract(target_url):
 async def extract_wechat_text(bookmark_id: str):
     try:
         print(f"===== 开始用 Playwright 提取视频号文案: {bookmark_id}")
-        target_url = f"https://karakeep.mcck.ccwu.cc/dashboard/preview/{bookmark_id}?section=cached"
+        # 🌟 这里使用了环境变量
+        target_url = f"{KARAKEEP_URL}/dashboard/preview/{bookmark_id}?section=cached"
         
-        # 🔥 核心修复：把同步任务丢到线程池里执行，避开 asyncio 冲突
         with ThreadPoolExecutor() as pool:
             texts = await asyncio.get_event_loop().run_in_executor(
                 pool, run_playwright_extract, target_url
