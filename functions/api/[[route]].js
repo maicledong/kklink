@@ -72,10 +72,15 @@ export async function onRequest(context) {
                   const htmlText = await htmlRes.text();
                   
                   // 🎯 策略一：精准匹配包含 "#" 号的 <p> 标签
+                  // 修改了正则：匹配 <p> 标签内的任意非标签字符，并且内部必须包含 #
                   const pMatches = htmlText.match(/<p[^>]*>([^<]*?#[^<]*?)<\/p>/g);
                   
                   if (pMatches && pMatches.length > 0) {
+                      // 找到后，用正则把 <p> 标签剥掉
                       let bestText = pMatches[0].replace(/<\/?p[^>]*>/g, '').trim();
+                      // 清理掉多余的 HTML 实体（比如 &quot;）
+                      bestText = bestText.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+                      
                       if (bestText.length > 5) {
                           description = bestText;
                           extracted = true;
