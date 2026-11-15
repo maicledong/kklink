@@ -1149,7 +1149,7 @@ async def extract_wechat_text(bookmark_id: str):
             page.goto(target_url, timeout=30000, wait_until="networkidle")
             
             # 稍等一下，确保 DOM 彻底挂载
-            page.wait_for_timeout(2000)
+            page.wait_for_timeout(3000)
             
             # 直接提取所有 <p> 标签的文字
             texts = page.evaluate("""() => {
@@ -1166,7 +1166,7 @@ async def extract_wechat_text(bookmark_id: str):
                     best_text = t
                     break
                     
-            print(f"✅ Playwright 提取成功: {best_text[:50]}")
+            print(f"✅ Playwright 提取结果: {best_text[:50] if best_text else '没找到文字'}")
             return {"success": True, "text": best_text}
             
     except Exception as e:
