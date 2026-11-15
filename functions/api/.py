@@ -1123,42 +1123,53 @@ async def yt_dlp_meta(url: str):
         print(f"❌ yt-dlp-meta 接口异常: {repr(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-import re
+from playwright.sync_api import sync_playwright
 
-# ==========================================
-# 🌟 新增：微信视频号 OCR 提取文字接口
-# ==========================================
-@app.get("/ocr")
-async def extract_text_from_image(image_url: str):
+@app.get("/extract-wechat-text")
+async def extract_wechat_text(bookmark_id: str):
     try:
-        print(f"===== 开始 OCR 识别: {image_url}")
+        print(f"===== 开始用 Playwright 提取视频号文案: {bookmark_id}")
+        # 构造预览页 URL
+        target_url = f"https://karakeep.mcck.ccwu.cc/dashboard/preview/{bookmark_id}?section=cached"
         
-        # 1. 下载图片（带上请求头防拦截）
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Referer": "https://channels.weixin.qq.com/"}
-        img_res = requests.get(image_url, headers=headers, timeout=15)
-        if img_res.status_code != 200:
-            raise HTTPException(status_code=400, detail="图片下载失败")
-
-        # 2. 保存到临时文件
-        temp_img = f"/tmp/ocr_{int(time.time())}.jpg"
-        with open(temp_img, "wb") as f:
-            f.write(img_res.content)
-
-        # 3. 调用 Tesseract 识别（--psm 6 表示假设是一整块统一的文本）
-        cmd = ["tesseract", temp_img, "stdout", "-l", "chi_sim", "--psm", "6"]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        
-        # 4. 清理临时文件
-        os.remove(temp_img)
-
-        # 5. 提取结果并清洗（去掉多余空格和空行）
-        text = result.stdout.strip()
-        text = re.sub(r'\s+', ' ', text) # 把所有换行和连续空格变成一个空格
-        
-        print(f"✅ OCR 识别成功: {text[:50]}...")
-        return {"success": True, "text": text}
-
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context()
+            
+            # 🔥 核心：给浏览器塞入 Karakeep 的鉴权 Cookie 或者 Token
+            # 因为 Karakeep 的 API 认 Bearer Token，我们把 Token 加进请求头里
+            context.set_extra_http_headers({
+                "Authorization": f"Bearer {KARAKEEP_TOKEN}",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            })
+            
+            page = context.new_page()
+            
+            # 访问页面，等待网络空闲（确保 JS 渲染完毕）
+            page.goto(target_url, timeout=30000, wait_until="networkidle")
+            
+            # 稍等一下，确保 DOM 彻底挂载
+            page.wait_for_timeout(2000)
+            
+            # 直接提取所有 <p> 标签的文字
+            texts = page.evaluate("""() => {
+                const ps = Array.from(document.querySelectorAll('p'));
+                return ps.map(p => p.innerText.trim());
+            }""")
+            
+            browser.close()
+            
+            best_text = ""
+            for t in texts:
+                # 只要包含 # 号，或者长度大于 15 个字，就认为是我们要的文案
+                if len(t) > 5 and ("#" in t or len(t) > 15):
+                    best_text = t
+                    break
+                    
+            print(f"✅ Playwright 提取成功: {best_text[:50]}")
+            return {"success": True, "text": best_text}
+            
     except Exception as e:
-        print(f"❌ OCR 接口报错: {repr(e)}")
+        print(f"❌ Playwright 接口报错: {repr(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
