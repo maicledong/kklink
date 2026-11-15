@@ -1,15 +1,19 @@
-cd ~/ffmpeg-worker
-source venv/bin/activate
+
+ls -lh ~/ffmpeg-worker/
+rm -rf ~/ffmpeg-worker/main.py
 nano ~/ffmpeg-worker/main.py
 cat ~/ffmpeg-worker/main.py
+cd ~/ffmpeg-worker
+source venv/bin/activate
 
-rm -rf ~/ffmpeg-worker/main.py
-ls -lh ~/ffmpeg-worker/
-
-sudo systemctl daemon-reload
+python -m py_compile main.py
 sudo systemctl restart oracle-video
 sudo systemctl status oracle-video --no-pager
-sudo journalctl -u oracle-video -f
+
+sudo journalctl -u oracle-video -f   #日志
+
+sudo systemctl daemon-reload
+
 
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
