@@ -22,9 +22,9 @@
         .card-img:hover {
             transform: scale(1.02);
         }
-        /* 工具栏类似参照的浅色按钮样式，但保留深色整体感 */
+        /* 工具栏按钮（支持 flex-1 拉伸） */
         .toolbar-btn {
-            @apply inline-flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors px-4 py-2 text-sm font-medium;
+            @apply inline-flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors px-4 py-2 text-sm font-medium whitespace-nowrap;
         }
         /* 搜索框统一样式 */
         .search-input {
@@ -57,7 +57,6 @@
         <!-- 顶部：标题栏 -->
         <div class="relative mb-6 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <!-- 播放器按钮（占位） -->
                 <button class="icon-btn" title="播放器（待添加）">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
@@ -67,7 +66,6 @@
                 <h1 class="text-2xl md:text-3xl font-bold tracking-tight">我的资源库</h1>
             </div>
             <div class="flex items-center gap-2">
-                <!-- 应用菜单占位 -->
                 <button class="icon-btn" title="更多应用（待添加）">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="1"></circle>
@@ -75,7 +73,6 @@
                         <circle cx="5" cy="12" r="1"></circle>
                     </svg>
                 </button>
-                <!-- 主题按钮（占位） -->
                 <button class="icon-btn" title="切换主题（待添加）">🌙</button>
             </div>
         </div>
@@ -101,13 +98,13 @@
                 <button class="px-3 py-3 text-slate-300 hover:text-white transition-colors" title="重置">⟲</button>
             </div>
 
-            <!-- 第二行：5 个操作按钮 -->
-            <div class="flex items-center gap-2 flex-wrap">
-                <button class="toolbar-btn bg-indigo-600 hover:bg-indigo-500" title="布局（待添加）">☰</button>
-                <button class="toolbar-btn bg-blue-600 hover:bg-blue-500" title="显示标签（待添加）">🏷️</button>
-                <button class="toolbar-btn bg-gray-600 hover:bg-gray-500" title="刷新（待添加）">⟳</button>
-                <button class="toolbar-btn bg-gray-700 hover:bg-gray-600" title="全选（待添加）">全选</button>
-                <button class="toolbar-btn bg-purple-600 hover:bg-purple-500" title="更多（待添加）">⋯</button>
+            <!-- 第二行：5 个操作按钮（铺展开来） -->
+            <div class="flex items-center gap-2 w-full">
+                <button class="toolbar-btn bg-indigo-600 hover:bg-indigo-500 flex-1" title="布局（待添加）">☰</button>
+                <button class="toolbar-btn bg-blue-600 hover:bg-blue-500 flex-1" title="显示标签（待添加）">🏷️</button>
+                <button class="toolbar-btn bg-gray-600 hover:bg-gray-500 flex-1" title="刷新（待添加）">⟳</button>
+                <button class="toolbar-btn bg-gray-700 hover:bg-gray-600 flex-1" title="全选（待添加）">全选</button>
+                <button class="toolbar-btn bg-purple-600 hover:bg-purple-500 flex-1" title="更多（待添加）">⋯</button>
             </div>
         </div>
 
