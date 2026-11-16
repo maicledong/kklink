@@ -12,13 +12,12 @@
             color: #f8fafc;
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }
+        /* 卡片图片保持固定高度，内部图片完整显示不留白边截断 */
         .card-img {
             height: 12rem;
-            /* 修改点：将 cover 改为 contain，完整显示图片 */
             object-fit: contain;
             width: 100%;
-            /* 增加深色背景，让图片留白部分不突兀 */
-            background-color: #0f172a; 
+            background-color: #0f172a; /* 如果图片比例不对，两边留黑填充 */
             transition: transform 0.2s ease;
         }
         .card-img:hover {
@@ -30,14 +29,25 @@
         .search-input {
             @apply flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 transition-colors;
         }
+        /* 修改点：卡片边框改为粉色细线，并保持 flex 结构用于撑满等高 */
         .card {
-            @apply bg-slate-800 rounded-xl overflow-hidden shadow-lg border border-slate-700 flex flex-col transition-all duration-200 hover:border-slate-500 hover:shadow-slate-900/50;
+            @apply bg-slate-800 rounded-xl overflow-hidden flex flex-col transition-all duration-200;
+            border: 1px solid rgba(236, 72, 153, 0.5); /* 粉色细线边框 */
+        }
+        .card:hover {
+            border-color: rgba(236, 72, 153, 1);
+            box-shadow: 0 4px 20px rgba(236, 72, 153, 0.15);
         }
         .icon-btn {
             @apply inline-flex items-center justify-center w-9 h-9 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors;
         }
         #statusText {
             @apply text-blue-400 text-sm;
+        }
+        
+        /* 让卡片在网格中占满高度 */
+        .grid-item {
+            @apply h-full flex;
         }
     </style>
 </head>
@@ -97,7 +107,7 @@
 
             <!-- 第二行：特殊排列的 5 个按钮 (左贴边 - 左拉伸 - 右拉伸 - 右贴边) -->
             <div class="flex items-center gap-2 w-full h-10">
-                <!-- 最左侧按钮（固定宽度或按需） -->
+                <!-- 最左侧按钮 -->
                 <button class="toolbar-btn bg-indigo-600 hover:bg-indigo-500 w-10 h-full shrink-0" title="布局（待添加）">☰</button>
                 
                 <!-- 左侧拉伸按钮 -->
@@ -105,19 +115,19 @@
                     <span class="mr-1">🏷️</span> 隐藏
                 </button>
                 
-                <!-- 右侧拉伸按钮（中间穿插一个图标） -->
+                <!-- 右侧拉伸按钮 -->
                 <button class="toolbar-btn bg-slate-700 hover:bg-slate-600 flex-1 h-full flex items-center justify-center gap-2" title="操作（待添加）">
                     <svg viewBox="0 0 24 24" class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
                     <span>全选</span>
                 </button>
 
-                <!-- 最右侧按钮（固定宽度） -->
+                <!-- 最右侧按钮 -->
                 <button class="toolbar-btn bg-purple-600 hover:bg-purple-500 w-10 h-full shrink-0" title="更多（待添加）">⋯</button>
             </div>
         </div>
 
-        <!-- 卡片容器 -->
-        <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 mt-4"></div>
+        <!-- 卡片容器（加入 items-stretch 确保等高） -->
+        <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 mt-4 items-stretch"></div>
 
         <!-- 分页条 -->
         <div class="flex justify-center items-center gap-2 mt-8 text-sm">
@@ -151,25 +161,29 @@
                     return;
                 }
 
+                // 使用外层 div 占满高度，内部卡片 flex-1 铺满
                 cardsContainer.innerHTML = data.map(item => `
-                    <div class="card">
-                        ${item.image_url ? `
-                            <img src="${item.image_url}" class="card-img" referrerpolicy="no-referrer" 
-                                onerror="
-                                    if('${item.img_file_id}' && !this.dataset.fallback) {
-                                        this.dataset.fallback = '1'; 
-                                        this.src = '${ORACLE_DOMAIN}/image/${item.img_file_id}';  
-                                    } else { 
-                                        this.style.display='none'; 
-                                    }
-                                ">
-                        ` : `<div class="card-img bg-slate-700 flex items-center justify-center text-4xl">🔗</div>`}
-                        <div class="p-4 flex flex-col flex-1">
-                            <h3 class="font-bold text-lg mb-2 line-clamp-2 text-white">${item.title || '无标题'}</h3>
-                            <p class="text-sm text-slate-400 mb-4 line-clamp-2">${item.description || '无描述'}</p>
-                            <div class="mt-auto flex gap-2">
-                                <a href="${item.url}" target="_blank" class="flex-1 text-center bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm transition-colors">查看原文</a>
-                                <a href="${item.url}" target="_blank" class="inline-flex items-center justify-center bg-orange-600 hover:bg-orange-500 px-3 py-2 rounded-lg text-sm transition-colors" title="下载/打开">⬇️</a>
+                    <div class="grid-item h-full">
+                        <div class="card w-full">
+                            ${item.image_url ? `
+                                <img src="${item.image_url}" class="card-img" referrerpolicy="no-referrer" 
+                                    onerror="
+                                        if('${item.img_file_id}' && !this.dataset.fallback) {
+                                            this.dataset.fallback = '1'; 
+                                            this.src = '${ORACLE_DOMAIN}/image/${item.img_file_id}';  
+                                        } else { 
+                                            this.style.display='none'; 
+                                        }
+                                    ">
+                            ` : `<div class="card-img bg-slate-700 flex items-center justify-center text-4xl">🔗</div>`}
+                            <div class="p-4 flex flex-col flex-1">
+                                <h3 class="font-bold text-lg mb-2 line-clamp-2 text-white">${item.title || '无标题'}</h3>
+                                <!-- 描述区域使用 flex-1 撑开，确保所有卡片底部按钮对齐 -->
+                                <p class="text-sm text-slate-400 mb-4 line-clamp-3 flex-1">${item.description || '无描述'}</p>
+                                <div class="mt-auto flex gap-2">
+                                    <a href="${item.url}" target="_blank" class="flex-1 text-center bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm transition-colors">查看原文</a>
+                                    <a href="${item.url}" target="_blank" class="inline-flex items-center justify-center bg-orange-600 hover:bg-orange-500 px-3 py-2 rounded-lg text-sm transition-colors" title="下载/打开">⬇️</a>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -256,7 +270,7 @@
 
         document.getElementById('searchKeyword').addEventListener('input', function(e) {
             const keyword = e.target.value.toLowerCase();
-            const cards = document.querySelectorAll('#cardsContainer .card');
+            const cards = document.querySelectorAll('#cardsContainer .grid-item');
             cards.forEach(card => {
                 const text = card.innerText.toLowerCase();
                 card.style.display = text.includes(keyword) ? '' : 'none';
