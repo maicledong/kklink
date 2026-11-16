@@ -66,7 +66,7 @@
         <!-- 链接保存区 -->
         <div class="bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 mb-6 shadow-xl">
             <div class="flex flex-col sm:flex-row gap-3 items-center">
-                <!-- 左侧目标文件夹区域 -->
+                <!-- 新增：左侧目标文件夹区域 -->
                 <div class="flex items-center bg-slate-900 border border-slate-700 rounded-lg overflow-hidden shrink-0">
                     <button class="px-3 py-3 text-slate-400 hover:text-white transition-colors" title="选择分类列表">📁</button>
                     <input type="text" id="folderInput" placeholder="输入目标分类列表" class="bg-transparent p-3 text-white placeholder-slate-400 focus:outline-none w-48">
@@ -83,7 +83,7 @@
         </div>
 
         <!-- 画廊工具栏 -->
-        <div class="mb-8 space-y-3">
+        <div class="mb-5 space-y-3">
             <!-- 第一行：搜索框 -->
             <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden w-full">
                 <input type="text" id="searchKeyword" placeholder="搜索标签、标题、文本、URL" class="flex-1 bg-transparent p-3 text-white placeholder-slate-400 focus:outline-none">
@@ -93,8 +93,9 @@
             </div>
 
             <!-- 第二行：特殊排列的 5 个按钮 (左贴边 - 左拉伸 - 右拉伸 - 右贴边) -->
+            <!-- 按照截图要求，中间两个按钮变长并铺开，且不遮挡下方内容 -->
             <div class="flex items-center gap-2 w-full h-10">
-                <!-- 最左侧按钮 -->
+                <!-- 最左侧按钮（固定宽度或按需） -->
                 <button class="toolbar-btn bg-indigo-600 hover:bg-indigo-500 w-10 h-full shrink-0" title="布局（待添加）">☰</button>
                 
                 <!-- 左侧拉伸按钮 -->
@@ -102,19 +103,20 @@
                     <span class="mr-1">🏷️</span> 隐藏
                 </button>
                 
-                <!-- 右侧拉伸按钮 -->
+                <!-- 右侧拉伸按钮（中间穿插一个图标） -->
                 <button class="toolbar-btn bg-slate-700 hover:bg-slate-600 flex-1 h-full flex items-center justify-center gap-2" title="操作（待添加）">
+                    <!-- 图标占位 -->
                     <svg viewBox="0 0 24 24" class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
                     <span>全选</span>
                 </button>
 
-                <!-- 最右侧按钮 -->
+                <!-- 最右侧按钮（固定宽度） -->
                 <button class="toolbar-btn bg-purple-600 hover:bg-purple-500 w-10 h-full shrink-0" title="更多（待添加）">⋯</button>
             </div>
         </div>
 
-        <!-- 卡片容器（增加 mt-4 拉开与工具栏的距离） -->
-        <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 mt-4"></div>
+        <!-- 卡片容器 -->
+        <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5"></div>
 
         <!-- 分页条 -->
         <div class="flex justify-center items-center gap-2 mt-8 text-sm">
