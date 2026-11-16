@@ -2,25 +2,131 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的资源库</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>我的资源库 · 深色版</title>
+    <link rel="icon" type="image/webp" href="https://imgr2.aitc.ccwu.cc/其他/ec0535ab-2390-480f-92d8-b4d353827203.webp">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0f172a; color: #f8fafc; font-family: sans-serif; }
-        .card-img { height: 12rem; object-fit: cover; width: 100%; }
+        /* 保留原深色基调，并增加与参照样式一致的圆角卡片、间距 */
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .card-img {
+            height: 12rem;
+            object-fit: cover;
+            width: 100%;
+            transition: transform 0.2s ease;
+        }
+        .card-img:hover {
+            transform: scale(1.02);
+        }
+        /* 工具栏类似参照的浅色按钮样式，但保留深色整体感 */
+        .toolbar-btn {
+            @apply inline-flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors px-4 py-2 text-sm font-medium;
+        }
+        /* 搜索框统一样式 */
+        .search-input {
+            @apply flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 transition-colors;
+        }
+        /* 卡片悬浮 */
+        .card {
+            @apply bg-slate-800 rounded-xl overflow-hidden shadow-lg border border-slate-700 flex flex-col transition-all duration-200 hover:border-slate-500 hover:shadow-slate-900/50;
+        }
+        /* 标题栏中的小图标按钮 */
+        .icon-btn {
+            @apply inline-flex items-center justify-center w-9 h-9 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors;
+        }
+        /* 隐藏滚动条修饰 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* 状态文字 */
+        #statusText {
+            @apply text-blue-400 text-sm;
+        }
     </style>
 </head>
-<body class="p-6">
+<body class="p-4 md:p-6">
     <div class="max-w-6xl mx-auto">
-        <div class="flex gap-2 mb-8">
-            <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-blue-500">
-            <button id="saveBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold transition">保存链接</button>
+        <!-- 顶部：标题栏，模仿参照中的头部布局，但适配深色 -->
+        <div class="relative mb-6 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <!-- 播放器按钮（占位，功能可后续添加） -->
+                <button class="icon-btn" title="播放器（待添加）">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polygon points="10 8 16 12 10 16 10 8"></polygon>
+                    </svg>
+                </button>
+                <h1 class="text-2xl md:text-3xl font-bold tracking-tight">我的资源库</h1>
+            </div>
+            <div class="flex items-center gap-2">
+                <!-- 应用菜单占位 -->
+                <button class="icon-btn" title="更多应用（待添加）">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="1"></circle>
+                        <circle cx="19" cy="12" r="1"></circle>
+                        <circle cx="5" cy="12" r="1"></circle>
+                    </svg>
+                </button>
+                <!-- 主题按钮（占位） -->
+                <button class="icon-btn" title="切换主题（待添加）">🌙</button>
+            </div>
         </div>
-        <p id="statusText" class="text-blue-400 mb-4 hidden">Karakeep 正在抓取并转存 TG... 请耐心等待 40 秒</p>
 
-        <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+        <!-- 链接保存区：深色卡片，与参照的输入框+按钮风格一致 -->
+        <div class="bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 mb-6 shadow-xl">
+            <div class="flex flex-col sm:flex-row gap-3">
+                <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="search-input flex-1">
+                <button id="saveBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold transition-colors whitespace-nowrap shadow-lg shadow-blue-600/20">
+                    保存链接
+                </button>
+            </div>
+            <p id="statusText" class="text-blue-400 mt-3 hidden">Karakeep 正在抓取并转存 TG... 请耐心等待 40 秒</p>
+        </div>
+
+        <!-- 画廊工具栏：模仿参照中的搜索栏与操作按钮行 -->
+        <div class="mb-5">
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- 搜索框与连体按钮（仅视觉占位，后续可接入搜索功能） -->
+                <div class="flex-1 flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden min-w-[200px]">
+                    <input type="text" id="searchKeyword" placeholder="搜索标签、标题、文本、URL" class="flex-1 bg-transparent p-3 text-white placeholder-slate-400 focus:outline-none">
+                    <button class="px-3 py-3 text-slate-300 hover:text-white transition-colors" title="搜索">🔍</button>
+                    <div class="w-px h-6 bg-slate-600"></div>
+                    <button class="px-3 py-3 text-slate-300 hover:text-white transition-colors" title="重置">⟲</button>
+                </div>
+                <!-- 操作按钮群（占位，未来可添加布局切换、全选等） -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button class="toolbar-btn bg-indigo-600 hover:bg-indigo-500" title="布局（待添加）">☰</button>
+                    <button class="toolbar-btn bg-blue-600 hover:bg-blue-500" title="显示标签（待添加）">🏷️</button>
+                    <button class="toolbar-btn bg-gray-600 hover:bg-gray-500" title="刷新（待添加）">⟳</button>
+                    <button class="toolbar-btn bg-gray-700 hover:bg-gray-600" title="全选（待添加）">全选</button>
+                    <button class="toolbar-btn bg-purple-600 hover:bg-purple-500" title="更多（待添加）">⋯</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 卡片容器：网格布局，保留原有卡片样式 -->
+        <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5"></div>
+
+        <!-- 分页条（参照样式，占位，未来接入真实分页） -->
+        <div class="flex justify-center items-center gap-2 mt-8 text-sm">
+            <button class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors" disabled>上一页</button>
+            <button class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium">1</button>
+            <button class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors">2</button>
+            <button class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors">下一页</button>
+            <span class="text-slate-500 ml-2">共 2 页</span>
+            <button class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors">跳页</button>
+        </div>
     </div>
 
+    <!-- 保留原有的 JavaScript 逻辑，仅微调域名变量 -->
     <script>
         const cardsContainer = document.getElementById('cardsContainer');
         const statusText = document.getElementById('statusText');
@@ -38,19 +144,18 @@
                 const { data } = await res.json();
                 
                 if (!data || data.length === 0) {
-                    cardsContainer.innerHTML = '<p class="text-slate-500 col-span-full text-center">还没有收藏任何链接</p>';
+                    cardsContainer.innerHTML = '<p class="text-slate-500 col-span-full text-center py-12">还没有收藏任何链接</p>';
                     return;
                 }
 
                 // 这里的 onerror 实现了：优先外链，挂了立刻去 Oracle 拿 TG 里的图
                 cardsContainer.innerHTML = data.map(item => `
-                    <div class="bg-slate-800 rounded-xl overflow-hidden shadow-lg border border-slate-700 flex flex-col">
+                    <div class="card">
                         ${item.image_url ? `
                             <img src="${item.image_url}" class="card-img" referrerpolicy="no-referrer" 
                                 onerror="
                                     if('${item.img_file_id}' && !this.dataset.fallback) {
                                         this.dataset.fallback = '1'; 
-                                        /* 使用 ORACLE_DOMAIN 变量 */
                                         this.src = '${ORACLE_DOMAIN}/image/${item.img_file_id}';  
                                     } else { 
                                         this.style.display='none'; 
@@ -58,16 +163,19 @@
                                 ">
                         ` : `<div class="card-img bg-slate-700 flex items-center justify-center text-4xl">🔗</div>`}
                         <div class="p-4 flex flex-col flex-1">
-                            <h3 class="font-bold text-lg mb-2 line-clamp-2">${item.title}</h3>
+                            <h3 class="font-bold text-lg mb-2 line-clamp-2 text-white">${item.title || '无标题'}</h3>
                             <p class="text-sm text-slate-400 mb-4 line-clamp-2">${item.description || '无描述'}</p>
-                            <div class="mt-auto">
-                                <a href="${item.url}" target="_blank" class="block text-center bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm transition">查看原文</a>
+                            <div class="mt-auto flex gap-2">
+                                <a href="${item.url}" target="_blank" class="flex-1 text-center bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm transition-colors">查看原文</a>
+                                <!-- 下载按钮：模仿参照中的橙色下载，暂时占位链接 -->
+                                <a href="${item.url}" target="_blank" class="inline-flex items-center justify-center bg-orange-600 hover:bg-orange-500 px-3 py-2 rounded-lg text-sm transition-colors" title="下载/打开">⬇️</a>
                             </div>
                         </div>
                     </div>
                 `).join('');
             } catch (e) {
                 console.error("加载列表失败", e);
+                cardsContainer.innerHTML = '<p class="text-red-400 col-span-full text-center py-8">加载失败，请刷新重试</p>';
             }
         }
 
@@ -107,7 +215,6 @@
                     // 4. 浏览器去请求 Oracle 转存
                     if (karakeepLocalImage) {
                         try {
-                            /* 使用 ORACLE_DOMAIN 变量 */
                             const proxyRes = await fetch(`${ORACLE_DOMAIN}/proxy-image?url=${encodeURIComponent(karakeepLocalImage)}`);
                             if (proxyRes.ok) {
                                 const proxyData = await proxyRes.json();
@@ -149,7 +256,18 @@
             }
         };
 
+        // 初始化加载卡片
         loadCards();
+
+        // 简单的搜索占位交互（仅演示，可后续接入真实搜索）
+        document.getElementById('searchKeyword').addEventListener('input', function(e) {
+            const keyword = e.target.value.toLowerCase();
+            const cards = document.querySelectorAll('#cardsContainer .card');
+            cards.forEach(card => {
+                const text = card.innerText.toLowerCase();
+                card.style.display = text.includes(keyword) ? '' : 'none';
+            });
+        });
     </script>
 </body>
 </html>
