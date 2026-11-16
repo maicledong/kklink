@@ -89,7 +89,7 @@
             <div class="flex justify-center w-full">
                 <div class="flex items-center gap-2">
                     <!-- 左侧蓝色列表图标按钮 -->
-                    <button class="w-10 h-10 bg-sky-100 hover:bg-sky-200 text-blue-600 rounded-lg flex items-center justify-center transition-colors shadow-sm" title="选择分类列表">
+                    <button class="w-10 h-10 bg-sky-100 hover:bg-sky-200 text-blue-600 rounded-lg flex items-center justify-center transition-colors shadow-sm" title="选择分类目录">
                         <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M896 460.8h-358.4c-15.36 0-25.6 10.24-25.6 25.6v25.6H204.8V307.2h25.6c15.36 0 25.6-10.24 25.6-25.6v-102.4c0-15.36-10.24-25.6-25.6-25.6h-102.4c-15.36 0-25.6 10.24-25.6 25.6v102.4c0 15.36 10.24 25.6 25.6 25.6H153.6v563.2h358.4v25.6c0 15.36 10.24 25.6 25.6 25.6h358.4c15.36 0 25.6-10.24 25.6-25.6v-112.64c0-15.36-10.24-25.6-25.6-25.6h-358.4c-15.36 0-25.6 10.24-25.6 25.6v35.84H204.8v-256h307.2v35.84c0 15.36 10.24 25.6 25.6 25.6h358.4c15.36 0 25.6-10.24 25.6-25.6V486.4c0-15.36-10.24-25.6-25.6-25.6z" fill="#1296db" />
                             <path d="M896 153.6H373.76c-15.36 0-25.6 10.24-25.6 25.6v102.4c0 15.36 10.24 25.6 25.6 25.6h522.24c15.36 0 25.6-10.24 25.6-25.6v-102.4c0-15.36-10.24-25.6-25.6-25.6z" fill="#1296db" />
@@ -97,10 +97,10 @@
                     </button>
                     
                     <!-- 中间输入框 -->
-                    <input type="text" id="folderInput" placeholder="输入目标文件夹路径" class="bg-slate-700/50 px-4 py-2.5 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 rounded-lg w-72 text-sm border border-transparent transition-all">
+                    <input type="text" id="folderInput" placeholder="输入分类目录" class="bg-slate-700/50 px-4 py-2.5 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 rounded-lg w-72 text-sm border border-transparent transition-all">
                     
                     <!-- 右侧黄色新建文件夹按钮 -->
-                    <button class="w-10 h-10 bg-yellow-100 hover:bg-yellow-200 rounded-lg flex items-center justify-center transition-colors shadow-sm" title="新建分类列表">
+                    <button class="w-10 h-10 bg-yellow-100 hover:bg-yellow-200 rounded-lg flex items-center justify-center transition-colors shadow-sm" title="新建分类目录">
                         <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                             <path d="M972.651171 89.720207H441.548623l-12.797459-51.190836A48.673942 48.673942 0 0 0 377.559329 0.136994H51.218125A50.465867 50.465867 0 0 0 0.027289 51.32683v921.434046a50.465867 50.465867 0 0 0 51.190836 51.190836h921.434046a55.029674 55.029674 0 0 0 51.189836-51.190836V140.911043a55.029674 55.029674 0 0 0-51.189836-51.190836z" fill="#FFAA16"></path>
                             <path d="M921.375339 959.835423H96.095228a55.11567 55.11567 0 0 1-51.190836-51.190836V216.075865a50.507865 50.507865 0 0 1 51.190836-51.190836h825.280111a55.11567 55.11567 0 0 1 51.190835 51.190836v692.440727a55.11567 55.11567 0 0 1-51.190835 51.317831z" fill="#FFFFFF"></path>
@@ -111,12 +111,27 @@
                 </div>
             </div>
 
-            <!-- 第二行：链接输入与保存按钮 -->
-            <div class="flex flex-col sm:flex-row gap-3 items-center w-full">
-                <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="search-input flex-1 w-full">
-                <button id="saveBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-lg font-bold transition-colors whitespace-nowrap shadow-lg shadow-blue-600/20 w-full sm:w-auto">
-                    保存
-                </button>
+            <!-- 第二行：链接输入与保存按钮（统一在一个背景框内） -->
+            <div class="flex justify-center w-full">
+                <div class="flex items-center bg-slate-700/50 rounded-lg w-full max-w-4xl overflow-hidden p-1">
+                    <!-- 左侧绿色链接图标 -->
+                    <div class="pl-3 pr-2 text-slate-400 flex-shrink-0">
+                        <svg t="1794851406038" class="icon w-6 h-6" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="91078">
+                            <path d="M361.608533 450.7648L268.970667 543.402667c-40.072533 40.106667-34.030933 117.76 21.026133 172.782933l6.109867 6.109867c55.022933 55.057067 132.676267 61.098667 172.782933 20.992l92.637867-92.603734a34.133333 34.133333 0 0 1 48.264533 0l48.264533 48.264534a34.133333 34.133333 0 0 1 0 48.264533l-92.637866 92.637867c-97.041067 97.041067-260.573867 84.309333-365.8752-21.026134l-6.109867-6.075733c-105.301333-105.301333-118.033067-268.834133-20.992-365.909333l92.637867-92.603734a34.133333 34.133333 0 0 1 48.264533 0l48.264533 48.264534a34.133333 34.133333 0 0 1 0 48.264533zM450.7648 361.608533L543.402667 268.970667c40.106667-40.072533 117.76-34.030933 172.782933 21.026133l6.109867 6.109867c55.057067 55.022933 61.098667 132.676267 20.992 172.782933l-92.603734 92.637867a34.133333 34.133333 0 0 0 0 48.264533l48.264534 48.264533a34.133333 34.133333 0 0 0 48.264533 0l92.637867-92.637866c97.041067-97.041067 84.309333-260.573867-21.026134-365.8752l-6.075733-6.109867c-105.301333-105.301333-268.834133-118.033067-365.909333-20.992l-92.603734 92.637867a34.133333 34.133333 0 0 0 0 48.264533l48.264534 48.264533a34.133333 34.133333 0 0 0 48.264533 0z" fill="#29BA74" p-id="91079"></path>
+                            <path d="M532.002133 382.0544l-161.245866 161.28a34.133333 34.133333 0 0 0 0 48.264533l48.264533 48.264534a34.133333 34.133333 0 0 0 48.264533 0l161.28-161.28a34.133333 34.133333 0 0 0 0-48.264534L580.266667 382.0544a34.133333 34.133333 0 0 0-48.298667 0z" fill="#7FD6AC" p-id="91080"></path>
+                        </svg>
+                    </div>
+                    
+                    <!-- 中间输入框（透明背景） -->
+                    <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="flex-1 bg-transparent px-2 py-2 text-white placeholder-slate-400 focus:outline-none w-full text-sm">
+                    
+                    <!-- 右侧绿色勾选保存按钮 -->
+                    <button id="saveBtn" class="flex items-center justify-center px-4 py-1.5 hover:bg-slate-600/50 rounded-md transition-colors flex-shrink-0" title="保存">
+                        <svg t="1794850785713" class="icon w-7 h-7" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="74950">
+                            <path d="M512 0a512 512 0 1 0 0 1024A512 512 0 0 0 512 0z m274.090667 427.52L494.336 719.36a46.421333 46.421333 0 0 1-65.877333 0l-144.213334-144.213333a46.592 46.592 0 1 1 65.962667-65.877334l111.189333 111.274667L720.213333 361.642667a46.592 46.592 0 1 1 65.877334 65.877333z" fill="#0e932e" p-id="74951"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
             
             <p id="statusText" class="text-blue-400 mt-1 hidden text-center">正在抓取并转存 TG... 请耐心等待 40 秒</p>
