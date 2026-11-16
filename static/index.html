@@ -62,6 +62,7 @@
         <!-- 顶部标题栏 -->
         <div class="relative mb-6 flex items-center justify-between">
             <div class="flex items-center gap-3">
+                <!-- 放大后的图标，使用 w-7 h-7 使其和字体更匹配 -->
                 <button class="icon-btn" title="播放器（待添加）">
                     <svg t="1794844583553" class="icon w-7 h-7 fill-current text-white" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1862">
                         <path d="M512 161.024l194.752 701.248H531.456L488.32 706.56l-248.96 155.648H64L258.816 161.024h253.12z m253.184 0L960 862.272h-175.296L589.888 161.024h175.36z m-379.84 175.36L311.36 602.944l126.208-78.912-52.096-187.776h-0.128z" p-id="1863"></path>
@@ -112,7 +113,7 @@
 
             <!-- 第二行：链接输入与保存按钮（统一在一个背景框内） -->
             <div class="flex justify-center w-full">
-                <div class="flex items-center bg-slate-700/50 rounded-lg w-full max-w-md mx-auto overflow-hidden p-1">
+                <div class="flex items-center bg-slate-700/50 rounded-lg w-full max-w-4xl overflow-hidden p-1">
                     <!-- 左侧绿色链接图标 -->
                     <div class="pl-3 pr-2 text-slate-400 flex-shrink-0">
                         <svg t="1794851406038" class="icon w-6 h-6" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="91078">
@@ -121,8 +122,8 @@
                         </svg>
                     </div>
                     
-                    <!-- 中间输入框（使用 flex-1 自动占满剩余空间） -->
-                    <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="flex-1 min-w-0 bg-transparent px-2 py-2 text-white placeholder-slate-400 focus:outline-none w-full text-sm">
+                    <!-- 中间输入框（透明背景） -->
+                    <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="flex-1 bg-transparent px-2 py-2 text-white placeholder-slate-400 focus:outline-none w-full text-sm">
                     
                     <!-- 右侧绿色勾选保存按钮 -->
                     <button id="saveBtn" class="flex items-center justify-center px-4 py-1.5 hover:bg-slate-600/50 rounded-md transition-colors flex-shrink-0" title="保存">
@@ -238,6 +239,7 @@
             if (!url) return alert('请输入链接');
 
             saveBtn.disabled = true;
+            // 这里由于保存按钮改成了 svg，不需要改变内部文字，可以改变透明度来提示禁用
             saveBtn.classList.add('opacity-50');
             statusText.classList.remove('hidden');
             statusText.innerText = '正在抓取中... 请等待 40 秒';
