@@ -52,6 +52,7 @@
                 <h1 class="text-2xl md:text-3xl font-bold tracking-tight">我的资源库</h1>
             </div>
             <div class="flex items-center gap-2">
+                <button class="icon-btn" title="切换主题（待添加）">🌙</button>
                 <button class="icon-btn" title="更多应用（待添加）">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="1"></circle>
@@ -59,7 +60,6 @@
                         <circle cx="5" cy="12" r="1"></circle>
                     </svg>
                 </button>
-                <button class="icon-btn" title="切换主题（待添加）">🌙</button>
             </div>
         </div>
 
@@ -68,18 +68,18 @@
             <div class="flex flex-col sm:flex-row gap-3 items-center">
                 <!-- 新增：左侧目标文件夹区域 -->
                 <div class="flex items-center bg-slate-900 border border-slate-700 rounded-lg overflow-hidden shrink-0">
-                    <button class="px-3 py-3 text-slate-400 hover:text-white transition-colors" title="选择文件夹">📁</button>
-                    <input type="text" id="folderInput" placeholder="输入目标文件夹路径" class="bg-transparent p-3 text-white placeholder-slate-400 focus:outline-none w-48">
-                    <button class="px-3 py-3 text-slate-400 hover:text-white transition-colors" title="新建文件夹">➕</button>
+                    <button class="px-3 py-3 text-slate-400 hover:text-white transition-colors" title="选择分类列表">📁</button>
+                    <input type="text" id="folderInput" placeholder="输入目标分类列表" class="bg-transparent p-3 text-white placeholder-slate-400 focus:outline-none w-48">
+                    <button class="px-3 py-3 text-slate-400 hover:text-white transition-colors" title="新建分类列表">➕</button>
                 </div>
 
                 <!-- 链接输入框与保存按钮 -->
                 <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="search-input flex-1">
                 <button id="saveBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold transition-colors whitespace-nowrap shadow-lg shadow-blue-600/20">
-                    保存链接
+                    保存
                 </button>
             </div>
-            <p id="statusText" class="text-blue-400 mt-3 hidden">Karakeep 正在抓取并转存 TG... 请耐心等待 40 秒</p>
+            <p id="statusText" class="text-blue-400 mt-3 hidden">正在抓取并转存 TG... 请耐心等待 40 秒</p>
         </div>
 
         <!-- 画廊工具栏 -->
