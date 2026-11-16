@@ -7,7 +7,6 @@
     <link rel="icon" type="image/webp" href="https://imgr2.aitc.ccwu.cc/其他/ec0535ab-2390-480f-92d8-b4d353827203.webp">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 保留原深色基调，并增加与参照样式一致的圆角卡片、间距 */
         body {
             background-color: #0f172a;
             color: #f8fafc;
@@ -19,36 +18,48 @@
             width: 100%;
             transition: transform 0.2s ease;
         }
-        .card-img:hover {
-            transform: scale(1.02);
-        }
-        /* 工具栏类似参照的浅色按钮样式，但保留深色整体感 */
-        .toolbar-btn {
-            @apply inline-flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors px-4 py-2 text-sm font-medium;
-        }
-        /* 搜索框统一样式 */
-        .search-input {
-            @apply flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 transition-colors;
-        }
-        /* 卡片悬浮 */
         .card {
             @apply bg-slate-800 rounded-xl overflow-hidden shadow-lg border border-slate-700 flex flex-col transition-all duration-200 hover:border-slate-500 hover:shadow-slate-900/50;
         }
-        /* 标题栏中的小图标按钮 */
-        .icon-btn {
-            @apply inline-flex items-center justify-center w-9 h-9 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors;
+        
+        /* 参照样式：工具栏容器 */
+        #galleryToolbar {
+            @apply flex flex-col gap-3 mb-6;
         }
-        /* 隐藏滚动条修饰 */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
+        
+        /* 参照样式：搜索栏 */
+        .search-bar {
+            @apply flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden w-full;
         }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+        .search-input {
+            @apply flex-1 bg-transparent p-3 text-white placeholder-slate-400 focus:outline-none;
         }
-        /* 状态文字 */
-        #statusText {
-            @apply text-blue-400 text-sm;
+        .search-actions {
+            @apply flex items-center bg-slate-700 rounded-r-lg overflow-hidden shrink-0;
+        }
+        .search-btn {
+            @apply px-4 py-3 text-slate-200 hover:text-white hover:bg-slate-600 transition-colors focus:outline-none;
+        }
+        
+        /* 参照样式：操作按钮行 (平均铺开) */
+        .action-bar {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+        .action-btn {
+            flex: 1; /* 核心：让这5个按钮平均分配宽度 */
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 40px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: opacity 0.2s, background-color 0.2s;
+        }
+        .action-btn:hover {
+            opacity: 0.9;
         }
     </style>
 </head>
@@ -57,8 +68,7 @@
         <!-- 顶部：标题栏 -->
         <div class="relative mb-6 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <!-- 播放器按钮（占位） -->
-                <button class="icon-btn" title="播放器（待添加）">
+                <button class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors" title="播放器（待添加）">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
                         <polygon points="10 8 16 12 10 16 10 8"></polygon>
@@ -67,47 +77,56 @@
                 <h1 class="text-2xl md:text-3xl font-bold tracking-tight">我的资源库</h1>
             </div>
             <div class="flex items-center gap-2">
-                <!-- 应用菜单占位 -->
-                <button class="icon-btn" title="更多应用（待添加）">
+                <button class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors" title="更多应用（待添加）">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="1"></circle>
                         <circle cx="19" cy="12" r="1"></circle>
                         <circle cx="5" cy="12" r="1"></circle>
                     </svg>
                 </button>
-                <!-- 主题按钮（占位） -->
-                <button class="icon-btn" title="切换主题（待添加）">🌙</button>
+                <button class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors" title="切换主题（待添加）">🌙</button>
             </div>
         </div>
 
         <!-- 链接保存区 -->
         <div class="bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 mb-6 shadow-xl">
             <div class="flex flex-col sm:flex-row gap-3">
-                <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="search-input flex-1">
+                <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 transition-colors">
                 <button id="saveBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold transition-colors whitespace-nowrap shadow-lg shadow-blue-600/20">
                     保存链接
                 </button>
             </div>
-            <p id="statusText" class="text-blue-400 mt-3 hidden">Karakeep 正在抓取并转存 TG... 请耐心等待 40 秒</p>
+            <p id="statusText" class="text-blue-400 text-sm mt-3 hidden">Karakeep 正在抓取并转存 TG... 请耐心等待 40 秒</p>
         </div>
 
-        <!-- 画廊工具栏：搜索框与操作按钮分离 -->
-        <div class="mb-5 space-y-3">
-            <!-- 第一行：搜索框 -->
-            <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden w-full">
-                <input type="text" id="searchKeyword" placeholder="搜索标签、标题、文本、URL" class="flex-1 bg-transparent p-3 text-white placeholder-slate-400 focus:outline-none">
-                <button class="px-3 py-3 text-slate-300 hover:text-white transition-colors" title="搜索">🔍</button>
-                <div class="w-px h-6 bg-slate-600"></div>
-                <button class="px-3 py-3 text-slate-300 hover:text-white transition-colors" title="重置">⟲</button>
+        <!-- 🌟 核心修改区：参照样式的工具栏 -->
+        <div id="galleryToolbar">
+            <!-- 1. 搜索栏 -->
+            <div class="search-bar">
+                <input type="text" id="searchKeyword" placeholder="搜索标签、标题、文本、URL" class="search-input" />
+                <div class="search-actions">
+                    <button id="searchBtn" class="search-btn" title="搜索">🔍</button>
+                    <button id="resetSearchBtn" class="search-btn" title="重置">
+                        <svg viewBox="0 0 1024 1024" width="20" height="20" fill="currentColor">
+                            <path d="M849 845.7H434.4c4.2-2.6 8.2-5.6 11.7-9.2l96.1-96.1c7 2.5 14.3 4.1 22 4.1 17.1 0 33.1-6.6 45.2-18.7l247.4-247.4c12.1-12.1 18.7-28.1 18.7-45.3 0-17.1-6.7-33.1-18.7-45.2L616.3 147.2c-24.9-24.9-65.5-24.9-90.5 0L278.4 394.6c-18.2 18.1-22.9 44.6-14.6 67.2L167.6 558c-24.9 24.9-25.8 64.7-1.9 88.6l191.8 191.8c2.7 2.7 5.7 5.2 8.9 7.3H174.2c-13.8 0-25 11.2-25 25s11.2 25 25 25H849c13.8 0 25-11.2 25-25-0.1-13.9-11.2-25-25-25zM313.7 429.9l247.4-247.4c2.7-2.8 6.4-4.1 10-4.1s7.2 1.4 9.9 4.1l240.6 240.6c2.7 2.7 4.1 6.2 4.1 9.9s-1.5 7.3-4.1 9.9L574.2 690.4c-5.3 5.3-14.6 5.3-19.9 0L313.7 449.8c-2.7-2.7-4.1-6.2-4.1-9.9 0-3.8 1.4-7.3 4.1-10z" fill="#44454A"></path>
+                            <path d="M201 611.2c-4.4-4.4-3.5-12.6 1.9-18l91.8-91.9 208 208-91.8 91.8c-2.9 2.9-6.5 4.6-10.3 4.7-2.2 0.3-5.3-0.3-7.7-2.8L201 611.2z" fill="#F17B7B"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
 
-            <!-- 第二行：5 个操作按钮 -->
-            <div class="flex items-center gap-2 flex-wrap">
-                <button class="toolbar-btn bg-indigo-600 hover:bg-indigo-500" title="布局（待添加）">☰</button>
-                <button class="toolbar-btn bg-blue-600 hover:bg-blue-500" title="显示标签（待添加）">🏷️</button>
-                <button class="toolbar-btn bg-gray-600 hover:bg-gray-500" title="刷新（待添加）">⟳</button>
-                <button class="toolbar-btn bg-gray-700 hover:bg-gray-600" title="全选（待添加）">全选</button>
-                <button class="toolbar-btn bg-purple-600 hover:bg-purple-500" title="更多（待添加）">⋯</button>
+            <!-- 2. 操作按钮行（5个按钮平均铺开） -->
+            <div class="action-bar" id="normalActions">
+                <button id="menuToggleBtn" class="action-btn" style="background: #4f46e5; color: white">☰</button>
+                <button id="toggleTagsBtn" class="action-btn" style="background: #3b82f6; color: white">🏷️ 显示</button>
+                <button id="refreshCurrentPageBtn" class="action-btn" style="background: #d4237a; color: white" title="刷新当前页">
+                    <!-- 保持原有刷新图标，由于按钮变宽了，图标居中即可 -->
+                    <svg viewBox="0 0 1024 1024" width="20" height="20" fill="currentColor">
+                        <path d="M437.655552 498.432H361.009152c0-145.408 0-332.288 242.8416-484.608 6.3488-6.912 0-13.824-6.4-13.824-453.7344 76.1344-492.0832 408.4224-492.0832 498.432H28.669952c-25.6 0-38.4 27.6992-19.2 48.4864l185.344 249.1904a45.7728 45.7728 0 0 0 76.6976 0l185.344-249.1904c12.8-20.7872 0-48.4864-19.2-48.4864m581.632-62.3104l-185.344-249.1904a45.7728 45.7728 0 0 0-76.7488 0l-185.344 249.1904c-12.7488 20.7872 0 48.4864 19.2 48.4864h70.2976c0 145.408 0 332.288-242.8416 484.608-6.4 6.912 0 13.824 6.4 13.824 453.7344-76.1344 492.0832-408.4224 492.0832-498.432h76.6976c25.6 0 38.3488-27.6992 25.6-48.4864" fill="currentColor"></path>
+                    </svg>
+                </button>
+                <button id="gallerySelectToggleBtn" class="action-btn" style="background: #4b5563; color: white">全选</button>
+                <button id="batchMoreBtn" class="action-btn" style="background: #9333ea; color: white">⋯</button>
             </div>
         </div>
 
@@ -125,7 +144,7 @@
         </div>
     </div>
 
-    <!-- JavaScript 逻辑保持原样 -->
+    <!-- JavaScript 逻辑 -->
     <script>
         const cardsContainer = document.getElementById('cardsContainer');
         const statusText = document.getElementById('statusText');
@@ -133,7 +152,6 @@
         const saveBtn = document.getElementById('saveBtn');
 
         const ORACLE_DOMAIN = 'https://oracle.mcck.ccwu.cc';
-
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
         async function loadCards() {
@@ -249,7 +267,6 @@
 
         loadCards();
 
-        // 搜索功能
         document.getElementById('searchKeyword').addEventListener('input', function(e) {
             const keyword = e.target.value.toLowerCase();
             const cards = document.querySelectorAll('#cardsContainer .card');
