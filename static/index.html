@@ -85,18 +85,23 @@
         <!-- 链接保存区（拆分为两行，居中） -->
         <div class="bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 mb-6 shadow-xl flex flex-col gap-4">
             
-            <!-- 第一行：目标分类列表（居中，无背景框） -->
+            <!-- 第一行：目标分类列表（居中，各元素分离） -->
             <div class="flex justify-center w-full">
-                <div class="flex items-center bg-slate-700/50 rounded-lg p-1">
-                    <button class="px-3 py-2 text-slate-400 hover:text-white transition-colors flex items-center justify-center rounded-md hover:bg-slate-600" title="选择分类列表">
+                <div class="flex items-center gap-2">
+                    <!-- 左侧蓝色列表图标按钮 -->
+                    <button class="w-10 h-10 bg-sky-100 hover:bg-sky-200 text-blue-600 rounded-lg flex items-center justify-center transition-colors shadow-sm" title="选择分类列表">
                         <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M896 460.8h-358.4c-15.36 0-25.6 10.24-25.6 25.6v25.6H204.8V307.2h25.6c15.36 0 25.6-10.24 25.6-25.6v-102.4c0-15.36-10.24-25.6-25.6-25.6h-102.4c-15.36 0-25.6 10.24-25.6 25.6v102.4c0 15.36 10.24 25.6 25.6 25.6H153.6v563.2h358.4v25.6c0 15.36 10.24 25.6 25.6 25.6h358.4c15.36 0 25.6-10.24 25.6-25.6v-112.64c0-15.36-10.24-25.6-25.6-25.6h-358.4c-15.36 0-25.6 10.24-25.6 25.6v35.84H204.8v-256h307.2v35.84c0 15.36 10.24 25.6 25.6 25.6h358.4c15.36 0 25.6-10.24 25.6-25.6V486.4c0-15.36-10.24-25.6-25.6-25.6z" fill="#1296db" />
                             <path d="M896 153.6H373.76c-15.36 0-25.6 10.24-25.6 25.6v102.4c0 15.36 10.24 25.6 25.6 25.6h522.24c15.36 0 25.6-10.24 25.6-25.6v-102.4c0-15.36-10.24-25.6-25.6-25.6z" fill="#1296db" />
                         </svg>
                     </button>
-                    <input type="text" id="folderInput" placeholder="输入目标分类列表" class="bg-transparent px-2 py-2 text-white placeholder-slate-400 focus:outline-none w-64 text-center">
-                    <button class="px-3 py-2 text-slate-400 hover:text-white transition-colors flex items-center justify-center rounded-md hover:bg-slate-600" title="新建分类列表">
-                        <svg class="icon flex-shrink-0" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true">
+                    
+                    <!-- 中间输入框 -->
+                    <input type="text" id="folderInput" placeholder="输入目标文件夹路径" class="bg-slate-700/50 px-4 py-2.5 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 rounded-lg w-72 text-sm border border-transparent transition-all">
+                    
+                    <!-- 右侧黄色新建文件夹按钮 -->
+                    <button class="w-10 h-10 bg-yellow-100 hover:bg-yellow-200 rounded-lg flex items-center justify-center transition-colors shadow-sm" title="新建分类列表">
+                        <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                             <path d="M972.651171 89.720207H441.548623l-12.797459-51.190836A48.673942 48.673942 0 0 0 377.559329 0.136994H51.218125A50.465867 50.465867 0 0 0 0.027289 51.32683v921.434046a50.465867 50.465867 0 0 0 51.190836 51.190836h921.434046a55.029674 55.029674 0 0 0 51.189836-51.190836V140.911043a55.029674 55.029674 0 0 0-51.189836-51.190836z" fill="#FFAA16"></path>
                             <path d="M921.375339 959.835423H96.095228a55.11567 55.11567 0 0 1-51.190836-51.190836V216.075865a50.507865 50.507865 0 0 1 51.190836-51.190836h825.280111a55.11567 55.11567 0 0 1 51.190835 51.190836v692.440727a55.11567 55.11567 0 0 1-51.190835 51.317831z" fill="#FFFFFF"></path>
                             <path d="M972.651171 263.000882H51.219125A50.465867 50.465867 0 0 0 0.027289 314.191717v658.612157a50.465867 50.465867 0 0 0 51.190836 51.190836h921.434046a55.029674 55.029674 0 0 0 51.189836-51.190836V314.148719a55.029674 55.029674 0 0 0-51.189836-51.147837z" fill="#FFD969"></path>
