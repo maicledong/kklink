@@ -54,10 +54,10 @@
 </head>
 <body class="p-4 md:p-6">
     <div class="max-w-6xl mx-auto">
-        <!-- 顶部：标题栏，模仿参照中的头部布局，但适配深色 -->
+        <!-- 顶部：标题栏 -->
         <div class="relative mb-6 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <!-- 播放器按钮（占位，功能可后续添加） -->
+                <!-- 播放器按钮（占位） -->
                 <button class="icon-btn" title="播放器（待添加）">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="10"></circle>
@@ -80,7 +80,7 @@
             </div>
         </div>
 
-        <!-- 链接保存区：深色卡片，与参照的输入框+按钮风格一致 -->
+        <!-- 链接保存区 -->
         <div class="bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 mb-6 shadow-xl">
             <div class="flex flex-col sm:flex-row gap-3">
                 <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="search-input flex-1">
@@ -91,31 +91,30 @@
             <p id="statusText" class="text-blue-400 mt-3 hidden">Karakeep 正在抓取并转存 TG... 请耐心等待 40 秒</p>
         </div>
 
-        <!-- 画廊工具栏：模仿参照中的搜索栏与操作按钮行 -->
-        <div class="mb-5">
-            <div class="flex flex-wrap items-center gap-2">
-                <!-- 搜索框与连体按钮（仅视觉占位，后续可接入搜索功能） -->
-                <div class="flex-1 flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden min-w-[200px]">
-                    <input type="text" id="searchKeyword" placeholder="搜索标签、标题、文本、URL" class="flex-1 bg-transparent p-3 text-white placeholder-slate-400 focus:outline-none">
-                    <button class="px-3 py-3 text-slate-300 hover:text-white transition-colors" title="搜索">🔍</button>
-                    <div class="w-px h-6 bg-slate-600"></div>
-                    <button class="px-3 py-3 text-slate-300 hover:text-white transition-colors" title="重置">⟲</button>
-                </div>
-                <!-- 操作按钮群（占位，未来可添加布局切换、全选等） -->
-                <div class="flex items-center gap-2 flex-wrap">
-                    <button class="toolbar-btn bg-indigo-600 hover:bg-indigo-500" title="布局（待添加）">☰</button>
-                    <button class="toolbar-btn bg-blue-600 hover:bg-blue-500" title="显示标签（待添加）">🏷️</button>
-                    <button class="toolbar-btn bg-gray-600 hover:bg-gray-500" title="刷新（待添加）">⟳</button>
-                    <button class="toolbar-btn bg-gray-700 hover:bg-gray-600" title="全选（待添加）">全选</button>
-                    <button class="toolbar-btn bg-purple-600 hover:bg-purple-500" title="更多（待添加）">⋯</button>
-                </div>
+        <!-- 画廊工具栏：搜索框与操作按钮分离 -->
+        <div class="mb-5 space-y-3">
+            <!-- 第一行：搜索框 -->
+            <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden w-full">
+                <input type="text" id="searchKeyword" placeholder="搜索标签、标题、文本、URL" class="flex-1 bg-transparent p-3 text-white placeholder-slate-400 focus:outline-none">
+                <button class="px-3 py-3 text-slate-300 hover:text-white transition-colors" title="搜索">🔍</button>
+                <div class="w-px h-6 bg-slate-600"></div>
+                <button class="px-3 py-3 text-slate-300 hover:text-white transition-colors" title="重置">⟲</button>
+            </div>
+
+            <!-- 第二行：5 个操作按钮 -->
+            <div class="flex items-center gap-2 flex-wrap">
+                <button class="toolbar-btn bg-indigo-600 hover:bg-indigo-500" title="布局（待添加）">☰</button>
+                <button class="toolbar-btn bg-blue-600 hover:bg-blue-500" title="显示标签（待添加）">🏷️</button>
+                <button class="toolbar-btn bg-gray-600 hover:bg-gray-500" title="刷新（待添加）">⟳</button>
+                <button class="toolbar-btn bg-gray-700 hover:bg-gray-600" title="全选（待添加）">全选</button>
+                <button class="toolbar-btn bg-purple-600 hover:bg-purple-500" title="更多（待添加）">⋯</button>
             </div>
         </div>
 
-        <!-- 卡片容器：网格布局，保留原有卡片样式 -->
+        <!-- 卡片容器 -->
         <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5"></div>
 
-        <!-- 分页条（参照样式，占位，未来接入真实分页） -->
+        <!-- 分页条（占位） -->
         <div class="flex justify-center items-center gap-2 mt-8 text-sm">
             <button class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors" disabled>上一页</button>
             <button class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium">1</button>
@@ -126,15 +125,14 @@
         </div>
     </div>
 
-    <!-- 保留原有的 JavaScript 逻辑，仅微调域名变量 -->
+    <!-- JavaScript 逻辑保持原样 -->
     <script>
         const cardsContainer = document.getElementById('cardsContainer');
         const statusText = document.getElementById('statusText');
         const urlInput = document.getElementById('urlInput');
         const saveBtn = document.getElementById('saveBtn');
 
-        // 🌟 定义 Oracle 服务器的基础 URL
-        const ORACLE_DOMAIN = 'https://oracle.mcck.ccwu.cc'; //不能写在 Cloudflare 后台环境变量里
+        const ORACLE_DOMAIN = 'https://oracle.mcck.ccwu.cc';
 
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -148,7 +146,6 @@
                     return;
                 }
 
-                // 这里的 onerror 实现了：优先外链，挂了立刻去 Oracle 拿 TG 里的图
                 cardsContainer.innerHTML = data.map(item => `
                     <div class="card">
                         ${item.image_url ? `
@@ -167,7 +164,6 @@
                             <p class="text-sm text-slate-400 mb-4 line-clamp-2">${item.description || '无描述'}</p>
                             <div class="mt-auto flex gap-2">
                                 <a href="${item.url}" target="_blank" class="flex-1 text-center bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm transition-colors">查看原文</a>
-                                <!-- 下载按钮：模仿参照中的橙色下载，暂时占位链接 -->
                                 <a href="${item.url}" target="_blank" class="inline-flex items-center justify-center bg-orange-600 hover:bg-orange-500 px-3 py-2 rounded-lg text-sm transition-colors" title="下载/打开">⬇️</a>
                             </div>
                         </div>
@@ -189,14 +185,11 @@
             statusText.innerText = '正在抓取中... 请等待 40 秒';
 
             try {
-                // 1. 触发抓取
                 const saveRes = await fetch('/api/save', { method: 'POST', body: JSON.stringify({ url }) });
                 const { bookmarkId } = await saveRes.json();
 
-                // 2. 硬等 40 秒
                 await sleep(40000);
                 
-                // 3. 查状态拿数据
                 let checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
                 let checkData = await checkRes.json();
 
@@ -212,7 +205,6 @@
                     const { url: targetUrl, title, description, imageUrl, karakeepLocalImage } = checkData.data;
                     let imgFileId = "";
 
-                    // 4. 浏览器去请求 Oracle 转存
                     if (karakeepLocalImage) {
                         try {
                             const proxyRes = await fetch(`${ORACLE_DOMAIN}/proxy-image?url=${encodeURIComponent(karakeepLocalImage)}`);
@@ -227,7 +219,6 @@
                         }
                     }
 
-                    // 5. 将最终结果存入 D1
                     statusText.innerText = '正在写入数据库...';
                     await fetch('/api/store', {
                         method: 'POST',
@@ -256,10 +247,9 @@
             }
         };
 
-        // 初始化加载卡片
         loadCards();
 
-        // 简单的搜索占位交互（仅演示，可后续接入真实搜索）
+        // 搜索功能
         document.getElementById('searchKeyword').addEventListener('input', function(e) {
             const keyword = e.target.value.toLowerCase();
             const cards = document.querySelectorAll('#cardsContainer .card');
