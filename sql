@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS bookmarks (
     category_path TEXT DEFAULT '/default',
     is_favorite INTEGER DEFAULT 0,
     status TEXT DEFAULT 'active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
