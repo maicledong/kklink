@@ -466,5 +466,140 @@ if (path === '/api/list' && request.method === 'GET') {
   }
 }
 
+// ========== 卡片：批量操作 ==========
+if (path === '/api/bookmark/batch' && request.method === 'POST') {
+  try {
+    const { ids, action, payload } = await request.json();
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return new Response(JSON.stringify({ error: 'ids 不能为空' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 去重 + 只保留数字
+    const cleanIds = [...new Set(ids.map(x => Number(x)).filter(x => Number.isInteger(x) && x > 0))];
+    if (cleanIds.length === 0) {
+      return new Response(JSON.stringify({ error: '无效的 ids' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const placeholders = cleanIds.map(() => '?').join(',');
+
+    if (action === 'delete') {
+      const r = await env.DB.prepare(
+        `DELETE FROM bookmarks WHERE id IN (${placeholders})`
+      ).bind(...cleanIds).run();
+      return new Response(JSON.stringify({ success: true, affected: r.meta?.changes || 0, action }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (action === 'favorite') {
+      const fav = payload?.is_favorite ? 1 : 0;
+      const r = await env.DB.prepare(
+        `UPDATE bookmarks SET is_favorite = ?, updated_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`
+      ).bind(fav, ...cleanIds).run();
+      return new Response(JSON.stringify({ success: true, affected: r.meta?.changes || 0, action, is_favorite: fav }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (action === 'archive') {
+      const archived = payload?.archived ? 1 : 0;
+      const newStatus = archived ? 'archived' : 'active';
+      const r = await env.DB.prepare(
+        `UPDATE bookmarks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`
+      ).bind(newStatus, ...cleanIds).run();
+      return new Response(JSON.stringify({ success: true, affected: r.meta?.changes || 0, action, status: newStatus }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    if (action === 'move') {
+      const target = (payload?.target_category || '').trim();
+      if (!target) {
+        return new Response(JSON.stringify({ error: '目标分类不能为空' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      const cat = await env.DB.prepare(`SELECT path FROM categories WHERE path = ?`).bind(target).first();
+      if (!cat) {
+        return new Response(JSON.stringify({ error: '目标分类不存在' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      const r = await env.DB.prepare(
+        `UPDATE bookmarks SET category_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`
+      ).bind(target, ...cleanIds).run();
+      return new Response(JSON.stringify({ success: true, affected: r.meta?.changes || 0, action, target_category: target }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    return new Response(JSON.stringify({ error: '未知的 action' }), {
+      status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}  
+
+// ========== 卡片：编辑 ==========
+if (path === '/api/bookmark/update' && request.method === 'POST') {
+  try {
+    const { id, title, description, url: newUrl } = await request.json();
+    const bookmarkId = Number(id);
+    if (!Number.isInteger(bookmarkId) || bookmarkId <= 0) {
+      return new Response(JSON.stringify({ error: '无效的 id' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const existing = await env.DB.prepare(`SELECT * FROM bookmarks WHERE id = ?`).bind(bookmarkId).first();
+    if (!existing) {
+      return new Response(JSON.stringify({ error: '卡片不存在' }), {
+        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const finalTitle = title !== undefined ? String(title).trim() : existing.title;
+    const finalDesc = description !== undefined ? String(description).trim() : existing.description;
+    const finalUrl = newUrl !== undefined ? String(newUrl).trim() : existing.url;
+
+    if (!finalUrl) {
+      return new Response(JSON.stringify({ error: 'url 不能为空' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 如果改了 url，检查唯一性
+    if (finalUrl !== existing.url) {
+      const dup = await env.DB.prepare(`SELECT id FROM bookmarks WHERE url = ? AND id != ?`).bind(finalUrl, bookmarkId).first();
+      if (dup) {
+        return new Response(JSON.stringify({ error: '该 URL 已存在' }), {
+          status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    await env.DB.prepare(
+      `UPDATE bookmarks SET title = ?, description = ?, url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+    ).bind(finalTitle, finalDesc, finalUrl, bookmarkId).run();
+
+    const updated = await env.DB.prepare(`SELECT * FROM bookmarks WHERE id = ?`).bind(bookmarkId).first();
+
+    return new Response(JSON.stringify({ success: true, data: updated }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}  
+
   return new Response('Not Found', { status: 404, headers: corsHeaders });
 }
