@@ -121,6 +121,272 @@ export async function onRequest(context) {
     }
   }
 
+
+// ========== 分类：树 ==========
+if (path === '/api/categories/tree' && request.method === 'GET') {
+  try {
+    const { results } = await env.DB.prepare(
+      `SELECT path, name, parent_path, is_system FROM categories ORDER BY path`
+    ).all();
+    const rows = results || [];
+
+    // 动态算 has_children / child_count
+    const childCount = {};
+    for (const r of rows) {
+      childCount[r.parent_path] = (childCount[r.parent_path] || 0) + 1;
+    }
+    const data = rows.map(r => ({
+      path: r.path,
+      name: r.name,
+      parent_path: r.parent_path,
+      is_system: r.is_system,
+      has_children: (childCount[r.path] || 0) > 0,
+      child_count: childCount[r.path] || 0,
+    }));
+
+    return new Response(JSON.stringify({ success: true, data }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// ========== 分类：新建 ==========
+if (path === '/api/categories/create' && request.method === 'POST') {
+  try {
+    const { parent_path, name } = await request.json();
+    const parentPath = (parent_path || '/').trim();
+    const rawName = (name || '').trim();
+
+    if (!rawName) {
+      return new Response(JSON.stringify({ error: '分类名称不能为空' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    if (/[\/]/.test(rawName)) {
+      return new Response(JSON.stringify({ error: '分类名称不能包含 /' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 规范化父路径
+    let normalizedParent = parentPath;
+    if (!normalizedParent.startsWith('/')) normalizedParent = '/' + normalizedParent;
+    if (normalizedParent.length > 1 && normalizedParent.endsWith('/')) {
+      normalizedParent = normalizedParent.slice(0, -1);
+    }
+
+    // 校验父分类存在
+    if (normalizedParent !== '/') {
+      const parent = await env.DB.prepare(
+        `SELECT path FROM categories WHERE path = ?`
+      ).bind(normalizedParent).first();
+      if (!parent) {
+        return new Response(JSON.stringify({ error: '父分类不存在' }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    const newPath = normalizedParent === '/'
+      ? `/${rawName}`
+      : `${normalizedParent}/${rawName}`;
+
+    // 校验重名
+    const exists = await env.DB.prepare(
+      `SELECT path FROM categories WHERE path = ?`
+    ).bind(newPath).first();
+    if (exists) {
+      return new Response(JSON.stringify({ error: '同名分类已存在' }), {
+        status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    await env.DB.prepare(
+      `INSERT INTO categories (path, name, parent_path, is_system) VALUES (?, ?, ?, 0)`
+    ).bind(newPath, rawName, normalizedParent).run();
+
+    return new Response(JSON.stringify({ success: true, path: newPath, name: rawName, parent_path: normalizedParent }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// ========== 分类：重命名 ==========
+if (path === '/api/categories/rename' && request.method === 'POST') {
+  try {
+    const { old_path, new_name } = await request.json();
+    const oldPath = (old_path || '').trim();
+    const rawName = (new_name || '').trim();
+
+    if (!oldPath || oldPath === '/') {
+      return new Response(JSON.stringify({ error: '无效的分类路径' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    if (!rawName) {
+      return new Response(JSON.stringify({ error: '新名称不能为空' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    if (/[\/]/.test(rawName)) {
+      return new Response(JSON.stringify({ error: '名称不能包含 /' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 系统分类禁止重命名
+    const target = await env.DB.prepare(
+      `SELECT path, name, parent_path, is_system FROM categories WHERE path = ?`
+    ).bind(oldPath).first();
+    if (!target) {
+      return new Response(JSON.stringify({ error: '分类不存在' }), {
+        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    if (target.is_system === 1) {
+      return new Response(JSON.stringify({ error: '系统分类不可重命名' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const parentPath = target.parent_path;
+    const newPath = parentPath === '/'
+      ? `/${rawName}`
+      : `${parentPath}/${rawName}`;
+
+    if (newPath === oldPath) {
+      return new Response(JSON.stringify({ success: true, new_path: oldPath, message: '名称未变化' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 校验新名重名
+    const exists = await env.DB.prepare(
+      `SELECT path FROM categories WHERE path = ?`
+    ).bind(newPath).first();
+    if (exists) {
+      return new Response(JSON.stringify({ error: '同名分类已存在' }), {
+        status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 事务：更新自身 + 子分类 path/parent_path + bookmarks.category_path
+    // D1 用 batch 保证原子性
+    const oldPrefix = oldPath + '/';
+    const newPrefix = newPath + '/';
+
+    // 1) 更新自身
+    const stmts = [
+      env.DB.prepare(
+        `UPDATE categories SET path = ?, name = ? WHERE path = ?`
+      ).bind(newPath, rawName, oldPath),
+      // 2) 更新直接子分类的 parent_path
+      env.DB.prepare(
+        `UPDATE categories SET parent_path = ? WHERE parent_path = ?`
+      ).bind(newPath, oldPath),
+      // 3) 更新所有后代分类的 path（把 oldPath/ 前缀替换为 newPath/）
+      env.DB.prepare(
+        `UPDATE categories SET path = ? || substr(path, ?) WHERE path LIKE ?`
+      ).bind(newPath, oldPath.length + 1, oldPrefix + '%'),
+      // 4) 更新后代分类的 parent_path（同上）
+      env.DB.prepare(
+        `UPDATE categories SET parent_path = ? || substr(parent_path, ?) WHERE parent_path LIKE ?`
+      ).bind(newPath, oldPath.length + 1, oldPrefix + '%'),
+      // 5) 更新 bookmarks 中属于该分类的
+      env.DB.prepare(
+        `UPDATE bookmarks SET category_path = ? WHERE category_path = ?`
+      ).bind(newPath, oldPath),
+      // 6) 更新 bookmarks 中属于后代的
+      env.DB.prepare(
+        `UPDATE bookmarks SET category_path = ? || substr(category_path, ?) WHERE category_path LIKE ?`
+      ).bind(newPath, oldPath.length + 1, oldPrefix + '%'),
+    ];
+
+    await env.DB.batch(stmts);
+
+    return new Response(JSON.stringify({ success: true, old_path: oldPath, new_path: newPath, name: rawName }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+// ========== 分类：删除（连带子分类 + 链接）==========
+if (path === '/api/categories/delete' && request.method === 'POST') {
+  try {
+    const { path: targetPath } = await request.json();
+    const delPath = (targetPath || '').trim();
+
+    if (!delPath || delPath === '/') {
+      return new Response(JSON.stringify({ error: '无效的分类路径' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const target = await env.DB.prepare(
+      `SELECT path, is_system FROM categories WHERE path = ?`
+    ).bind(delPath).first();
+    if (!target) {
+      return new Response(JSON.stringify({ error: '分类不存在' }), {
+        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    if (target.is_system === 1) {
+      return new Response(JSON.stringify({ error: '系统分类不可删除' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const prefix = delPath + '/';
+
+    // 先统计要删多少（给前端提示用）
+    const catCountRow = await env.DB.prepare(
+      `SELECT COUNT(*) AS c FROM categories WHERE path = ? OR path LIKE ?`
+    ).bind(delPath, prefix + '%').first();
+    const bmCountRow = await env.DB.prepare(
+      `SELECT COUNT(*) AS c FROM bookmarks WHERE category_path = ? OR category_path LIKE ?`
+    ).bind(delPath, prefix + '%').first();
+
+    const deletedCategories = catCountRow?.c || 0;
+    const deletedBookmarks = bmCountRow?.c || 0;
+
+    // 事务删除
+    await env.DB.batch([
+      env.DB.prepare(
+        `DELETE FROM bookmarks WHERE category_path = ? OR category_path LIKE ?`
+      ).bind(delPath, prefix + '%'),
+      env.DB.prepare(
+        `DELETE FROM categories WHERE path = ? OR path LIKE ?`
+      ).bind(delPath, prefix + '%'),
+    ]);
+
+    return new Response(JSON.stringify({
+      success: true,
+      deleted_categories: deletedCategories,
+      deleted_bookmarks: deletedBookmarks,
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+  
+
   // 4. 读取列表
   if (path === '/api/list' && request.method === 'GET') {
     try {
