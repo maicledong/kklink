@@ -1,9 +1,3 @@
-
-
-
-
-
-
 -- bookmarks 表：
 CREATE TABLE IF NOT EXISTS bookmarks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
