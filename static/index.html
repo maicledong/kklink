@@ -12,6 +12,7 @@
             color: #f8fafc;
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }
+        /* 图片区域：完整显示，深色背景填充留白 */
         .card-img-container {
             height: 12rem;
             width: 100%;
@@ -30,12 +31,15 @@
         .card-img:hover {
             transform: scale(1.05);
         }
+        
         .toolbar-btn {
             @apply inline-flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors px-4 py-2 text-sm font-medium whitespace-nowrap;
         }
+        
         .search-input {
             @apply flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 transition-colors;
         }
+
         .card {
             @apply bg-slate-800 rounded-xl overflow-hidden flex flex-col transition-all duration-200 h-full w-full;
             border: 1px solid rgba(236, 72, 153, 0.5);
@@ -44,50 +48,12 @@
             border-color: rgba(236, 72, 153, 1);
             box-shadow: 0 4px 20px rgba(236, 72, 153, 0.15);
         }
+        
         .icon-btn {
             @apply inline-flex items-center justify-center w-9 h-9 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors;
         }
         #statusText {
             @apply text-blue-400 text-sm;
-        }
-
-        /* 自定义树状图样式 */
-        .tree-node {
-            display: flex;
-            align-items: center;
-            padding: 6px 12px;
-            cursor: pointer;
-            border-radius: 6px;
-            transition: background-color 0.2s;
-            color: #f8fafc;
-            margin-bottom: 2px;
-        }
-        .tree-node:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-        .tree-node.active {
-            background-color: rgba(59, 130, 246, 0.5); /* 选中状态的亮蓝色 */
-        }
-        .tree-children {
-            border-left: 1px solid rgba(255, 255, 255, 0.2);
-            margin-left: 16px;
-            padding-left: 8px;
-        }
-        .tree-icon {
-            width: 18px;
-            height: 18px;
-            margin-right: 8px;
-            flex-shrink: 0;
-        }
-        .tree-arrow {
-            width: 16px;
-            height: 16px;
-            margin-right: 4px;
-            transition: transform 0.2s;
-            flex-shrink: 0;
-        }
-        .tree-arrow.expanded {
-            transform: rotate(90deg);
         }
     </style>
 </head>
@@ -96,12 +62,13 @@
         <!-- 顶部标题栏 -->
         <div class="relative mb-6 flex items-center justify-between">
             <div class="flex items-center gap-3">
+                <!-- 放大后的图标，使用 w-8 h-8 使其和字体更匹配 -->
                 <button class="icon-btn" title="播放器（待添加）">
-                    <svg t="1794844583553" class="icon w-7 h-7 fill-current text-white" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1862">
+                    <svg t="1794844583553" class="icon w-8 h-8 fill-current text-white" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1862">
                         <path d="M512 161.024l194.752 701.248H531.456L488.32 706.56l-248.96 155.648H64L258.816 161.024h253.12z m253.184 0L960 862.272h-175.296L589.888 161.024h175.36z m-379.84 175.36L311.36 602.944l126.208-78.912-52.096-187.776h-0.128z" p-id="1863"></path>
                     </svg>
                 </button>
-                <h1 class="text-2xl md:text-3xl font-bold tracking-tight">链接智库</h1>
+                <h1 class="text-2xl font-bold tracking-tight">链接智库</h1>
             </div>
             <div class="flex items-center gap-2">
                 <button class="icon-btn" title="切换主题（待添加）">🌙</button>
@@ -115,54 +82,50 @@
             </div>
         </div>
 
-        <!-- 链接保存区 -->
-        <div class="relative bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 mb-6 shadow-xl flex flex-col gap-4 z-20">
+<!-- 链接保存区 -->
+<div class="bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 mb-6 shadow-xl flex flex-col gap-4">
+    
+    <!-- 第一行：目标分类列表（居中，各元素分离） -->
+    <div class="flex justify-center w-full">
+        <div class="flex items-center gap-5 w-full max-w-2xl mx-auto">
             
-            <!-- 第一行：目标分类列表（居中，各元素分离） -->
-            <div class="flex justify-center w-full">
-                <div class="flex items-center gap-4 w-full max-w-2xl mx-auto relative">
-                    
-                    <!-- 左侧包裹层：使用 relative 相对定位作为基准 -->
-                    <div class="relative shrink-0">
-                        <!-- 左侧蓝色列表图标按钮 -->
-                        <button id="categoryBtn" class="w-10 h-10 bg-sky-100 hover:bg-sky-200 text-blue-600 rounded-lg flex items-center justify-center transition-colors shadow-sm" title="显示目录树">
-                            <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M896 460.8h-358.4c-15.36 0-25.6 10.24-25.6 25.6v25.6H204.8V307.2h25.6c15.36 0 25.6-10.24 25.6-25.6v-102.4c0-15.36-10.24-25.6-25.6-25.6h-102.4c-15.36 0-25.6 10.24-25.6 25.6v102.4c0 15.36 10.24 25.6 25.6 25.6H153.6v563.2h358.4v25.6c0 15.36 10.24 25.6 25.6 25.6h358.4c15.36 0 25.6-10.24 25.6-25.6v-112.64c0-15.36-10.24-25.6-25.6-25.6h-358.4c-15.36 0-25.6 10.24-25.6 25.6v35.84H204.8v-256h307.2v35.84c0 15.36 10.24 25.6 25.6 25.6h358.4c15.36 0 25.6-10.24 25.6-25.6V486.4c0-15.36-10.24-25.6-25.6-25.6z" fill="#1296db" />
-                                <path d="M896 153.6H373.76c-15.36 0-25.6 10.24-25.6 25.6v102.4c0 15.36 10.24 25.6 25.6 25.6h522.24c15.36 0 25.6-10.24 25.6-25.6v-102.4c0-15.36-10.24-25.6-25.6-25.6z" fill="#1296db" />
-                            </svg>
-                        </button>
-                        
-                        <!-- '+' 号按钮 -->
-                        <button id="addCategoryBtn" class="absolute -bottom-2 -right-2 w-6 h-6 bg-orange-500 hover:bg-orange-600 text-white rounded-full flex items-center justify-center shadow-md transition-colors z-10" title="管理分类">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path>
-                            </svg>
-                        </button>
-
-                        <!-- 树状图下拉面板 -->
-                        <div id="treePanel" class="hidden absolute top-full left-0 mt-3 w-64 bg-blue-600 rounded-lg shadow-2xl p-2 z-50 border border-blue-500 text-sm">
-                            <div id="treeContainer" class="max-h-60 overflow-y-auto custom-scrollbar">
-                                <!-- 树状图内容由 JS 动态渲染 -->
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 右侧：粘贴链接输入框 + 保存按钮 -->
-                    <div class="flex items-center bg-slate-700/50 rounded-lg flex-1 overflow-hidden p-1 min-w-0 border border-transparent transition-all focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20">
-                        <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="flex-1 min-w-0 bg-transparent px-4 py-2 text-white placeholder-slate-400 focus:outline-none text-sm">
-                        
-                        <button id="saveBtn" class="flex items-center justify-center px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-md transition-all flex-shrink-0 shadow-lg shadow-blue-500/30 text-sm">
-                           保存
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <!-- 🌟 左侧包裹层：使用 relative 相对定位作为基准 -->
+            <div class="relative shrink-0">
+                <!-- 左侧蓝色列表图标按钮 -->
+                <button class="w-10 h-10 bg-sky-100 hover:bg-sky-200 text-blue-600 rounded-lg flex items-center justify-center transition-colors shadow-sm" title=".选择分类">
+                    <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M896 460.8h-358.4c-15.36 0-25.6 10.24-25.6 25.6v25.6H204.8V307.2h25.6c15.36 0 25.6-10.24 25.6-25.6v-102.4c0-15.36-10.24-25.6-25.6-25.6h-102.4c-15.36 0-25.6 10.24-25.6 25.6v102.4c0 15.36 10.24 25.6 25.6 25.6H153.6v563.2h358.4v25.6c0 15.36 10.24 25.6 25.6 25.6h358.4c15.36 0 25.6-10.24 25.6-25.6v-112.64c0-15.36-10.24-25.6-25.6-25.6h-358.4c-15.36 0-25.6 10.24-25.6 25.6v35.84H204.8v-256h307.2v35.84c0 15.36 10.24 25.6 25.6 25.6h358.4c15.36 0 25.6-10.24 25.6-25.6V486.4c0-15.36-10.24-25.6-25.6-25.6z" fill="#1296db" />
+                        <path d="M896 153.6H373.76c-15.36 0-25.6 10.24-25.6 25.6v102.4c0 15.36 10.24 25.6 25.6 25.6h522.24c15.36 0 25.6-10.24 25.6-25.6v-102.4c0-15.36-10.24-25.6-25.6-25.6z" fill="#1296db" />
+                    </svg>
+                </button>
                 
-            <p id="statusText" class="text-blue-400 mt-1 hidden text-center">正在抓取并转存 TG... 请耐心等待 40 秒</p>
+                <!-- 🌟 修改点：橘红色、去除黑边、放大、更靠右下角 -->
+                <button class="absolute -bottom-2 -right-3 w-6 h-6 bg-orange-500 hover:bg-orange-600 text-white rounded-full flex items-center justify-center shadow-md transition-colors z-10" title=".新建分类">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- 右侧：输入框 + 保存按钮（共用一个背景框） -->
+            <div class="flex items-center bg-slate-700/50 rounded-lg flex-1 overflow-hidden p-1 min-w-0 border border-transparent transition-all focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20">
+                <!-- 中间输入框 -->
+                <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="flex-1 min-w-0 bg-transparent px-4 py-2 text-white placeholder-slate-400 focus:outline-none text-sm">
+                
+                <!-- 右侧“保存”文字按钮 -->
+                <button id="saveBtn" class="flex items-center justify-center px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-md transition-all flex-shrink-0 shadow-lg shadow-blue-500/30 text-sm">
+                   .保存
+                </button>
+            </div>
+            
         </div>
+    </div>
+        
+    <p id="statusText" class="text-blue-400 mt-1 hidden text-center">正在抓取并转存 TG... 请耐心等待 40 秒</p>
+</div>
 
         <!-- 画廊工具栏 -->
-        <div class="mb-5 space-y-3 relative z-10">
+        <div class="mb-5 space-y-3">
             <!-- 第一行：搜索框 -->
             <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden w-full">
                 <input type="text" id="searchKeyword" placeholder="搜索标签、标题、文本、URL" class="flex-1 bg-transparent p-3 text-white placeholder-slate-400 focus:outline-none">
@@ -204,149 +167,47 @@
 
     <!-- JavaScript 逻辑 -->
     <script>
-        // ================= 模拟数据 =================
-        // 模拟全局的卡片数据，包含它们的分类归属
-        const mockCards = [
-            { id: 1, title: "视频号：煮酒论英雄", description: "《黄贡椒》菊又惊！", url: "https://example.com", image_url: "", category: "visual" },
-            { id: 2, title: "视频号：小小花TRAINER", description: "#篮球教学#小花悟了#篮球干货", url: "https://example.com", image_url: "", category: "visual" },
-            { id: 3, title: "我的博客", description: "WDBlog 专注 AI 人工智能、技术创新与代码实践", url: "https://example.com", image_url: "", category: "default" },
-            { id: 4, title: "视频号：菜叶和菜花", description: "蔡叶的表情啥意思#萌娃搞笑日常", url: "https://example.com", image_url: "", category: "screenshot" },
-            { id: 5, title: "音频测试", description: "这是一个测试音频", url: "https://example.com", image_url: "", category: "audio" }
-        ];
-
-        // 树状图数据结构
-        const treeData = [
-            {
-                id: 'root', name: '根目录', icon: '🏠', isOpen: true, categoryKey: 'root',
-                children: [
-                    {
-                        id: 'visual', name: 'visual', icon: '📷', system: true, isOpen: true, categoryKey: 'visual',
-                        children: [
-                            { id: 'default', name: 'default', icon: '📁', system: true, categoryKey: 'default' },
-                            { id: 'screenshot', name: '截图', icon: '🖼️', system: true, categoryKey: 'screenshot' },
-                            { id: 'folder1', name: '1', icon: '📁', categoryKey: 'folder1' }
-                        ]
-                    },
-                    { id: 'audio', name: 'audio', icon: '🔊', system: true, isOpen: false, categoryKey: 'audio' },
-                    { id: 'docmat', name: 'docmat', icon: '📝', system: true, isOpen: false, categoryKey: 'docmat' },
-                    { id: 'appsys', name: 'appsys', icon: '💻', system: true, isOpen: false, categoryKey: 'appsys' }
-                ]
-            }
-        ];
-
-        let currentCategory = 'root'; // 当前选中的分类
-
-        const treePanel = document.getElementById('treePanel');
-        const treeContainer = document.getElementById('treeContainer');
-        const addCategoryBtn = document.getElementById('addCategoryBtn');
-        const categoryBtn = document.getElementById('categoryBtn');
         const cardsContainer = document.getElementById('cardsContainer');
+        const statusText = document.getElementById('statusText');
+        const urlInput = document.getElementById('urlInput');
+        const saveBtn = document.getElementById('saveBtn');
 
-        // ================= 渲染树状图 =================
-        function renderTree(nodes, parentElement, level = 0) {
-            nodes.forEach(node => {
-                const hasChildren = node.children && node.children.length > 0;
-                
-                const nodeWrapper = document.createElement('div');
-                nodeWrapper.className = 'mb-1';
-                
-                const nodeEl = document.createElement('div');
-                // 如果当前分类等于这个节点的分类，则高亮显示
-                nodeEl.className = `tree-node ${currentCategory === node.categoryKey ? 'active' : ''}`;
-                nodeEl.style.paddingLeft = `${level * 12 + 8}px`;
-                
-                let arrowHtml = '<div class="w-4 h-4 mr-1"></div>';
-                if (hasChildren) {
-                    arrowHtml = `<svg class="tree-arrow ${node.isOpen ? 'expanded' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>`;
-                }
+        const ORACLE_DOMAIN = 'https://oracle.mcck.ccwu.cc';
 
-                const systemTag = node.system ? `<span class="ml-auto text-[10px] opacity-70">(系统)</span>` : '';
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-                nodeEl.innerHTML = `
-                    ${arrowHtml}
-                    <span class="tree-icon">${node.icon}</span>
-                    <span class="flex-1 truncate">${node.name}</span>
-                    ${systemTag}
-                `;
-
-                // 点击节点：筛选下方卡片
-                nodeEl.onclick = (e) => {
-                    e.stopPropagation();
-                    currentCategory = node.categoryKey;
-                    renderTree(treeData, treeContainer); // 重新渲染以更新高亮
-                    loadCards(); // 刷新下方卡片视图
-                };
-
-                // 点击箭头：展开/折叠
-                if (hasChildren) {
-                    const arrow = nodeEl.querySelector('.tree-arrow');
-                    arrow.onclick = (e) => {
-                        e.stopPropagation(); // 阻止触发选中
-                        node.isOpen = !node.isOpen;
-                        renderTree(treeData, treeContainer); 
-                    };
-                }
-
-                nodeWrapper.appendChild(nodeEl);
-
-                if (hasChildren && node.isOpen) {
-                    const childrenContainer = document.createElement('div');
-                    childrenContainer.className = 'tree-children';
-                    renderTree(node.children, childrenContainer, level + 1);
-                    nodeWrapper.appendChild(childrenContainer);
-                }
-
-                parentElement.appendChild(nodeWrapper);
-            });
-        }
-
-        // 初始化树状图
-        renderTree(treeData, treeContainer);
-
-        // ================= 交互逻辑 =================
-        // 点击 '+' 或 蓝色按钮，切换面板显示
-        addCategoryBtn.onclick = (e) => {
-            e.stopPropagation();
-            treePanel.classList.toggle('hidden');
-        };
-        categoryBtn.onclick = (e) => {
-            e.stopPropagation();
-            treePanel.classList.toggle('hidden');
-        };
-
-        // 点击外部关闭
-        document.addEventListener('click', (e) => {
-            if (!treePanel.contains(e.target) && e.target !== addCategoryBtn && e.target !== categoryBtn) {
-                treePanel.classList.add('hidden');
-            }
-        });
-
-        // ================= 渲染卡片逻辑 =================
         async function loadCards() {
             try {
-                // 实际项目中这里请求 API： const res = await fetch(`/api/list?category=${currentCategory}`);
-                // 这里我们使用模拟数据过滤
-                let filteredData = mockCards;
-                if (currentCategory !== 'root') {
-                    filteredData = mockCards.filter(item => item.category === currentCategory);
-                }
-
-                if (filteredData.length === 0) {
-                    cardsContainer.innerHTML = `<p class="text-slate-500 col-span-full text-center py-12">当前分类下还没有收藏任何链接</p>`;
+                const res = await fetch('/api/list');
+                const { data } = await res.json();
+                
+                if (!data || data.length === 0) {
+                    cardsContainer.innerHTML = '<p class="text-slate-500 col-span-full text-center py-12">还没有收藏任何链接</p>';
                     return;
                 }
 
-                const ORACLE_DOMAIN = 'https://oracle.mcck.ccwu.cc';
-                cardsContainer.innerHTML = filteredData.map(item => `
+                cardsContainer.innerHTML = data.map(item => `
                     <div class="card">
                         <div class="card-img-container">
                             ${item.image_url ? `
-                                <img src="${item.image_url}" class="card-img" referrerpolicy="no-referrer">
+                                <img src="${item.image_url}" class="card-img" referrerpolicy="no-referrer" 
+                                    onerror="
+                                        if('${item.img_file_id}' && !this.dataset.fallback) {
+                                            this.dataset.fallback = '1'; 
+                                            this.src = '${ORACLE_DOMAIN}/image/${item.img_file_id}';  
+                                        } else { 
+                                            this.style.display='none'; 
+                                        }
+                                    ">
                             ` : `<div class="text-4xl">🔗</div>`}
                         </div>
                         <div class="p-4 flex flex-col flex-1">
+                            <!-- 标题：单行显示 -->
                             <h3 class="font-bold text-base mb-2 truncate text-white" title="${item.title || '无标题'}">${item.title || '无标题'}</h3>
+                            <!-- 描述：固定两行高度 -->
                             <p class="text-xs text-slate-400 line-clamp-2 h-8 mb-4 leading-4">${item.description || '无描述'}</p>
+                            
+                            <!-- 底部按钮 -->
                             <div class="mt-auto flex gap-2">
                                 <a href="${item.url}" target="_blank" class="flex-1 text-center bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm transition-colors">查看原文</a>
                                 <a href="${item.url}" target="_blank" class="inline-flex items-center justify-center bg-orange-600 hover:bg-orange-500 px-3 py-2 rounded-lg text-sm transition-colors" title="下载/打开">⬇️</a>
@@ -360,20 +221,80 @@
             }
         }
 
-        // 页面初始化
-        loadCards();
-
-        // ================= 搜索和保存链接逻辑（保留原有） =================
-        const saveBtn = document.getElementById('saveBtn');
-        const urlInput = document.getElementById('urlInput');
-        const statusText = document.getElementById('statusText');
-        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
         saveBtn.onclick = async () => {
             const url = urlInput.value.trim();
             if (!url) return alert('请输入链接');
-            // 实际逻辑保持不变...
+
+            saveBtn.disabled = true;
+            // 这里由于保存按钮改成了 svg，不需要改变内部文字，可以改变透明度来提示禁用
+            saveBtn.classList.add('opacity-50');
+            statusText.classList.remove('hidden');
+            statusText.innerText = '正在抓取中... 请等待 40 秒';
+
+            try {
+                const saveRes = await fetch('/api/save', { method: 'POST', body: JSON.stringify({ url }) });
+                const { bookmarkId } = await saveRes.json();
+
+                await sleep(40000);
+                
+                let checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
+                let checkData = await checkRes.json();
+
+                if (checkData.status !== 'success') {
+                    statusText.innerText = '抓取较慢，再等 15 秒...';
+                    await sleep(15000);
+                    checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
+                    checkData = await checkRes.json();
+                }
+
+                if (checkData.status === 'success') {
+                    statusText.innerText = '正在将封面图转存至 Telegram...';
+                    const { url: targetUrl, title, description, imageUrl, karakeepLocalImage } = checkData.data;
+                    let imgFileId = "";
+
+                    if (karakeepLocalImage) {
+                        try {
+                            const proxyRes = await fetch(`${ORACLE_DOMAIN}/proxy-image?url=${encodeURIComponent(karakeepLocalImage)}`);
+                            if (proxyRes.ok) {
+                                const proxyData = await proxyRes.json();
+                                if (proxyData.success) {
+                                    imgFileId = proxyData.file_id;
+                                }
+                            }
+                        } catch (e) {
+                            console.error("浏览器请求 Oracle 转存失败", e);
+                        }
+                    }
+
+                    statusText.innerText = '正在写入数据库...';
+                    await fetch('/api/store', {
+                        method: 'POST',
+                        body: JSON.stringify({ 
+                            url: targetUrl, 
+                            title, 
+                            description, 
+                            imageUrl, 
+                            imgFileId 
+                        })
+                    });
+
+                    await loadCards();
+                } else {
+                    alert("抓取超时，请稍后刷新查看");
+                }
+
+            } catch (e) {
+                console.error(e);
+                alert('保存过程出现异常');
+            } finally {
+                statusText.classList.add('hidden');
+                urlInput.value = '';
+                saveBtn.disabled = false;
+                saveBtn.classList.remove('opacity-50');
+            }
         };
+
+        loadCards();
 
         document.getElementById('searchKeyword').addEventListener('input', function(e) {
             const keyword = e.target.value.toLowerCase();
