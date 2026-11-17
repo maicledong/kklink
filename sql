@@ -33,7 +33,7 @@ CREATE INDEX IF NOT EXISTS idx_bookmarks_status ON bookmarks(status);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_favorite ON bookmarks(is_favorite);
 CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_path);
 
-
+DROP TABLE bookmarks;
 
 
 
