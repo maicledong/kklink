@@ -57,7 +57,11 @@ app = FastAPI()
 # 🌟 允许特定的前端域名跨域
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https://.*\.mcck\.ccwu\.cc",
+    allow_origins=[
+        "https://bookmarks.mcck.ccwu.cc",
+        "https://kklink.pages.dev",
+        "https://linkmind.mcck.ccwu.cc",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
