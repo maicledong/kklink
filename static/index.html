@@ -115,6 +115,19 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path>
                     </svg>
                 </button>
+
+                <!-- 分类选择器下拉（picker 模式） -->
+<div id="categoryPickerDropdown" class="hidden absolute left-0 top-full mt-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-[9999] w-64 max-h-80 overflow-y-auto p-2">
+    <div class="flex items-center justify-between mb-2 px-1">
+        <span class="text-xs text-slate-400">选择保存分类</span>
+        <button id="pickerAddCategoryBtn" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-0.5 rounded">＋ 新建</button>
+    </div>
+    <div id="categoryPickerTree" class="text-sm"></div>
+</div>
+
+
+
+                
             </div>
             
             <!-- 右侧：输入框 + 保存按钮（共用一个背景框） -->
