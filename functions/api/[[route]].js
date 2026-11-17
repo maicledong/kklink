@@ -108,18 +108,28 @@ export async function onRequest(context) {
     }
   }
 
-  // 3. 存入 D1
-  if (path === '/api/store' && request.method === 'POST') {
-    try {
-      const { url: originalUrl, title, description, imageUrl, imgFileId } = await request.json();
-      await env.DB.prepare(
-        `INSERT OR REPLACE INTO bookmarks (url, title, description, image_url, img_file_id) VALUES (?, ?, ?, ?, ?)`
-      ).bind(originalUrl, title, description, imageUrl, imgFileId).run();
-      return new Response(JSON.stringify({ status: 'success' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    } catch (e) {
-      return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+// 3. 存入 D1（支持 category_path）
+if (path === '/api/store' && request.method === 'POST') {
+  try {
+    const { url: originalUrl, title, description, imageUrl, imgFileId, category_path } = await request.json();
+    const finalCategory = (category_path || '/default').trim() || '/default';
+
+    // 校验分类存在
+    const cat = await env.DB.prepare(`SELECT path FROM categories WHERE path = ?`).bind(finalCategory).first();
+    if (!cat) {
+      return new Response(JSON.stringify({ error: '分类不存在' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
+
+    await env.DB.prepare(
+      `INSERT OR REPLACE INTO bookmarks (url, title, description, image_url, img_file_id, category_path, updated_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+    ).bind(originalUrl, title, description, imageUrl, imgFileId, finalCategory).run();
+    return new Response(JSON.stringify({ status: 'success', category_path: finalCategory }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
   }
+}
 
 
 // ========== 分类：树 ==========
@@ -387,15 +397,74 @@ if (path === '/api/categories/delete' && request.method === 'POST') {
 
   
 
-  // 4. 读取列表
-  if (path === '/api/list' && request.method === 'GET') {
-    try {
-      const { results } = await env.DB.prepare(`SELECT * FROM bookmarks ORDER BY created_at DESC`).all();
-      return new Response(JSON.stringify({ success: true, data: results || [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    } catch (e) {
-      return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+// 4. 读取列表（支持 scope / category / keyword / 分页）
+if (path === '/api/list' && request.method === 'GET') {
+  try {
+    const scope = url.searchParams.get('scope') || 'home';       // home | fav | archive | category
+    const category = url.searchParams.get('category') || '';
+    const keyword = (url.searchParams.get('keyword') || '').trim();
+    const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(url.searchParams.get('pageSize') || '20', 10) || 20));
+    const offset = (page - 1) * pageSize;
+
+    const where = [];
+    const binds = [];
+
+    if (scope === 'home') {
+      where.push(`status != 'archived'`);
+    } else if (scope === 'fav') {
+      where.push(`is_favorite = 1`);
+    } else if (scope === 'archive') {
+      where.push(`status = 'archived'`);
+    } else if (scope === 'category') {
+      if (!category) {
+        return new Response(JSON.stringify({ success: true, data: [], total: 0, totalPages: 0, page }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      where.push(`category_path = ?`);
+      binds.push(category);
+    } else {
+      return new Response(JSON.stringify({ error: '无效的 scope' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
+
+    if (keyword) {
+      where.push(`(title LIKE ? OR description LIKE ? OR url LIKE ?)`);
+      const like = `%${keyword}%`;
+      binds.push(like, like, like);
+    }
+
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    // 总数
+    const countRow = await env.DB.prepare(
+      `SELECT COUNT(*) AS c FROM bookmarks ${whereSql}`
+    ).bind(...binds).first();
+    const total = countRow?.c || 0;
+    const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
+
+    // 当前页
+    const { results } = await env.DB.prepare(
+      `SELECT * FROM bookmarks ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`
+    ).bind(...binds, pageSize, offset).all();
+
+    return new Response(JSON.stringify({
+      success: true,
+      data: results || [],
+      total,
+      totalPages,
+      page,
+      pageSize,
+      scope,
+      category: scope === 'category' ? category : null,
+      keyword
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
   }
+}
 
   return new Response('Not Found', { status: 404, headers: corsHeaders });
 }
