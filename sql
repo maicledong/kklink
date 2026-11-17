@@ -1,3 +1,9 @@
+
+
+
+
+
+
 -- bookmarks 表：
 CREATE TABLE IF NOT EXISTS bookmarks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,6 +29,21 @@ CREATE TABLE IF NOT EXISTS categories (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-
+--  插入默认分类（锁定）
 INSERT OR IGNORE INTO categories (path, name, parent_path, is_system)
 VALUES ('/default', '默认', '/', 1);
+
+-- 索引（列表查询会用到）
+CREATE INDEX IF NOT EXISTS idx_bookmarks_category ON bookmarks(category_path);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_status ON bookmarks(status);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_favorite ON bookmarks(is_favorite);
+CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_path);
+
+
+
+
+
+
+
+
+
