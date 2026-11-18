@@ -85,15 +85,15 @@
 
         <!-- 链接保存区 -->
         <div id="saveZone" class="bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 mb-6 shadow-xl flex flex-col gap-4">
-            <!-- 🌟 新增：分类 Scope 切换（位于输入框上方） -->
-            <div class="flex justify-start w-full max-w-2xl mx-auto transition-all duration-300" id="scopeTabsWrapper">
-                <div id="scopeTabs" class="flex items-center bg-slate-900/50 border border-slate-700 rounded-lg p-1 gap-1 w-max">
-                    <button class="scope-tab px-4 py-1.5 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white" data-scope="home">主页</button>
-                    <button class="scope-tab px-4 py-1.5 rounded-md text-sm font-medium transition-colors text-slate-300 hover:text-white" data-scope="fav">收藏</button>
-                    <button class="scope-tab px-4 py-1.5 rounded-md text-sm font-medium transition-colors text-slate-300 hover:text-white" data-scope="archive">归档</button>
-                    <button class="scope-tab px-4 py-1.5 rounded-md text-sm font-medium transition-colors text-slate-300 hover:text-white" data-scope="tag">标签</button>
+            <!-- 🌟 纯文字 Tab 切换 -->
+            <div class="flex justify-start w-full max-w-2xl mx-auto transition-all duration-300 mb-2" id="scopeTabsWrapper">
+                <div id="scopeTabs" class="flex items-center gap-6 w-max">
+                    <button class="scope-tab px-1 py-1 text-base font-medium transition-colors text-blue-500 border-b-2 border-blue-500" data-scope="home">主页</button>
+                    <button class="scope-tab px-1 py-1 text-base font-medium transition-colors text-slate-400 hover:text-white border-b-2 border-transparent" data-scope="fav">收藏</button>
+                    <button class="scope-tab px-1 py-1 text-base font-medium transition-colors text-slate-400 hover:text-white border-b-2 border-transparent" data-scope="archive">归档</button>
+                    <button class="scope-tab px-1 py-1 text-base font-medium transition-colors text-slate-400 hover:text-white border-b-2 border-transparent" data-scope="tag">标签</button>
                 </div>
-            </div>            
+            </div>          
             <!-- 第一行：使用 flex 让左右分栏 -->
             <div id="saveZoneMainRow" class="flex flex-col lg:flex-row items-stretch gap-6 w-full transition-all duration-300">
                 
@@ -656,6 +656,16 @@
             if (scope !== 'category') {
                 AppState.category = '';
             }
+            
+            // 🌟 更新 Tab 的样式：文字高亮 + 下划线
+            document.querySelectorAll('.scope-tab').forEach(b => {
+                const isActive = b.dataset.scope === scope;
+                b.classList.toggle('text-blue-500', isActive);
+                b.classList.toggle('border-blue-500', isActive);
+                b.classList.toggle('text-slate-400', !isActive);
+                b.classList.toggle('border-transparent', !isActive);
+            });
+
             loadCards();
         };
 
@@ -664,12 +674,17 @@
             AppState.scope = 'category';
             AppState.category = path;
             AppState.page = 1;
-            loadCards();
-            // 同步顶部的 tab 高亮
+            
+            // 🌟 同步更新样式
             document.querySelectorAll('.scope-tab').forEach(b => {
-                b.classList.toggle('bg-blue-600', b.dataset.scope === 'category');
-                b.classList.toggle('text-white', b.dataset.scope === 'category');
+                const isActive = b.dataset.scope === 'category';
+                b.classList.toggle('text-blue-500', isActive);
+                b.classList.toggle('border-blue-500', isActive);
+                b.classList.toggle('text-slate-400', !isActive);
+                b.classList.toggle('border-transparent', !isActive);
             });
+
+            loadCards();
         };
 
         // 如果当前分类被删除了，退回主页
