@@ -409,7 +409,8 @@ if (arrow) {
       // 🌟 Scope 按钮组也一起靠左
       if (scopeTabsWrapper) {
         scopeTabsWrapper.classList.remove("mx-auto", "max-w-2xl", "pl-[60px]");
-        scopeTabsWrapper.classList.add("max-w-[600px]", "pl-[8px]");
+        scopeTabsWrapper.classList.add("max-w-[600px]");
+        scopeTabsWrapper.style.paddingLeft = "60px";
       }
       
       if (toggleBtn) {
@@ -432,8 +433,9 @@ if (arrow) {
 
       // 🌟 Scope 按钮组恢复居中
       if (scopeTabsWrapper) {
-        scopeTabsWrapper.classList.remove("max-w-[600px]", "pl-[8px]");
+        scopeTabsWrapper.classList.remove("max-w-[600px]");
         scopeTabsWrapper.classList.add("mx-auto", "max-w-2xl", "pl-[60px]");
+        scopeTabsWrapper.style.paddingLeft = "";
       }
       
       if (toggleBtn) {
