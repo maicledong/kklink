@@ -56,16 +56,22 @@
             @apply text-blue-400 text-sm;
         }
 
-/* 展开保存区时：让主页、收藏、归档紧贴输入框上方 */
-#saveZone:has(#explorerView:not(.hidden)) #scopeTabsWrapper {
-    margin-bottom: -8px !important;
-    padding-left: 68px !important;
+
+/* 展开分类资源管理器时，修复左侧输入框被垂直拉伸的问题 */
+#saveZone:has(#explorerView:not(.hidden)) #saveZoneMainRow {
+    align-items: flex-start !important;
 }
 
-/* 缩小保存区内部上下元素的间距 */
+/* 展开时缩短分类按钮与输入框之间的距离 */
+#saveZone:has(#explorerView:not(.hidden)) #scopeTabsWrapper {
+    margin-bottom: 0 !important;
+}
+
+/* 展开时缩小保存区内部的纵向间距 */
 #saveZone:has(#explorerView:not(.hidden)) {
     row-gap: 8px !important;
 }
+
 
             
 
