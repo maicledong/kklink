@@ -213,58 +213,474 @@
         </div>
     </div>
 
-    <!-- ================= JS 逻辑 ================= -->
     <script>
+        /* ============================================================
+         * 核心状态与元素
+         * ============================================================ */
         const cardsContainer = document.getElementById('cardsContainer');
         const statusText = document.getElementById('statusText');
         const urlInput = document.getElementById('urlInput');
         const saveBtn = document.getElementById('saveBtn');
-
+        const paginationBar = document.getElementById('paginationBar');
+        const searchInput = document.getElementById('searchKeyword');
+        
         const ORACLE_DOMAIN = 'https://oracle.mcck.ccwu.cc';
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-        // 原有的 loadCards 暂时保留，第 4 批会重写它
+        // 全局应用状态
+        const AppState = {
+            scope: 'home',          // home | fav | archive | category
+            category: '',           // 当 scope === 'category' 时有效
+            keyword: '',            // 搜索关键字
+            page: 1,
+            pageSize: 20,
+            selectedIds: new Set(), // 选中的卡片 ID 集合
+            isSelectAll: false,     // 当前页是否全选
+            listData: []            // 当前页的数据缓存
+        };
+
+        /* ============================================================
+         * 渲染列表
+         * ============================================================ */
         async function loadCards() {
+            // 显示加载中
+            cardsContainer.innerHTML = '<p class="text-slate-500 col-span-full text-center py-12 animate-pulse">⏳ 加载中...</p>';
+            paginationBar.classList.add('hidden');
+            
+            // 同步前端状态到 URL 参数
+            let fetchUrl = `/api/list?scope=${AppState.scope}&page=${AppState.page}&pageSize=${AppState.pageSize}`;
+            if (AppState.scope === 'category' && AppState.category) {
+                fetchUrl += `&category=${encodeURIComponent(AppState.category)}`;
+            }
+            if (AppState.keyword) {
+                fetchUrl += `&keyword=${encodeURIComponent(AppState.keyword)}`;
+            }
+
             try {
-                const res = await fetch('/api/list');
-                const { data } = await res.json();
+                const res = await fetch(fetchUrl);
+                const result = await res.json();
                 
-                if (!data || data.length === 0) {
+                if (!result.success) {
+                    throw new Error(result.error || '获取列表失败');
+                }
+
+                AppState.listData = result.data || [];
+                const totalPages = result.totalPages || 0;
+
+                // 清空全选状态
+                AppState.isSelectAll = false;
+                AppState.selectedIds.clear();
+                updateBatchToolbar();
+
+                if (AppState.listData.length === 0) {
                     cardsContainer.innerHTML = '<p class="text-slate-500 col-span-full text-center py-12">还没有收藏任何链接</p>';
+                    renderPagination(0, 0);
                     return;
                 }
 
-                cardsContainer.innerHTML = data.map(item => `
-                    <div class="card">
-                        <div class="card-img-container">
-                            ${item.image_url ? `
-                                <img src="${item.image_url}" class="card-img" referrerpolicy="no-referrer" 
-                                    onerror="
-                                        if('${item.img_file_id}' && !this.dataset.fallback) {
-                                            this.dataset.fallback = '1'; 
-                                            this.src = '${ORACLE_DOMAIN}/image/${item.img_file_id}';  
-                                        } else { 
-                                            this.style.display='none'; 
-                                        }
-                                    ">
-                            ` : `<div class="text-4xl">🔗</div>`}
-                        </div>
-                        <div class="p-4 flex flex-col flex-1">
-                            <h3 class="font-bold text-base mb-2 truncate text-white" title="${item.title || '无标题'}">${item.title || '无标题'}</h3>
-                            <p class="text-xs text-slate-400 line-clamp-2 h-8 mb-4 leading-4">${item.description || '无描述'}</p>
-                            <div class="mt-auto flex gap-2">
-                                <a href="${item.url}" target="_blank" class="flex-1 text-center bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm transition-colors">查看原文</a>
-                                <a href="${item.url}" target="_blank" class="inline-flex items-center justify-center bg-orange-600 hover:bg-orange-500 px-3 py-2 rounded-lg text-sm transition-colors" title="下载/打开">⬇️</a>
+                // 渲染卡片
+                cardsContainer.innerHTML = AppState.listData.map(item => {
+                    const isAudio = (item.file_type || '').startsWith('audio/');
+                    // 收藏与归档状态
+                    const isFav = item.is_favorite === 1;
+                    const isArchived = item.status === 'archived';
+
+                    return `
+                        <div class="card relative group" data-id="${item.id}">
+                            <!-- 左上角复选框 -->
+                            <div class="absolute top-2 left-2 z-10">
+                                <input type="checkbox" class="card-checkbox w-5 h-5 rounded cursor-pointer accent-blue-500" data-id="${item.id}">
+                            </div>
+                            
+                            <!-- 右上角悬浮操作栏 -->
+                            <div class="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button class="btn-fav bg-slate-900/80 hover:bg-slate-700 text-white p-1.5 rounded-lg backdrop-blur" title="${isFav ? '取消收藏' : '收藏'}">
+                                    ${isFav ? '❤️' : '🤍'}
+                                </button>
+                                <button class="btn-archive bg-slate-900/80 hover:bg-slate-700 text-white p-1.5 rounded-lg backdrop-blur" title="${isArchived ? '取消归档' : '归档'}">
+                                    ${isArchived ? '📦' : '🗃️'}
+                                </button>
+                                <button class="btn-move bg-slate-900/80 hover:bg-slate-700 text-white p-1.5 rounded-lg backdrop-blur" title="移动到分类">
+                                    📁
+                                </button>
+                                <button class="btn-edit bg-slate-900/80 hover:bg-slate-700 text-white p-1.5 rounded-lg backdrop-blur" title="编辑">
+                                    ✏️
+                                </button>
+                                <button class="btn-delete bg-slate-900/80 hover:bg-red-600 text-white p-1.5 rounded-lg backdrop-blur" title="删除">
+                                    🗑️
+                                </button>
+                            </div>
+
+                            <div class="card-img-container cursor-pointer" onclick="window.open('${item.url}', '_blank')">
+                                ${item.image_url ? `
+                                    <img src="${item.image_url}" class="card-img" referrerpolicy="no-referrer" 
+                                        onerror="
+                                            if('${item.img_file_id}' && !this.dataset.fallback) {
+                                                this.dataset.fallback = '1'; 
+                                                this.src = '${ORACLE_DOMAIN}/image/${item.img_file_id}';  
+                                            } else { 
+                                                this.style.display='none'; 
+                                            }
+                                        ">
+                                ` : `<div class="text-4xl">🔗</div>`}
+                            </div>
+                            <div class="p-4 flex flex-col flex-1">
+                                <h3 class="font-bold text-base mb-2 truncate text-white" title="${item.title || '无标题'}">${item.title || '无标题'}</h3>
+                                <p class="text-xs text-slate-400 line-clamp-2 h-8 mb-4 leading-4">${item.description || '无描述'}</p>
+                                
+                                <div class="mt-auto flex gap-2">
+                                    <a href="${item.url}" target="_blank" class="flex-1 text-center bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm transition-colors">查看原文</a>
+                                    <a href="${item.url}" target="_blank" class="inline-flex items-center justify-center bg-orange-600 hover:bg-orange-500 px-3 py-2 rounded-lg text-sm transition-colors" title="下载/打开">⬇️</a>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
+
+                // 渲染分页
+                renderPagination(AppState.page, totalPages);
+
+                // 绑定卡片上的单条操作事件
+                bindCardEvents();
+
             } catch (e) {
                 console.error("加载列表失败", e);
-                cardsContainer.innerHTML = '<p class="text-red-400 col-span-full text-center py-8">加载失败，请刷新重试</p>';
+                cardsContainer.innerHTML = `<p class="text-red-400 col-span-full text-center py-8">加载失败：${e.message}</p>`;
             }
         }
 
+        /* ============================================================
+         * 分页渲染
+         * ============================================================ */
+        function renderPagination(current, total) {
+            if (total <= 1) {
+                paginationBar.classList.add('hidden');
+                return;
+            }
+            paginationBar.classList.remove('hidden');
+
+            let html = `
+                <button class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors ${current <= 1 ? 'opacity-50 cursor-not-allowed' : ''}" 
+                    onclick="if(${current} > 1) window.gotoPage(${current - 1})" ${current <= 1 ? 'disabled' : ''}>上一页</button>
+            `;
+
+            // 简单页码逻辑，最多显示 5 页
+            let startPage = Math.max(1, current - 2);
+            let endPage = Math.min(total, current + 2);
+
+            if (startPage > 1) {
+                html += `<button class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white" onclick="window.gotoPage(1)">1</button>`;
+                if (startPage > 2) html += `<span class="text-slate-500">...</span>`;
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button class="px-3 py-1.5 rounded-lg border transition-colors ${i === current ? 'bg-blue-600 border-blue-600 text-white font-medium' : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white hover:border-slate-500'}" onclick="window.gotoPage(${i})">${i}</button>`;
+            }
+
+            if (endPage < total) {
+                if (endPage < total - 1) html += `<span class="text-slate-500">...</span>`;
+                html += `<button class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white" onclick="window.gotoPage(${total})">${total}</button>`;
+            }
+
+            html += `
+                <button class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors ${current >= total ? 'opacity-50 cursor-not-allowed' : ''}" 
+                    onclick="if(${current} < ${total}) window.gotoPage(${current + 1})" ${current >= total ? 'disabled' : ''}>下一页</button>
+                <span class="text-slate-500 ml-2">共 ${total} 页</span>
+            `;
+            paginationBar.innerHTML = html;
+        }
+
+        window.gotoPage = function(page) {
+            AppState.page = page;
+            loadCards();
+        };
+
+        /* ============================================================
+         * 批量操作与工具栏 (全选、批量移动/收藏/归档/删除)
+         * ============================================================ */
+        const selectAllBtn = document.querySelector('.toolbar-btn[title="操作（待添加）"]');
+        // 重写全选按钮逻辑
+        if (selectAllBtn) {
+            selectAllBtn.title = "全选/反选";
+            selectAllBtn.onclick = () => {
+                AppState.isSelectAll = !AppState.isSelectAll;
+                const checkboxes = document.querySelectorAll('.card-checkbox');
+                checkboxes.forEach(cb => {
+                    cb.checked = AppState.isSelectAll;
+                    const id = Number(cb.dataset.id);
+                    if (AppState.isSelectAll) {
+                        AppState.selectedIds.add(id);
+                        cb.closest('.card').classList.add('border-blue-500');
+                    } else {
+                        AppState.selectedIds.delete(id);
+                        cb.closest('.card').classList.remove('border-blue-500');
+                    }
+                });
+                updateBatchToolbar();
+            };
+        }
+
+        // 监听单张卡片的复选框
+        cardsContainer.addEventListener('change', (e) => {
+            if (e.target.classList.contains('card-checkbox')) {
+                const id = Number(e.target.dataset.id);
+                if (e.target.checked) {
+                    AppState.selectedIds.add(id);
+                    e.target.closest('.card').classList.add('border-blue-500');
+                } else {
+                    AppState.selectedIds.delete(id);
+                    e.target.closest('.card').classList.remove('border-blue-500');
+                }
+                updateBatchToolbar();
+            }
+        });
+
+        function updateBatchToolbar() {
+            const count = AppState.selectedIds.size;
+            // 更新全选按钮的 UI
+            if (selectAllBtn) {
+                if (count === 0) {
+                    selectAllBtn.innerHTML = `<svg viewBox="0 0 24 24" class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg><span>全选</span>`;
+                    selectAllBtn.classList.replace('bg-purple-600', 'bg-slate-700');
+                } else {
+                    selectAllBtn.innerHTML = `<span>已选 ${count} 项</span>`;
+                    selectAllBtn.classList.replace('bg-slate-700', 'bg-purple-600');
+                }
+            }
+        }
+
+        // 绑定批量操作按钮 (假设那个 "..." 按钮是批量操作下拉)
+        const moreBtn = document.querySelector('.toolbar-btn[title="更多（待添加）"]');
+        if (moreBtn) {
+            moreBtn.title = "批量操作";
+            moreBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (AppState.selectedIds.size === 0) {
+                    return alert('请先勾选需要操作的卡片');
+                }
+                showBatchActionMenu(moreBtn);
+            };
+        }
+
+        function showBatchActionMenu(anchor) {
+            // 先移除已有的
+            document.getElementById('batchActionMenu')?.remove();
+            
+            const menu = document.createElement('div');
+            menu.id = 'batchActionMenu';
+            menu.className = 'absolute right-0 top-full mt-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-[9999] w-40 p-1';
+            menu.innerHTML = `
+                <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('move')">📁 批量移动</button>
+                <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('favorite', 1)">❤️ 批量收藏</button>
+                <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('favorite', 0)">🤍 取消收藏</button>
+                <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('archive', 1)">🗃️ 批量归档</button>
+                <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('archive', 0)">📂 取消归档</button>
+                <div class="h-px bg-slate-700 my-1"></div>
+                <button class="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-red-500/20 rounded" onclick="batchAction('delete')">🗑️ 批量删除</button>
+            `;
+            
+            anchor.parentElement.style.position = 'relative';
+            anchor.parentElement.appendChild(menu);
+
+            setTimeout(() => {
+                document.addEventListener('click', function closeMenu() {
+                    menu.remove();
+                    document.removeEventListener('click', closeMenu);
+                }, { once: true });
+            }, 0);
+        }
+
+        window.batchAction = async function(action, payloadVal) {
+            document.getElementById('batchActionMenu')?.remove();
+            const ids = Array.from(AppState.selectedIds);
+            if (ids.length === 0) return;
+
+            if (action === 'delete') {
+                if (!confirm(`确定要删除选中的 ${ids.length} 个链接吗？不可恢复！`)) return;
+            }
+
+            const payload = {};
+            if (action === 'favorite') payload.is_favorite = payloadVal;
+            if (action === 'archive') payload.archived = payloadVal;
+
+            if (action === 'move') {
+                // 弹出分类选择器
+                if (window.CategoryExplorer) {
+                    // 借用 picker 树弹窗，我们需要在这里定义一个回调
+                    const targetCat = prompt("请输入目标分类路径（如 /工作）：", "/default");
+                    if (!targetCat) return;
+                    payload.target_category = targetCat;
+                } else {
+                    return alert('分类组件未加载');
+                }
+            }
+
+            try {
+                const res = await fetch('/api/bookmark/batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids, action, payload })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    alert(`操作成功，影响了 ${result.affected} 条数据`);
+                    loadCards(); // 重新加载列表刷新状态
+                } else {
+                    alert('操作失败：' + result.error);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('网络请求失败');
+            }
+        };
+
+        /* ============================================================
+         * 单卡片操作绑定 (收藏、归档、移动、编辑、删除)
+         * ============================================================ */
+        function bindCardEvents() {
+            document.querySelectorAll('.card').forEach(cardEl => {
+                const id = Number(cardEl.dataset.id);
+                
+                // 收藏
+                cardEl.querySelector('.btn-fav')?.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const isFav = e.target.textContent.includes('❤️') ? 0 : 1;
+                    await singleAction(id, 'favorite', { is_favorite: isFav });
+                });
+
+                // 归档
+                cardEl.querySelector('.btn-archive')?.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const isArchived = e.target.textContent.includes('📦') ? 0 : 1;
+                    await singleAction(id, 'archive', { archived: isArchived });
+                });
+
+                // 删除
+                cardEl.querySelector('.btn-delete')?.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (confirm('确定删除此链接吗？')) {
+                        await singleAction(id, 'delete');
+                    }
+                });
+
+                // 编辑
+                cardEl.querySelector('.btn-edit')?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const item = AppState.listData.find(x => x.id === id);
+                    if (!item) return;
+                    
+                    const newTitle = prompt('修改标题：', item.title);
+                    if (newTitle === null) return;
+                    const newDesc = prompt('修改描述：', item.description);
+                    if (newDesc === null) return;
+
+                    fetch('/api/bookmark/update', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id, title: newTitle, description: newDesc })
+                    }).then(r => r.json()).then(res => {
+                        if (res.success) loadCards();
+                        else alert(res.error);
+                    });
+                });
+
+                // 移动
+                cardEl.querySelector('.btn-move')?.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const targetCat = prompt("请输入要移动到的目标分类路径（如 /工作）：", "/default");
+                    if (!targetCat) return;
+                    await singleAction(id, 'move', { target_category: targetCat });
+                });
+            });
+        }
+
+        async function singleAction(id, action, payload = {}) {
+            try {
+                const res = await fetch('/api/bookmark/batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: [id], action, payload })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    loadCards(); // 重新加载列表
+                } else {
+                    alert('操作失败：' + result.error);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('网络错误');
+            }
+        }
+
+        /* ============================================================
+         * 搜索功能
+         * ============================================================ */
+        let searchTimer = null;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                AppState.keyword = e.target.value.trim();
+                AppState.page = 1;
+                loadCards();
+            }, 400); // 400ms 防抖
+        });
+
+        const searchBtn = document.querySelector('.search-btn') || document.querySelectorAll('button[title="搜索"]')[0];
+        if (searchBtn) {
+            searchBtn.onclick = () => {
+                AppState.keyword = searchInput.value.trim();
+                AppState.page = 1;
+                loadCards();
+            };
+        }
+        
+        const resetBtn = document.querySelector('button[title="重置"]');
+        if (resetBtn) {
+            resetBtn.onclick = () => {
+                searchInput.value = '';
+                AppState.keyword = '';
+                AppState.page = 1;
+                loadCards();
+            };
+        }
+
+        /* ============================================================
+         * 联动 CategoryExplorer (第 3 批的组件)
+         * ============================================================ */
+        // 切换顶部的 Scope (主页/收藏/归档/分类)
+        window.onScopeChanged = (scope) => {
+            AppState.scope = scope;
+            AppState.page = 1;
+            if (scope !== 'category') {
+                AppState.category = '';
+            }
+            loadCards();
+        };
+
+        // 点击左侧分类树
+        window.onCategorySelected = (path) => {
+            AppState.scope = 'category';
+            AppState.category = path;
+            AppState.page = 1;
+            loadCards();
+            // 同步顶部的 tab 高亮
+            document.querySelectorAll('.scope-tab').forEach(b => {
+                b.classList.toggle('bg-blue-600', b.dataset.scope === 'category');
+                b.classList.toggle('text-white', b.dataset.scope === 'category');
+            });
+        };
+
+        // 如果当前分类被删除了，退回主页
+        window.onCategoryDeleted = (result) => {
+            if (AppState.scope === 'category' && AppState.category === result.path) {
+                window.CategoryExplorer.setScope('home');
+            }
+        };
+
+        /* ============================================================
+         * 保存链接 (修改 category_path 逻辑)
+         * ============================================================ */
         saveBtn.onclick = async () => {
             const url = urlInput.value.trim();
             if (!url) return alert('请输入链接');
@@ -300,18 +716,14 @@
                             const proxyRes = await fetch(`${ORACLE_DOMAIN}/proxy-image?url=${encodeURIComponent(karakeepLocalImage)}`);
                             if (proxyRes.ok) {
                                 const proxyData = await proxyRes.json();
-                                if (proxyData.success) {
-                                    imgFileId = proxyData.file_id;
-                                }
+                                if (proxyData.success) imgFileId = proxyData.file_id;
                             }
-                        } catch (e) {
-                            console.error("浏览器请求 Oracle 转存失败", e);
-                        }
+                        } catch (e) { console.error(e); }
                     }
 
                     statusText.innerText = '正在写入数据库...';
                     
-                    // 🌟 核心修改：从全局的 CategoryStore 中取出用户选中的分类
+                    // 获取当前选中的分类
                     const targetCategory = window.CategoryExplorer ? window.CategoryExplorer.getPickerPath() : '/default';
 
                     await fetch('/api/store', {
@@ -326,7 +738,8 @@
                         })
                     });
 
-                    await loadCards();
+                    // 保存成功后重新加载列表
+                    loadCards();
                 } else {
                     alert("抓取超时，请稍后刷新查看");
                 }
@@ -342,15 +755,9 @@
             }
         };
 
-        loadCards();
-
-        document.getElementById('searchKeyword').addEventListener('input', function(e) {
-            const keyword = e.target.value.toLowerCase();
-            const cards = document.querySelectorAll('#cardsContainer .card');
-            cards.forEach(card => {
-                const text = card.innerText.toLowerCase();
-                card.style.display = text.includes(keyword) ? '' : 'none';
-            });
+        // 页面加载完成后初始化主页列表
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCards();
         });
     </script>
     <!-- 引入分类资源管理器脚本 -->
