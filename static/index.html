@@ -211,9 +211,33 @@
 }
 
 @media (max-width: 640px) {
+
+    /* 链接保存区：左右不留内边距 */
     #saveZone {
-        padding-left: 1 !important;
-		padding-right: 1 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    /* 输入区域：左侧留 2px，右侧不留空白 */
+    #inputWrapper {
+        width: 100% !important;
+        max-width: none !important;
+        margin-left: 2px !important;
+        margin-right: 0 !important;
+        gap: 8px !important;
+        box-sizing: border-box !important;
+    }
+
+    /* 左侧分类选择按钮不收缩 */
+    #inputWrapper > .relative {
+        flex-shrink: 0 !important;
+    }
+
+    /* 右侧输入框和保存按钮占满剩余宽度 */
+    #inputWrapper > div:last-child {
+        flex: 1 1 0% !important;
+        min-width: 0 !important;
+        margin-right: 0 !important;
     }
 }
 			
