@@ -380,6 +380,8 @@
     const explorer = document.getElementById("explorerView");
     const toggleBtn = document.getElementById("toggleSaveZoneBtn");
     const inputWrapper = document.getElementById("inputWrapper");
+    const scopeTabsWrapper = document.getElementById("scopeTabsWrapper"); // 🌟 新增获取 scopeTabs 的包裹层
+
     if (!explorer || !inputWrapper) return;
     
     const isHidden = explorer.classList.contains("hidden");
@@ -387,11 +389,17 @@
     if (isHidden) {
       // 展开
       explorer.classList.remove("hidden");
-      explorer.classList.add("flex"); // 让它变成 flex 容器充满高度
+      explorer.classList.add("flex"); 
       
-      // 去掉 mx-auto 让它靠左，并限制最大宽度，给右侧腾出空间
+      // 输入框靠左
       inputWrapper.classList.remove("mx-auto", "max-w-2xl");
       inputWrapper.classList.add("max-w-[600px]");
+
+      // 🌟 Scope 按钮组也一起靠左
+      if (scopeTabsWrapper) {
+        scopeTabsWrapper.classList.remove("mx-auto", "max-w-2xl");
+        scopeTabsWrapper.classList.add("max-w-[600px]");
+      }
       
       if (toggleBtn) {
         toggleBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M20 12H4"></path></svg>`;
@@ -407,9 +415,15 @@
       explorer.classList.add("hidden");
       explorer.classList.remove("flex");
       
-      // 恢复居中
+      // 输入框恢复居中
       inputWrapper.classList.remove("max-w-[600px]");
       inputWrapper.classList.add("mx-auto", "max-w-2xl");
+
+      // 🌟 Scope 按钮组恢复居中
+      if (scopeTabsWrapper) {
+        scopeTabsWrapper.classList.remove("max-w-[600px]");
+        scopeTabsWrapper.classList.add("mx-auto", "max-w-2xl");
+      }
       
       if (toggleBtn) {
         toggleBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path></svg>`;
