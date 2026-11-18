@@ -376,21 +376,36 @@
 
   // ---------- 保存区展开/折叠 ----------
   function toggleSaveZone() {
-    const zone = document.getElementById("saveZone");
     const explorer = document.getElementById("explorerView");
-    if (!zone || !explorer) return;
-    const willHide = !zone.classList.contains("hidden");
-    if (willHide) {
-      zone.classList.add("hidden");
-      explorer.classList.add("hidden");
-    } else {
-      zone.classList.remove("hidden");
+    const toggleBtn = document.getElementById("toggleSaveZoneBtn");
+    if (!explorer) return;
+    
+    // 判断当前是不是隐藏状态
+    const isHidden = explorer.classList.contains("hidden");
+    
+    if (isHidden) {
+      // 展开：显示树
       explorer.classList.remove("hidden");
-      // 首次展开时加载树
+      
+      // 把加号换成减号（可选，但体验更好）
+      if (toggleBtn) {
+        toggleBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M20 12H4"></path></svg>`;
+      }
+      
+      // 首次展开或每次展开时加载树
       loadCategoryTree().then(() => {
         renderExplorerTree();
         renderPickerTree();
       }).catch((e) => console.error("加载分类树失败", e));
+      
+    } else {
+      // 折叠：隐藏树
+      explorer.classList.add("hidden");
+      
+      // 把减号换回加号
+      if (toggleBtn) {
+        toggleBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path></svg>`;
+      }
     }
   }
 
