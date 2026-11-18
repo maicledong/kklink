@@ -88,12 +88,22 @@
     }
 
     const hasChildren = node.has_children || (node.child_count || 0) > 0;
-    const toggle = document.createElement("span");
-    toggle.className = "cat-toggle w-4 text-center text-slate-400 select-none";
-    toggle.textContent = hasChildren ? "▶" : "";
-    if (hasChildren) {
-      toggle.dataset.toggle = "1";
-    }
+const toggle = document.createElement("span");
+toggle.className = "cat-toggle w-4 flex items-center justify-center text-slate-400 select-none";
+
+if (hasChildren) {
+  toggle.dataset.toggle = "1";
+  toggle.innerHTML = `
+    <svg viewBox="0 0 24 24" class="tree-arrow">
+      <path d="M8 5l8 7-8 7"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+    </svg>
+  `;
+}
 
     const icon = document.createElement("span");
     icon.textContent = node.is_system ? "🔒" : "📁";
@@ -162,9 +172,12 @@
         childBox.appendChild(createTreeNode(c, mode));
       }
     }
-    childBox.classList.toggle("hidden", !isHidden);
-    const toggle = wrap.querySelector(".cat-toggle");
-    if (toggle) toggle.textContent = isHidden ? "▼" : "▶";
+childBox.classList.toggle("hidden", !isHidden);
+
+const arrow = wrap.querySelector(".tree-arrow");
+if (arrow) {
+  arrow.style.transform = isHidden ? "rotate(90deg)" : "rotate(0deg)";
+}
   }
 
   // ---------- ··· 菜单 ----------
