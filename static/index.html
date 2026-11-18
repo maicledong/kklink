@@ -71,102 +71,96 @@
                 <h1 class="text-2xl font-bold tracking-tight">链接智库</h1>
             </div>
             
-<div class="flex items-center gap-2">
-    <!-- scope 切换 -->
-    <div id="scopeTabs" class="flex items-center bg-slate-800 border border-slate-700 rounded-lg p-1 gap-1">
-        <button class="scope-tab px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white" data-scope="home">主页</button>
-        <button class="scope-tab px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-slate-300 hover:text-white" data-scope="fav">收藏</button>
-        <button class="scope-tab px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-slate-300 hover:text-white" data-scope="archive">归档</button>
-        <button class="scope-tab px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-slate-300 hover:text-white" data-scope="category">分类</button>
-    </div>
-    <button class="icon-btn" title="切换主题（待添加）">🌙</button>
-    <button class="icon-btn" title="更多应用（待添加）">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="1"></circle>
-            <circle cx="19" cy="12" r="1"></circle>
-            <circle cx="5" cy="12" r="1"></circle>
-        </svg>
-    </button>
-</div>
-
-            
-        </div>
-
-<!-- 链接保存区 -->
-<div id="saveZone" class="bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 mb-6 shadow-xl flex flex-col gap-4">
-    
-    <!-- 第一行：目标分类列表（居中，各元素分离） -->
-    <div class="flex justify-center w-full">
-        <div class="flex items-center gap-5 w-full max-w-2xl mx-auto">
-            
-            <!-- 🌟 左侧包裹层：使用 relative 相对定位作为基准 -->
-            <div class="relative shrink-0">
-                <!-- 左侧蓝色列表图标按钮 -->
-                <button id="categoryPickerBtn" class="w-10 h-10 bg-sky-100 hover:bg-sky-200 text-blue-600 rounded-lg flex items-center justify-center transition-colors shadow-sm" title=".选择分类">
-                    <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M896 460.8h-358.4c-15.36 0-25.6 10.24-25.6 25.6v25.6H204.8V307.2h25.6c15.36 0 25.6-10.24 25.6-25.6v-102.4c0-15.36-10.24-25.6-25.6-25.6h-102.4c-15.36 0-25.6 10.24-25.6 25.6v102.4c0 15.36 10.24 25.6 25.6 25.6H153.6v563.2h358.4v25.6c0 15.36 10.24 25.6 25.6 25.6h358.4c15.36 0 25.6-10.24 25.6-25.6v-112.64c0-15.36-10.24-25.6-25.6-25.6h-358.4c-15.36 0-25.6 10.24-25.6 25.6v35.84H204.8v-256h307.2v35.84c0 15.36 10.24 25.6 25.6 25.6h358.4c15.36 0 25.6-10.24 25.6-25.6V486.4c0-15.36-10.24-25.6-25.6-25.6z" fill="#1296db" />
-                        <path d="M896 153.6H373.76c-15.36 0-25.6 10.24-25.6 25.6v102.4c0 15.36 10.24 25.6 25.6 25.6h522.24c15.36 0 25.6-10.24 25.6-25.6v-102.4c0-15.36-10.24-25.6-25.6-25.6z" fill="#1296db" />
+            <div class="flex items-center gap-2">
+                <!-- scope 切换 -->
+                <div id="scopeTabs" class="flex items-center bg-slate-800 border border-slate-700 rounded-lg p-1 gap-1">
+                    <button class="scope-tab px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white" data-scope="home">主页</button>
+                    <button class="scope-tab px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-slate-300 hover:text-white" data-scope="fav">收藏</button>
+                    <button class="scope-tab px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-slate-300 hover:text-white" data-scope="archive">归档</button>
+                    <button class="scope-tab px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-slate-300 hover:text-white" data-scope="category">分类</button>
+                </div>
+                <button class="icon-btn" title="切换主题（待添加）">🌙</button>
+                <button class="icon-btn" title="更多应用（待添加）">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="1"></circle>
+                        <circle cx="19" cy="12" r="1"></circle>
+                        <circle cx="5" cy="12" r="1"></circle>
                     </svg>
                 </button>
-                
-                <!-- 🌟 修改点：橘红色、去除黑边、放大、更靠右下角 -->
-                <button id="toggleSaveZoneBtn" class="absolute -bottom-2 -right-3 w-6 h-6 bg-orange-500 hover:bg-orange-600 text-white rounded-full flex items-center justify-center shadow-md transition-colors z-10" title=".展开/折叠资源管理器">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path>
-                    </svg>
-                </button>
-
-                <!-- 分类选择器下拉（picker 模式） -->
-<div id="categoryPickerDropdown" class="hidden absolute left-0 top-full mt-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-[9999] w-64 max-h-80 overflow-y-auto p-2">
-    <div class="flex items-center justify-between mb-2 px-1">
-        <span class="text-xs text-slate-400">选择保存分类</span>
-        <button id="pickerAddCategoryBtn" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-0.5 rounded">＋ 新建</button>
-    </div>
-    <div id="categoryPickerTree" class="text-sm"></div>
-</div>
-
-
-
-                
-            </div>
-            
-            <!-- 右侧：输入框 + 保存按钮（共用一个背景框） -->
-            <div class="flex items-center bg-slate-700/50 rounded-lg flex-1 overflow-hidden p-1 min-w-0 border border-transparent transition-all focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20">
-                <!-- 中间输入框 -->
-                <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="flex-1 min-w-0 bg-transparent px-4 py-2 text-white placeholder-slate-400 focus:outline-none text-sm">
-                
-                <!-- 右侧“保存”文字按钮 -->
-                <button id="saveBtn" class="flex items-center justify-center px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-md transition-all flex-shrink-0 shadow-lg shadow-blue-500/30 text-sm">
-                   保存
-                </button>
-            </div>
-            
-        </div>
-    </div>
-        
-    <p id="statusText" class="text-blue-400 mt-1 hidden text-center">正在抓取并转存 TG... 请耐心等待 40 秒</p>
-
-    <!-- 🌟 把资源管理器放在这个位置，和输入框同一层级，它会自动撑开父容器 🌟 -->
-    <div id="explorerView" class="hidden mt-2 pt-4 border-t border-slate-700">
-        <div class="flex gap-4 items-start">
-            <!-- 左侧分类树 -->
-            <aside class="w-64 shrink-0 bg-slate-900/50 rounded-xl border border-slate-700 p-3">
-                <div class="flex items-center justify-between mb-2 px-1">
-                    <span class="text-sm font-bold text-slate-300">分类</span>
-                    <button id="rootAddCategoryBtn" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded" title="在根下新建分类">＋ 新建</button>
-                </div>
-                <div id="categoryTree" class="text-sm"></div>
-            </aside>
-            <!-- 右侧说明区（占位） -->
-            <div class="flex-1 min-w-0 flex items-center justify-center bg-slate-900/30 rounded-xl border border-slate-700/50 border-dashed">
-                <div id="explorerHint" class="text-slate-500 text-sm px-4 text-center">
-                    左侧为分类资源管理器<br>点击分类即可在下方筛选卡片
-                </div>
             </div>
         </div>
-    </div>
 
-</div>
+        <!-- 链接保存区 -->
+        <div id="saveZone" class="bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 mb-6 shadow-xl flex flex-col gap-4">
+            
+            <!-- 第一行：目标分类列表（居中，各元素分离） -->
+            <div class="flex justify-center w-full">
+                <div class="flex items-center gap-5 w-full max-w-2xl mx-auto">
+                    
+                    <!-- 🌟 左侧包裹层：使用 relative 相对定位作为基准 -->
+                    <div class="relative shrink-0">
+                        <!-- 左侧蓝色列表图标按钮 -->
+                        <button id="categoryPickerBtn" class="w-10 h-10 bg-sky-100 hover:bg-sky-200 text-blue-600 rounded-lg flex items-center justify-center transition-colors shadow-sm" title="选择分类">
+                            <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M896 460.8h-358.4c-15.36 0-25.6 10.24-25.6 25.6v25.6H204.8V307.2h25.6c15.36 0 25.6-10.24 25.6-25.6v-102.4c0-15.36-10.24-25.6-25.6-25.6h-102.4c-15.36 0-25.6 10.24-25.6 25.6v102.4c0 15.36 10.24 25.6 25.6 25.6H153.6v563.2h358.4v25.6c0 15.36 10.24 25.6 25.6 25.6h358.4c15.36 0 25.6-10.24 25.6-25.6v-112.64c0-15.36-10.24-25.6-25.6-25.6h-358.4c-15.36 0-25.6 10.24-25.6 25.6v35.84H204.8v-256h307.2v35.84c0 15.36 10.24 25.6 25.6 25.6h358.4c15.36 0 25.6-10.24 25.6-25.6V486.4c0-15.36-10.24-25.6-25.6-25.6z" fill="#1296db" />
+                                <path d="M896 153.6H373.76c-15.36 0-25.6 10.24-25.6 25.6v102.4c0 15.36 10.24 25.6 25.6 25.6h522.24c15.36 0 25.6-10.24 25.6-25.6v-102.4c0-15.36-10.24-25.6-25.6-25.6z" fill="#1296db" />
+                            </svg>
+                        </button>
+                        
+                        <!-- 加号按钮（展开资源管理器） -->
+                        <button id="toggleSaveZoneBtn" class="absolute -bottom-2 -right-3 w-6 h-6 bg-orange-500 hover:bg-orange-600 text-white rounded-full flex items-center justify-center shadow-md transition-colors z-10" title="展开/折叠资源管理器">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                        </button>
+
+                        <!-- 分类选择器下拉（picker 模式） -->
+                        <div id="categoryPickerDropdown" class="hidden absolute left-0 top-full mt-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-[9999] w-64 max-h-80 overflow-y-auto p-2">
+                            <div class="flex items-center justify-between mb-2 px-1">
+                                <span class="text-xs text-slate-400">选择保存分类</span>
+                                <button id="pickerAddCategoryBtn" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-0.5 rounded">＋ 新建</button>
+                            </div>
+                            <div id="categoryPickerTree" class="text-sm"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 右侧：输入框 + 保存按钮（共用一个背景框） -->
+                    <div class="flex items-center bg-slate-700/50 rounded-lg flex-1 overflow-hidden p-1 min-w-0 border border-transparent transition-all focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20">
+                        <!-- 中间输入框 -->
+                        <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="flex-1 min-w-0 bg-transparent px-4 py-2 text-white placeholder-slate-400 focus:outline-none text-sm">
+                        
+                        <!-- 右侧“保存”文字按钮 -->
+                        <button id="saveBtn" class="flex items-center justify-center px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-md transition-all flex-shrink-0 shadow-lg shadow-blue-500/30 text-sm">
+                           保存
+                        </button>
+                    </div>
+                    
+                </div>
+            </div>
+                
+            <p id="statusText" class="text-blue-400 mt-1 hidden text-center">正在抓取并转存 TG... 请耐心等待 40 秒</p>
+
+            <!-- 🌟 分类资源管理器（内嵌在保存区内部） -->
+            <div id="explorerView" class="hidden mt-2 pt-4 border-t border-slate-700">
+                <div class="flex gap-4 items-start">
+                    <!-- 左侧分类树 -->
+                    <aside class="w-64 shrink-0 bg-slate-900/50 rounded-xl border border-slate-700 p-3">
+                        <div class="flex items-center justify-between mb-2 px-1">
+                            <span class="text-sm font-bold text-slate-300">分类</span>
+                            <button id="rootAddCategoryBtn" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded" title="在根下新建分类">＋ 新建</button>
+                        </div>
+                        <div id="categoryTree" class="text-sm"></div>
+                    </aside>
+                    <!-- 右侧说明区（占位） -->
+                    <div class="flex-1 min-w-0 flex items-center justify-center bg-slate-900/30 rounded-xl border border-slate-700/50 border-dashed">
+                        <div id="explorerHint" class="text-slate-500 text-sm px-4 text-center">
+                            左侧为分类资源管理器<br>点击分类即可在下方筛选卡片
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
 
         <!-- 画廊工具栏 -->
         <div class="mb-5 space-y-3">
@@ -198,18 +192,37 @@
         <!-- 卡片容器 -->
         <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 mt-4 items-stretch"></div>
 
-        <!-- 分页条 -->
-        <div class="flex justify-center items-center gap-2 mt-8 text-sm">
-            <button class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors" disabled>上一页</button>
-            <button class="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium">1</button>
-            <button class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors">2</button>
-            <button class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors">下一页</button>
-            <span class="text-slate-500 ml-2">共 2 页</span>
-            <button class="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-colors">跳页</button>
+        <!-- 分页条（替换为动态容器） -->
+        <div id="paginationBar" class="flex justify-center items-center gap-2 mt-8 text-sm hidden"></div>
+    </div>
+
+    <!-- ================= 弹窗区 ================= -->
+    <!-- 分类编辑弹窗 -->
+    <div id="categoryEditModal" class="hidden fixed inset-0 bg-black/60 z-[100000] flex items-center justify-center p-4">
+        <div class="bg-slate-800 rounded-xl p-6 w-full max-w-sm border border-slate-700">
+            <h3 id="categoryEditTitle" class="text-lg font-bold mb-3 text-white">新建分类</h3>
+            <p id="categoryEditParent" class="text-xs text-slate-400 mb-3"></p>
+            <input type="text" id="categoryEditInput" placeholder="分类名称" class="w-full p-3 rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 mb-4">
+            <div class="flex gap-3">
+                <button id="categoryEditCancel" class="flex-1 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white">取消</button>
+                <button id="categoryEditConfirm" class="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium">确定</button>
+            </div>
         </div>
     </div>
 
-    <!-- JavaScript 逻辑 -->
+    <!-- 删除分类确认弹窗 -->
+    <div id="categoryDeleteModal" class="hidden fixed inset-0 bg-black/60 z-[100000] flex items-center justify-center p-4">
+        <div class="bg-slate-800 rounded-xl p-6 w-full max-w-sm border border-slate-700">
+            <h3 class="text-lg font-bold mb-3 text-white">删除分类</h3>
+            <p id="categoryDeleteMsg" class="text-sm text-slate-300 mb-4"></p>
+            <div class="flex gap-3">
+                <button id="categoryDeleteCancel" class="flex-1 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white">取消</button>
+                <button id="categoryDeleteConfirm" class="flex-1 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium">确定删除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JS 逻辑 ================= -->
     <script>
         const cardsContainer = document.getElementById('cardsContainer');
         const statusText = document.getElementById('statusText');
@@ -217,9 +230,9 @@
         const saveBtn = document.getElementById('saveBtn');
 
         const ORACLE_DOMAIN = 'https://oracle.mcck.ccwu.cc';
-
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+        // 原有的 loadCards 暂时保留，第 4 批会重写它
         async function loadCards() {
             try {
                 const res = await fetch('/api/list');
@@ -246,12 +259,8 @@
                             ` : `<div class="text-4xl">🔗</div>`}
                         </div>
                         <div class="p-4 flex flex-col flex-1">
-                            <!-- 标题：单行显示 -->
                             <h3 class="font-bold text-base mb-2 truncate text-white" title="${item.title || '无标题'}">${item.title || '无标题'}</h3>
-                            <!-- 描述：固定两行高度 -->
                             <p class="text-xs text-slate-400 line-clamp-2 h-8 mb-4 leading-4">${item.description || '无描述'}</p>
-                            
-                            <!-- 底部按钮 -->
                             <div class="mt-auto flex gap-2">
                                 <a href="${item.url}" target="_blank" class="flex-1 text-center bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm transition-colors">查看原文</a>
                                 <a href="${item.url}" target="_blank" class="inline-flex items-center justify-center bg-orange-600 hover:bg-orange-500 px-3 py-2 rounded-lg text-sm transition-colors" title="下载/打开">⬇️</a>
@@ -270,7 +279,6 @@
             if (!url) return alert('请输入链接');
 
             saveBtn.disabled = true;
-            // 这里由于保存按钮改成了 svg，不需要改变内部文字，可以改变透明度来提示禁用
             saveBtn.classList.add('opacity-50');
             statusText.classList.remove('hidden');
             statusText.innerText = '正在抓取中... 请等待 40 秒';
@@ -311,6 +319,8 @@
                     }
 
                     statusText.innerText = '正在写入数据库...';
+                    
+                    // 第 4 批会在这里加上 category_path
                     await fetch('/api/store', {
                         method: 'POST',
                         body: JSON.stringify({ 
@@ -349,8 +359,7 @@
             });
         });
     </script>
-    <!-- 🌟 引入分类资源管理器脚本 -->
+    <!-- 引入分类资源管理器脚本 -->
     <script src="/category-explorer.js"></script>
-    
 </body>
 </html>
