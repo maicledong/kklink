@@ -311,8 +311,6 @@
   // ---------- 选中分类 ----------
   function selectCategory(path) {
     CategoryStore.currentPath = path;
-    // scope 自动切到 category
-    setScope("category", { silent: true });
     renderExplorerTree();
     // 通知外部（第 4 批接卡片列表）
     if (typeof window.onCategorySelected === "function") {
