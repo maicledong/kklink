@@ -87,15 +87,16 @@
     align-self: flex-start !important;
 }
 
-/* 内部容器充分利用可用高度 */
+/* 内部容器：向下延伸至保存区底边 */
 #saveZone:has(#explorerView:not(.hidden)) #explorerView > div {
-    height: 100% !important;
-    max-height: 170px !important;
+    height: auto !important;
+    max-height: none !important;
     min-height: 0 !important;
     padding-bottom: 0 !important;
+    margin-bottom: -20px !important;
 }
 
-/* 分类列表填满剩余空间 */
+/* 分类列表：填满延伸后的空间 */
 #saveZone:has(#explorerView:not(.hidden)) #categoryTree {
     flex: 1 1 auto !important;
     height: auto !important;
