@@ -93,11 +93,12 @@
         <!-- 链接保存区 -->
         <div id="saveZone" class="bg-slate-800/80 backdrop-blur-sm rounded-2xl border border-slate-700 p-5 mb-6 shadow-xl flex flex-col gap-4">
             
-            <!-- 第一行：使用 flex 让左右分栏，或者居中 -->
-            <div id="saveZoneMainRow" class="flex flex-col lg:flex-row items-center gap-6 w-full max-w-full transition-all duration-300">
+            <!-- 第一行：使用 flex 让左右分栏 -->
+            <div id="saveZoneMainRow" class="flex flex-col lg:flex-row items-stretch gap-6 w-full transition-all duration-300">
                 
-                <!-- 左侧：输入框区域（带平滑过渡） -->
-                <div id="inputWrapper" class="flex items-center gap-5 w-full max-w-2xl mx-auto transition-all duration-300 shrink-0">
+                <!-- 左侧：输入框区域 -->
+                <!-- 默认居中 (mx-auto)，展开后靠左，并限制最大宽度，给右侧腾出空间 -->
+                <div id="inputWrapper" class="flex items-center gap-5 w-full max-w-2xl mx-auto transition-all duration-300">
                     
                     <!-- 左侧包裹层：使用 relative 相对定位作为基准 -->
                     <div class="relative shrink-0">
@@ -126,26 +127,23 @@
                         </div>
                     </div>
                     
-                    <!-- 右侧：输入框 + 保存按钮（共用一个背景框） -->
+                    <!-- 右侧：输入框 + 保存按钮 -->
                     <div class="flex items-center bg-slate-700/50 rounded-lg flex-1 overflow-hidden p-1 min-w-0 border border-transparent transition-all focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20">
-                        <!-- 中间输入框 -->
                         <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="flex-1 min-w-0 bg-transparent px-4 py-2 text-white placeholder-slate-400 focus:outline-none text-sm">
-                        
-                        <!-- 右侧“保存”文字按钮 -->
                         <button id="saveBtn" class="flex items-center justify-center px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-md transition-all flex-shrink-0 shadow-lg shadow-blue-500/30 text-sm">
                            保存
                         </button>
                     </div>
                 </div>
 
-                <!-- 右侧：分类资源管理器（默认隐藏） -->
-                <div id="explorerView" class="hidden w-full lg:w-[450px] xl:w-[600px] shrink-0 transition-all duration-300">
-                    <div class="bg-slate-900/50 rounded-xl border border-slate-700 p-3 h-full">
-                        <div class="flex items-center justify-between mb-2 px-1">
+                <!-- 右侧：分类资源管理器（默认隐藏，使用 flex-1 自动撑满剩余空间） -->
+                <div id="explorerView" class="hidden flex-1 min-w-[250px] max-h-[300px] flex-col transition-all duration-300">
+                    <div class="bg-slate-900/50 rounded-xl border border-slate-700 p-3 h-full w-full overflow-hidden flex flex-col">
+                        <div class="flex items-center justify-between mb-2 px-1 shrink-0">
                             <span class="text-sm font-bold text-slate-300">分类资源管理器</span>
                             <button id="rootAddCategoryBtn" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded" title="在根下新建分类">＋ 新建</button>
                         </div>
-                        <div id="categoryTree" class="text-sm max-h-[220px] overflow-y-auto pr-1"></div>
+                        <div id="categoryTree" class="text-sm flex-1 overflow-y-auto pr-1"></div>
                     </div>
                 </div>
 
