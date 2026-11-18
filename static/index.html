@@ -120,6 +120,39 @@
     flex-shrink: 0;
     transition: transform 0.2s ease;
 }
+
+/* ==================================================
+   分类资源管理器：去除黑色背景和边框
+   ================================================== */
+
+/* 去除资源管理器整体黑色背景 */
+#explorerView {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* 去除分类管理器内部背景 */
+#categoryTree {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* 去除分类管理器分页区域的背景和边框 */
+#explorerView .pagination,
+#explorerView .pagination-container,
+#explorerView .page-controls {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* 去除分类管理器外层容器边框 */
+#explorerView > div {
+    border-color: transparent !important;
+    box-shadow: none !important;
+}            
             
     </style>
 </head>
