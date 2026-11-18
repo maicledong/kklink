@@ -190,6 +190,13 @@
 </head>
 <body class="p-4 md:p-6">
     <div class="max-w-6xl mx-auto">
+        <!-- 顶部搜索栏 -->
+        <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden w-full mb-4">
+            <input type="text" id="searchKeyword" placeholder="搜索标签、标题、文本、URL" class="flex-1 bg-transparent p-3 text-white placeholder-slate-400 focus:outline-none">
+            <button class="px-3 py-3 text-slate-300 hover:text-white transition-colors" title="搜索">🔍</button>
+            <div class="w-px h-6 bg-slate-600"></div>
+            <button class="px-3 py-3 text-slate-300 hover:text-white transition-colors" title="重置">⟲</button>
+        </div>
         <!-- 顶部标题栏 -->
         <div class="relative mb-4 flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -285,15 +292,7 @@
 
         <!-- 画廊工具栏 -->
         <div class="mb-5 space-y-3">
-            <!-- 第一行：搜索框 -->
-            <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden w-full">
-                <input type="text" id="searchKeyword" placeholder="搜索标签、标题、文本、URL" class="flex-1 bg-transparent p-3 text-white placeholder-slate-400 focus:outline-none">
-                <button class="px-3 py-3 text-slate-300 hover:text-white transition-colors" title="搜索">🔍</button>
-                <div class="w-px h-6 bg-slate-600"></div>
-                <button class="px-3 py-3 text-slate-300 hover:text-white transition-colors" title="重置">⟲</button>
-            </div>
-
-            <!-- 第二行：按钮排列 -->
+            <!-- 按钮排列 -->
             <div class="flex items-center gap-2 w-full h-10">
                 <button class="toolbar-btn bg-indigo-600 hover:bg-indigo-500 w-10 h-full shrink-0" title="布局（待添加）">☰</button>
                 
