@@ -141,6 +141,7 @@
         CategoryStore.pickerPath = node.path;
         renderTreeInto(document.getElementById("categoryPickerTree"), "picker");
         closePickerDropdown();
+        updatePickerBadge(node); // 🌟 新增：更新悬浮文字
       } else {
         selectCategory(node.path);
       }
@@ -408,6 +409,44 @@
       }
     }
   }
+
+  // ---------- 更新保存区蓝色按钮上的悬浮徽标 ----------
+  function updatePickerBadge(node) {
+    const btnWrapper = document.getElementById("categoryPickerBtn")?.parentElement;
+    if (!btnWrapper) return;
+
+    // 查找是否已经有徽标元素
+    let badge = btnWrapper.querySelector(".picker-badge");
+    
+    // 如果是默认分类，或者没传 node，就隐藏徽标
+    if (!node || node.path === "/default" || node.is_system) {
+      if (badge) badge.remove();
+      return;
+    }
+
+    // 如果没有，就创建一个
+    if (!badge) {
+      badge = document.createElement("div");
+      badge.className = "picker-badge absolute -top-7 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-0.5 bg-blue-600 text-white text-xs rounded shadow-lg z-[10000] pointer-events-none transition-opacity duration-200";
+      // 加一个小三角指向下方
+      badge.innerHTML = `
+        <span class="badge-text"></span>
+        <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-blue-600"></div>
+      `;
+      btnWrapper.appendChild(badge);
+    }
+
+    // 更新文字
+    const textSpan = badge.querySelector(".badge-text");
+    if (textSpan) {
+      textSpan.textContent = node.name;
+    }
+    
+    // 动画效果：闪一下
+    badge.style.opacity = "0";
+    setTimeout(() => { badge.style.opacity = "1"; }, 50);
+  }
+  
 
   // ---------- 事件绑定 ----------
   function bindEvents() {
