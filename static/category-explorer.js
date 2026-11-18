@@ -385,13 +385,14 @@
     const isHidden = explorer.classList.contains("hidden");
     
     if (isHidden) {
-      // 展开：显示树，输入框靠左
+      // 展开
       explorer.classList.remove("hidden");
+      explorer.classList.add("flex"); // 让它变成 flex 容器充满高度
       
-      // 把输入框原来的 "mx-auto" 去掉，让它在 flex 布局下自然靠左
-      inputWrapper.classList.remove("mx-auto");
+      // 去掉 mx-auto 让它靠左，并限制最大宽度，给右侧腾出空间
+      inputWrapper.classList.remove("mx-auto", "max-w-2xl");
+      inputWrapper.classList.add("max-w-[600px]");
       
-      // 把加号换成减号
       if (toggleBtn) {
         toggleBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M20 12H4"></path></svg>`;
       }
@@ -402,13 +403,14 @@
       }).catch((e) => console.error("加载分类树失败", e));
       
     } else {
-      // 折叠：隐藏树，输入框恢复居中
+      // 折叠
       explorer.classList.add("hidden");
+      explorer.classList.remove("flex");
       
-      // 把 mx-auto 加回来，恢复居中
-      inputWrapper.classList.add("mx-auto");
+      // 恢复居中
+      inputWrapper.classList.remove("max-w-[600px]");
+      inputWrapper.classList.add("mx-auto", "max-w-2xl");
       
-      // 把减号换回加号
       if (toggleBtn) {
         toggleBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path></svg>`;
       }
