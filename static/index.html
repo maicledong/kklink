@@ -320,7 +320,9 @@
 
                     statusText.innerText = '正在写入数据库...';
                     
-                    // 第 4 批会在这里加上 category_path
+                    // 🌟 核心修改：从全局的 CategoryStore 中取出用户选中的分类
+                    const targetCategory = window.CategoryExplorer ? window.CategoryExplorer.getPickerPath() : '/default';
+
                     await fetch('/api/store', {
                         method: 'POST',
                         body: JSON.stringify({ 
@@ -328,7 +330,8 @@
                             title, 
                             description, 
                             imageUrl, 
-                            imgFileId 
+                            imgFileId,
+                            category_path: targetCategory // 🌟 带上分类路径
                         })
                     });
 
