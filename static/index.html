@@ -673,13 +673,10 @@
             AppState.category = path;
             AppState.page = 1;
             
-            // 🌟 同步更新样式
+            // 🌟 因为去掉了分类 Tab，点击分类树时，让所有顶部 Tab 都失去高亮
             document.querySelectorAll('.scope-tab').forEach(b => {
-                const isActive = b.dataset.scope === 'category';
-                b.classList.toggle('text-blue-500', isActive);
-                b.classList.toggle('border-blue-500', isActive);
-                b.classList.toggle('text-slate-400', !isActive);
-                b.classList.toggle('border-transparent', !isActive);
+                b.classList.remove('text-blue-500', 'border-blue-500');
+                b.classList.add('text-slate-400', 'border-transparent');
             });
 
             loadCards();
