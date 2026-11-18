@@ -56,7 +56,7 @@
             @apply text-blue-400 text-sm;
         }
 
-
+@media (min-width: 1024px) {
 /* 展开分类资源管理器时，修复左侧输入框被垂直拉伸的问题 */
 #saveZone:has(#explorerView:not(.hidden)) #saveZoneMainRow {
     align-items: flex-start !important;
@@ -73,11 +73,11 @@
 }
 
 /* 桌面端展开时：右侧分类资源管理器向上移动 */
-@media (min-width: 1024px) {
+
     #saveZone:has(#explorerView:not(.hidden)) #explorerView {
         margin-top: -62px !important;
     }
-}
+
 
 
 /* 分类资源管理器：缩小分类行间距和文字 */
@@ -108,7 +108,7 @@
     font-size: 12px !important;
 }
             
-
+}
             
 
             
