@@ -379,29 +379,34 @@
   function toggleSaveZone() {
     const explorer = document.getElementById("explorerView");
     const toggleBtn = document.getElementById("toggleSaveZoneBtn");
-    if (!explorer) return;
+    const inputWrapper = document.getElementById("inputWrapper");
+    if (!explorer || !inputWrapper) return;
     
-    // 判断当前是不是隐藏状态
     const isHidden = explorer.classList.contains("hidden");
     
     if (isHidden) {
-      // 展开：显示树
+      // 展开：显示树，输入框靠左
       explorer.classList.remove("hidden");
       
-      // 把加号换成减号（可选，但体验更好）
+      // 把输入框原来的 "mx-auto" 去掉，让它在 flex 布局下自然靠左
+      inputWrapper.classList.remove("mx-auto");
+      
+      // 把加号换成减号
       if (toggleBtn) {
         toggleBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M20 12H4"></path></svg>`;
       }
       
-      // 首次展开或每次展开时加载树
       loadCategoryTree().then(() => {
         renderExplorerTree();
         renderPickerTree();
       }).catch((e) => console.error("加载分类树失败", e));
       
     } else {
-      // 折叠：隐藏树
+      // 折叠：隐藏树，输入框恢复居中
       explorer.classList.add("hidden");
+      
+      // 把 mx-auto 加回来，恢复居中
+      inputWrapper.classList.add("mx-auto");
       
       // 把减号换回加号
       if (toggleBtn) {
