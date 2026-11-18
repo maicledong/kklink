@@ -145,6 +145,27 @@
     </div>
         
     <p id="statusText" class="text-blue-400 mt-1 hidden text-center">正在抓取并转存 TG... 请耐心等待 40 秒</p>
+
+    <!-- 🌟 把资源管理器放在这个位置，和输入框同一层级，它会自动撑开父容器 🌟 -->
+    <div id="explorerView" class="hidden mt-2 pt-4 border-t border-slate-700">
+        <div class="flex gap-4 items-start">
+            <!-- 左侧分类树 -->
+            <aside class="w-64 shrink-0 bg-slate-900/50 rounded-xl border border-slate-700 p-3">
+                <div class="flex items-center justify-between mb-2 px-1">
+                    <span class="text-sm font-bold text-slate-300">分类</span>
+                    <button id="rootAddCategoryBtn" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded" title="在根下新建分类">＋ 新建</button>
+                </div>
+                <div id="categoryTree" class="text-sm"></div>
+            </aside>
+            <!-- 右侧说明区（占位） -->
+            <div class="flex-1 min-w-0 flex items-center justify-center bg-slate-900/30 rounded-xl border border-slate-700/50 border-dashed">
+                <div id="explorerHint" class="text-slate-500 text-sm px-4 text-center">
+                    左侧为分类资源管理器<br>点击分类即可在下方筛选卡片
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
         <!-- 画廊工具栏 -->
@@ -173,30 +194,6 @@
                 <button class="toolbar-btn bg-purple-600 hover:bg-purple-500 w-10 h-full shrink-0" title="更多（待添加）">⋯</button>
             </div>
         </div>
-
-
-
-<!-- 资源管理器（加号展开后显示） -->
-<div id="explorerView" class="hidden mb-6">
-    <div class="flex gap-4 items-start">
-        <!-- 左侧分类树 -->
-        <aside class="w-64 shrink-0 bg-slate-800 rounded-xl border border-slate-700 p-3">
-            <div class="flex items-center justify-between mb-2 px-1">
-                <span class="text-sm font-bold text-slate-300">分类</span>
-                <button id="rootAddCategoryBtn" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded" title="在根下新建分类">＋ 新建</button>
-            </div>
-            <div id="categoryTree" class="text-sm"></div>
-        </aside>
-        <!-- 右侧卡片区域由 #cardsContainer 承担，这里只放一个占位说明 -->
-        <div class="flex-1 min-w-0">
-            <div id="explorerHint" class="text-slate-500 text-sm px-1">左侧选择分类，右侧显示该分类下的链接。当前默认显示「主页」。</div>
-        </div>
-    </div>
-</div>
-
-
-
-
         
         <!-- 卡片容器 -->
         <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 mt-4 items-stretch"></div>
