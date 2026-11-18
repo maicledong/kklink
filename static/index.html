@@ -216,7 +216,31 @@
 <body class="pt-0 px-4 pb-4 md:pt-0 md:px-6 md:pb-6">
     <div class="max-w-6xl mx-auto">
         <!-- 顶部搜索栏 -->
-        <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-hidden w-full mb-4">    
+        <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg overflow-visible w-full mb-4">
+            				<div id="appMenuWrap" class="relative shrink-0 z-[10000]">
+					<button id="appMenuBtn" type="button" class="flex items-center justify-center px-2 py-1 rounded-lg transition-colors" title="更多应用">
+						<svg t="1793603459406" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="32112" width="18" height="18">
+							<path d="M983.04 945.2032a25.3952 25.3952 0 0 0 25.344-25.3952v-218.3168a25.344 25.344 0 0 0-38.5024-21.7088l-181.0944 109.1584a25.344 25.344 0 0 0 0 43.4688l181.0944 109.1584a25.4464 25.4464 0 0 0 13.1072 3.6352zM174.8992 768a21.3504 21.3504 0 0 0-21.3504 21.3504v42.6496c0 11.776 9.5744 21.3504 21.3504 21.3504h426.6496c11.776 0 21.3504-9.5744 21.3504-21.3504v-42.6496A21.3504 21.3504 0 0 0 601.6 768H174.9504zM167.936 448a21.3504 21.3504 0 0 0-21.2992 21.3504V512c0 11.776 9.5232 21.3504 21.2992 21.3504h725.3504c11.776 0 21.3504-9.5744 21.3504-21.3504v-42.6496a21.3504 21.3504 0 0 0-21.3504-21.3504H167.9872z m0-320a21.3504 21.3504 0 0 0-21.2992 21.3504v42.6496c0 11.776 9.5232 21.3504 21.2992 21.3504h725.3504c11.776 0 21.3504-9.5744 21.3504-21.3504v-42.6496a21.3504 21.3504 0 0 0-21.3504-21.3504H167.9872z" fill="#159d36" fill-opacity=".85"></path>
+						</svg>
+					</button>
+
+					<div id="appMenuDropdown" class="hidden absolute right-0 top-full mt-2 min-w-[140px] bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg z-[10001] p-1">
+						<a href="https://mtvpls.mcck.ccwu.cc/" target="_blank" rel="noopener noreferrer" id="tvLinkBtn" class="flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors" title=".MyTV">	
+							<svg t="1793340621059" class="icon" viewBox="0 0 1061 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+								<path d="M730.643 21.049a53.096 53.096 0 0 1-0.759 75.093L592.29 231.045a53.096 53.096 0 0 1-63.336 8.306 53.096 53.096 0 0 1-63.147-8.155L326.997 96.256a53.096 53.096 0 0 1 74.108-76.117l127.81 124.283L655.588 20.29a53.096 53.096 0 0 1 75.093 0.759z" fill="#159d36"></path>
+								<path d="M1041.711 379.828l0.038 3.034a30093.88 30093.88 0 0 1-0.076 376.984 233.472 233.472 0 0 1-234.913 232.03h-1.175l-559.825-6.295A233.472 233.472 0 0 1 14.943 756.622a9463.429 9463.429 0 0 1 0.38-366.516A233.472 233.472 0 0 1 244.318 161.49l559.559-10.62a233.472 233.472 0 0 1 237.833 228.96z m-599.23 18.053c-32.236 0-58.405 26.13-58.405 58.368v247.694a58.368 58.368 0 0 0 89.733 49.228l194.484-123.866a58.368 58.368 0 0 0 0-98.456L473.809 407.021a58.368 58.368 0 0 0-31.327-9.14z" fill="#159d36"></path>
+							</svg>
+							<span>MyTV</span>
+						</a>
+						<!-- 下面这几项等你提供链接/图标后替换 href 和 SVG 即可 -->
+						<a href="#" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 w-full px-3 py-2 rounded-md text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors" title=".LX Music">	
+							<span class="text-base">🎵</span>
+							<span>LX Music</span>
+						</a>
+                        </div>
+                        </div>
+
+                        
             <input type="text" id="searchKeyword" placeholder="搜索标签、标题、文本、URL" class="flex-1 bg-transparent px-3 py-2 text-white placeholder-slate-400 focus:outline-none">
             <button class="px-3 py-2 text-slate-300 hover:text-white transition-colors bg-[#cbd5e1]" title="搜索">🔍</button>
             <div class="w-px h-6 bg-slate-600"></div>
