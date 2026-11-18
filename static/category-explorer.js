@@ -338,10 +338,11 @@ if (arrow) {
     // 更新 tab 样式
     document.querySelectorAll("#scopeTabs .scope-tab").forEach((btn) => {
       const active = btn.dataset.scope === scope;
-      btn.classList.toggle("bg-blue-600", active);
-      btn.classList.toggle("text-white", active);
-      btn.classList.toggle("text-slate-300", !active);
-      btn.classList.toggle("hover:text-white", !active);
+      btn.classList.toggle("text-blue-500", active);
+      btn.classList.toggle("border-blue-500", active);
+      btn.classList.toggle("text-slate-400", !active);
+      btn.classList.toggle("border-transparent", !active);
+      btn.classList.remove("bg-blue-600", "text-white", "bg-blue-500");
     });
     // 非分类 scope 时，树不高亮
     if (scope !== "category") {
