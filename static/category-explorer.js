@@ -527,8 +527,15 @@
   // ---------- 初始化 ----------
   document.addEventListener("DOMContentLoaded", () => {
     bindEvents();
-    // 不自动展开，等用户点加号
-    // 但可以预加载树（静默）
-    loadCategoryTree().catch(() => {});
+    
+    // 预加载树
+    loadCategoryTree().then(() => {
+       // 如果 pickerPath 不是 default，恢复徽标
+       if (CategoryStore.pickerPath && CategoryStore.pickerPath !== "/default") {
+           // 从缓存里找出这个节点
+           const node = CategoryStore.treeCache.find(n => n.path === CategoryStore.pickerPath);
+           if (node) updatePickerBadge(node);
+       }
+    }).catch(() => {});
   });
 })();
