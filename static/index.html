@@ -184,6 +184,27 @@
 #saveZone:not(:has(#explorerView:not(.hidden))) #scopeTabsWrapper {
     margin-bottom: 0 !important;
 }
+/* ==================================================
+   修复分类选择器被下方卡片遮挡
+   ================================================== */
+
+/* 提高整个链接保存区的层级 */
+#saveZone {
+    position: relative !important;
+    z-index: 50 !important;
+}
+
+/* 确保分类选择器父级保持较高层级 */
+#categoryPickerBtn {
+    position: relative;
+    z-index: 101;
+}
+
+/* 分类选择器下拉框 */
+#categoryPickerDropdown {
+    z-index: 99999 !important;
+}
+            
             
             
     </style>
