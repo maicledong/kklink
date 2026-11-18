@@ -80,8 +80,22 @@
     #saveZone:has(#explorerView:not(.hidden)) #explorerView {
         margin-top: -52px !important;
         margin-right: -20px !important;
-    }
+        height: auto !important;
+        max-height: 170px !important;
+        min-height: 0 !important;
+        align-self: flex-start !important;
+}
 
+#saveZone:has(#explorerView:not(.hidden)) #explorerView > div {
+    height: auto !important;
+    max-height: 170px !important;
+}
+
+#saveZone:has(#explorerView:not(.hidden)) #categoryTree {
+    max-height: 140px !important;
+    overflow-y: auto !important;
+    flex: none !important;
+}
 
 
 /* 分类资源管理器：缩小分类行间距和文字 */
@@ -246,12 +260,12 @@
 
 <!-- 右侧：分类资源管理器 -->
 <div id="explorerView" class="hidden flex-1 min-w-[270px] h-auto max-h-[170px] min-h-0 flex-col transition-all duration-300">
-    <div class="bg-transparent border-none shadow-none rounded-none px-3 pt-1 pb-3 h-auto max-h-[170px] w-full overflow-hidden flex flex-col">
+    <div class="bg-transparent border-none shadow-none rounded-none px-3 pt-1 pb-3 w-full overflow-hidden flex flex-col">
         <div class="flex items-center justify-between mb-0 px-1 shrink-0">
             <span class="text-sm font-bold text-slate-300">Lists</span>
             <button id="rootAddCategoryBtn" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded -translate-y-0.5" title="在根下新建分类">➕</button>
         </div>
-        <div id="categoryTree" class="text-sm flex-1 overflow-y-auto pr-1"></div>
+        <div id="categoryTree" class="text-sm flex-none overflow-y-auto pr-1"></div>
     </div>
 </div>
 
