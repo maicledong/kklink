@@ -267,10 +267,17 @@
     #saveZone:has(#explorerView:not(.hidden)) #scopeTabsWrapper {
         margin-bottom: 0 !important;
     }
-
-	
 }
 			
+/* 手机端：微调更多按钮三个点的位置 */
+@media (max-width: 640px) {
+    .more-dots {
+        display: inline-block;
+        position: relative;
+        top: -2px;
+        line-height: 1;
+    }
+}			
             
             
     </style>
@@ -424,7 +431,9 @@
             <span>全选</span>
         </button>
 
-        <button class="toolbar-btn bg-purple-600 hover:bg-purple-500 w-10 h-full shrink-0 rounded-lg flex items-center justify-center leading-none" title="更多（待添加）">⋯</button>
+        <button class="toolbar-btn bg-purple-600 hover:bg-purple-500 w-10 h-full shrink-0 rounded-lg" title="更多（待添加）">
+			<span class="more-dots">⋯</span>
+		</button>
     </div>
 </div>
         
