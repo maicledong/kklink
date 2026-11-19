@@ -714,33 +714,33 @@ if (moreBtn) {
     };
 }
 
-        function showBatchActionMenu(anchor) {
-            // 先移除已有的
-            document.getElementById('batchActionMenu')?.remove();
-            
-            const menu = document.createElement('div');
-            menu.id = 'batchActionMenu';
-            menu.className = 'absolute right-0 top-full mt-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-[9999] w-40 p-1';
-            menu.innerHTML = `
-                <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('move')">📁 批量移动</button>
-                <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('favorite', 1)">❤️ 批量收藏</button>
-                <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('favorite', 0)">🤍 取消收藏</button>
-                <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('archive', 1)">🗃️ 批量归档</button>
-                <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('archive', 0)">📂 取消归档</button>
-                <div class="h-px bg-slate-700 my-1"></div>
-                <button class="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-red-500/20 rounded" onclick="batchAction('delete')">🗑️ 批量删除</button>
-            `;
-            
-            anchor.parentElement.style.position = 'relative';
-            anchor.parentElement.appendChild(menu);
+function showBatchActionMenu(anchor) {
 
-            setTimeout(() => {
-                document.addEventListener('click', function closeMenu() {
-                    menu.remove();
-                    document.removeEventListener('click', closeMenu);
-                }, { once: true });
-            }, 0);
-        }
+    // 再次点击批量操作按钮：关闭菜单
+    const existingMenu = document.getElementById('batchActionMenu');
+
+    if (existingMenu) {
+        existingMenu.remove();
+        return;
+    }
+
+    const menu = document.createElement('div');
+    menu.id = 'batchActionMenu';
+    menu.className = 'absolute right-0 top-full mt-2 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-[9999] w-40 p-1';
+
+    menu.innerHTML = `
+        <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('move')">📁 批量移动</button>
+        <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('favorite', 1)">❤️ 批量收藏</button>
+        <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('favorite', 0)">🤍 取消收藏</button>
+        <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('archive', 1)">🗃️ 批量归档</button>
+        <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('archive', 0)">📂 取消归档</button>
+        <div class="h-px bg-slate-700 my-1"></div>
+        <button class="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-red-500/20 rounded" onclick="batchAction('delete')">🗑️ 批量删除</button>
+    `;
+
+    anchor.parentElement.style.position = 'relative';
+    anchor.parentElement.appendChild(menu);
+}
 
 window.batchAction = async function(action, payloadVal) {
     document.getElementById('batchActionMenu')?.remove();
