@@ -396,24 +396,37 @@
 
         </div>
 
-        <!-- 画廊工具栏 -->
-        <div class="mb-5 space-y-3">
-            <!-- 按钮排列 -->
-            <div class="flex items-center gap-2 w-full h-10">
-                <button class="toolbar-btn bg-indigo-600 hover:bg-indigo-500 w-10 h-full shrink-0" title="布局（待添加）">☰</button>
-                
-                <button class="toolbar-btn bg-slate-700 hover:bg-slate-600 flex-1 h-full" title="显示标签（待添加）">
-                    <span class="mr-1">🏷️</span> 隐藏
-                </button>
-                
-                <button class="toolbar-btn bg-slate-700 hover:bg-slate-600 flex-1 h-full flex items-center justify-center gap-2" title="操作（待添加）">
-                    <svg viewBox="0 0 24 24" class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
-                    <span>全选</span>
-                </button>
+<!-- 画廊工具栏 -->
+<div class="mb-5 space-y-3">
+    <!-- 按钮排列 -->
+    <div class="flex items-center gap-2 w-full h-10">
+        <button class="toolbar-btn bg-indigo-600 hover:bg-indigo-500 w-10 h-full shrink-0" title="布局（待添加）">☰</button>
 
-                <button class="toolbar-btn bg-purple-600 hover:bg-purple-500 w-10 h-full shrink-0" title="更多（待添加）">⋯</button>
-            </div>
-        </div>
+        <button class="toolbar-btn bg-slate-700 hover:bg-slate-600 flex-1 h-full" title="显示标签（待添加）">
+            <span class="mr-1">🏷️</span> 隐藏
+        </button>
+
+        <!-- 刷新当前页 -->
+        <button id="refreshCurrentPageBtn"
+            style="background: transparent; border: none; box-shadow: none; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; cursor: pointer; margin: 0 -4px; flex-shrink: 0"
+            title="刷新当前页">
+            <svg t="1792217082326" class="icon" viewBox="0 0 1024 1024" version="1.1"
+                xmlns="http://www.w3.org/2000/svg" width="30" height="30">
+                <path d="M437.655552 498.432H361.009152c0-145.408 0-332.288 242.8416-484.608 6.3488-6.912 0-13.824-6.4-13.824-453.7344 76.1344-492.0832 408.4224-492.0832 498.432H28.669952c-25.6 0-38.4 27.6992-19.2 48.4864l185.344 249.1904a45.7728 45.7728 0 0 0 76.6976 0l185.344-249.1904c12.8-20.7872 0-48.4864-19.2-48.4864m581.632-62.3104l-185.344-249.1904a45.7728 45.7728 0 0 0-76.7488 0l-185.344 249.1904c-12.7488 20.7872 0 48.4864 19.2 48.4864h70.2976c0 145.408 0 332.288-242.8416 484.608-6.4 6.912 0 13.824 6.4 13.824 453.7344-76.1344 492.0832-408.4224 492.0832-498.432h76.6976c25.6 0 38.3488-27.6992 25.6-48.4864"
+                    fill="#d4237a"></path>
+            </svg>
+        </button>
+
+        <button class="toolbar-btn bg-slate-700 hover:bg-slate-600 flex-1 h-full flex items-center justify-center gap-2" title="操作（待添加）">
+            <svg viewBox="0 0 24 24" class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+            </svg>
+            <span>全选</span>
+        </button>
+
+        <button class="toolbar-btn bg-purple-600 hover:bg-purple-500 w-10 h-full shrink-0" title="更多（待添加）">⋯</button>
+    </div>
+</div>
         
         <!-- 卡片容器 -->
         <div id="cardsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 mt-4 items-stretch"></div>
