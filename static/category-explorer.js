@@ -365,6 +365,19 @@ function handleGlobalMoreMenuClick(e) {
 
     const target = e.target;
 
+    // ---------- 蓝色选择分类下拉树 ----------
+    const pickerDropdown = document.getElementById("categoryPickerDropdown");
+    const pickerBtn = document.getElementById("categoryPickerBtn");
+
+    // 点击分类选择区域以外的位置，关闭下拉树
+    if (
+        pickerDropdown &&
+        !pickerDropdown.contains(target) &&
+        !pickerBtn?.contains(target)
+    ) {
+        closePickerDropdown();
+    }
+
     // ---------- 批量操作菜单 ----------
     const batchMenu = document.getElementById("batchActionMenu");
     const isBatchBtn = target.closest('.toolbar-btn[title="批量操作"]');
@@ -534,23 +547,14 @@ function handleGlobalMoreMenuClick(e) {
     renderTreeInto(container, "picker");
   }
 
-  function openPickerDropdown() {
+function openPickerDropdown() {
     const dd = document.getElementById("categoryPickerDropdown");
     if (!dd) return;
+
     renderPickerTree();
     dd.classList.remove("hidden");
-    setTimeout(() => {
-      document.addEventListener("click", onDocClickClosePicker, { once: true });
-    }, 0);
-  }
-  function onDocClickClosePicker(e) {
-    const dd = document.getElementById("categoryPickerDropdown");
-    const btn = document.getElementById("categoryPickerBtn");
-    if (!dd || !btn) return;
-    if (!dd.contains(e.target) && !btn.contains(e.target)) {
-      closePickerDropdown();
-    }
-  }
+}
+
   function closePickerDropdown() {
     document.getElementById("categoryPickerDropdown")?.classList.add("hidden");
   }
