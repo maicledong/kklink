@@ -14,6 +14,7 @@
     pickerPath: "/default",   // 保存区选中的分类
     scope: "home",            // home | fav | archive | category
     loading: false,
+    expandedPaths: {explorer: new Set(),picker: new Set(),},   // 分别记录资源管理器和保存区选择器的展开状态
   };
 
   // ---------- 工具 ----------
@@ -141,6 +142,27 @@ if (hasChildren) {
     childBox.className = "cat-children hidden pl-4";
     wrap.appendChild(childBox);
 
+
+// 恢复之前记录的展开状态
+const expandedSet = CategoryStore.expandedPaths[mode];
+
+if (expandedSet && expandedSet.has(node.path)) {
+    const children = getChildren(node.path);
+
+    for (const c of children) {
+        childBox.appendChild(createTreeNode(c, mode));
+    }
+
+    if (children.length > 0) {
+        childBox.classList.remove("hidden");
+
+        const arrow = toggle.querySelector(".tree-arrow");
+        if (arrow) {
+            arrow.style.transform = "rotate(90deg)";
+        }
+    }
+}    
+
     // 展开/折叠
     row.addEventListener("click", (e) => {
       if (e.target.closest("[data-toggle]")) {
@@ -167,25 +189,47 @@ if (hasChildren) {
     return wrap;
   }
 
-  function toggleNode(wrap, node, childBox, mode) {
-    const isHidden = childBox.classList.contains("hidden");
-    if (isHidden && childBox.childElementCount === 0) {
-      const children = getChildren(node.path);
-      if (children.length === 0) {
-        childBox.classList.add("hidden");
-        return;
-      }
-      for (const c of children) {
-        childBox.appendChild(createTreeNode(c, mode));
-      }
-    }
-childBox.classList.toggle("hidden", !isHidden);
+function toggleNode(wrap, node, childBox, mode) {
+    const expandedSet = CategoryStore.expandedPaths[mode];
 
-const arrow = wrap.querySelector(".tree-arrow");
-if (arrow) {
-  arrow.style.transform = isHidden ? "rotate(90deg)" : "rotate(0deg)";
+    if (!expandedSet) return;
+
+    const isExpanded = expandedSet.has(node.path);
+
+    const arrow = wrap.querySelector(".tree-arrow");
+
+    if (isExpanded) {
+        // 当前已经展开：只折叠当前分类
+        expandedSet.delete(node.path);
+
+        childBox.classList.add("hidden");
+
+        if (arrow) {
+            arrow.style.transform = "rotate(0deg)";
+        }
+
+    } else {
+        // 当前处于折叠状态：展开当前分类
+        const children = getChildren(node.path);
+
+        if (children.length === 0) return;
+
+        expandedSet.add(node.path);
+
+        // 如果子分类还没有生成，则生成一次
+        if (childBox.childElementCount === 0) {
+            for (const c of children) {
+                childBox.appendChild(createTreeNode(c, mode));
+            }
+        }
+
+        childBox.classList.remove("hidden");
+
+        if (arrow) {
+            arrow.style.transform = "rotate(90deg)";
+        }
+    }
 }
-  }
 
 // ---------- ··· 菜单 ----------
 let moreMenuEl = null;
