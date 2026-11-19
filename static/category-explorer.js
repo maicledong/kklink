@@ -361,15 +361,28 @@ function closeMoreMenu() {
 
 // ---------- 统一管理操作菜单的显示与隐藏 ----------
 function handleGlobalMoreMenuClick(e) {
+    if (!(e.target instanceof Element)) return;
+
+    const target = e.target;
+
+    // ---------- 批量操作菜单 ----------
+    const batchMenu = document.getElementById("batchActionMenu");
+    const isBatchBtn = target.closest('.toolbar-btn[title="批量操作"]');
+
+    if (batchMenu && !batchMenu.contains(target) && !isBatchBtn) {
+        batchMenu.remove();
+    }
+
+    // ---------- 分类树 ··· 菜单 ----------
     if (!moreMenuEl) return;
 
-    // 点击当前菜单内部，不关闭
-    if (moreMenuEl.contains(e.target)) return;
+    // 点击当前分类菜单内部，不关闭
+    if (moreMenuEl.contains(target)) return;
 
-    // 点击任意“···”按钮，交给对应按钮自己的逻辑处理
-    if (e.target instanceof Element && e.target.closest("[data-more]")) return;
+    // 点击任意分类“···”按钮，交给按钮自己的逻辑处理
+    if (target.closest("[data-more]")) return;
 
-    // 点击页面其他位置或其他按钮，关闭菜单
+    // 点击其他位置或其他按钮，关闭分类菜单
     closeMoreMenu();
 }
 
