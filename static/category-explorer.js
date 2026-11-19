@@ -323,7 +323,7 @@ function handleGlobalMoreMenuClick(e) {
     if (moreMenuEl.contains(e.target)) return;
 
     // 点击任意“···”按钮，交给对应按钮自己的逻辑处理
-    if (e.target.closest("[data-more]")) return;
+    if (e.target instanceof Element && e.target.closest("[data-more]")) return;
 
     // 点击页面其他位置或其他按钮，关闭菜单
     closeMoreMenu();
