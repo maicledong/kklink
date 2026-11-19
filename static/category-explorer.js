@@ -658,7 +658,7 @@ function openPickerDropdown() {
   // ---------- 事件绑定 ----------
   function bindEvents() {
      // 全局统一管理操作菜单（捕获阶段监听）
-    document.addEventListener("click", handleGlobalMoreMenuClick, true);  
+    document.addEventListener("click", handleGlobalMoreMenuClick, false); 
     // scope tabs
     document.querySelectorAll("#scopeTabs .scope-tab").forEach((btn) => {
       btn.addEventListener("click", () => {
