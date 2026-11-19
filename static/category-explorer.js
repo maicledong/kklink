@@ -187,45 +187,149 @@ if (arrow) {
 }
   }
 
-  // ---------- ··· 菜单 ----------
-  let moreMenuEl = null;
-  function openMoreMenu(btn, node, mode) {
-    closeMoreMenu();
-    const menu = document.createElement("div");
-    menu.className = "fixed z-[100001] bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-1 min-w-[140px]";
-    menu.innerHTML = `
-      <button data-act="add" class="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-700 text-slate-200">＋ 新建子列表</button>
-      <button data-act="rename" class="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-700 text-slate-200">✏️ 重命名</button>
-      <button data-act="delete" class="w-full text-left px-3 py-2 text-sm rounded hover:bg-red-600/20 text-red-400">🗑️ 删除</button>
-    `;
-    document.body.appendChild(menu);
-    const rect = btn.getBoundingClientRect();
-    menu.style.left = Math.min(rect.left, window.innerWidth - 160) + "px";
-    menu.style.top = (rect.bottom + 4) + "px";
+// ---------- ··· 菜单 ----------
+let moreMenuEl = null;
 
-    menu.addEventListener("click", (e) => {
-      const act = e.target.closest("[data-act]")?.dataset.act;
-      if (!act) return;
-      closeMoreMenu();
-      if (act === "add") openCategoryEdit({ mode: "create", parentPath: node.path });
-      else if (act === "rename") openCategoryEdit({ mode: "rename", node });
-      else if (act === "delete") openCategoryDelete(node);
-    });
+function openMoreMenu(btn, node, mode) {
 
-    moreMenuEl = menu;
-    setTimeout(() => {
-      document.addEventListener("click", onDocClickCloseMore, { once: true });
-    }, 0);
-  }
-  function onDocClickCloseMore(e) {
-    if (moreMenuEl && !moreMenuEl.contains(e.target)) closeMoreMenu();
-  }
-  function closeMoreMenu() {
-    if (moreMenuEl) {
-      moreMenuEl.remove();
-      moreMenuEl = null;
+    // 再次点击同一个按钮：关闭菜单
+    if (
+        moreMenuEl &&
+        moreMenuEl.dataset.triggerPath === node.path
+    ) {
+        closeMoreMenu();
+        return;
     }
-  }
+
+    // 打开新菜单前，先关闭之前的菜单
+    closeMoreMenu();
+
+    const menu = document.createElement("div");
+
+    menu.className = `
+        fixed z-[100001]
+        bg-slate-800 border border-slate-700
+        rounded-lg shadow-xl p-1
+        min-w-[160px]
+        max-h-[calc(100vh-16px)]
+        overflow-y-auto
+    `;
+
+    menu.dataset.triggerPath = node.path;
+
+    menu.innerHTML = `
+        <button data-act="add"
+            class="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-700 text-slate-200">
+            ＋ 新建子列表
+        </button>
+
+        <button data-act="rename"
+            class="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-700 text-slate-200">
+            ✏️ 重命名
+        </button>
+
+        <button data-act="delete"
+            class="w-full text-left px-3 py-2 text-sm rounded hover:bg-red-600/20 text-red-400">
+            🗑️ 删除
+        </button>
+    `;
+
+    // 限制菜单尺寸，防止手机屏幕太窄或太矮时越界
+    menu.style.maxWidth = "calc(100vw - 16px)";
+    menu.style.maxHeight = "calc(100vh - 16px)";
+
+    document.body.appendChild(menu);
+    moreMenuEl = menu;
+
+    // ---------- 自动计算菜单位置 ----------
+    const rect = btn.getBoundingClientRect();
+
+    const menuWidth = menu.offsetWidth;
+    const menuHeight = menu.offsetHeight;
+
+    const margin = 8;
+    const gap = 4;
+
+    // 水平方向：优先与按钮右侧对齐
+    let left = rect.right - menuWidth;
+
+    const maxLeft = Math.max(
+        margin,
+        window.innerWidth - menuWidth - margin
+    );
+
+    left = Math.max(margin, Math.min(left, maxLeft));
+
+    // 垂直方向：优先显示在按钮下方
+    let top;
+
+    if (
+        rect.bottom + gap + menuHeight <=
+        window.innerHeight - margin
+    ) {
+        top = rect.bottom + gap;
+    } else {
+        // 下方空间不足，显示在按钮上方
+        top = rect.top - menuHeight - gap;
+    }
+
+    // 最终限制在屏幕范围内
+    const maxTop = Math.max(
+        margin,
+        window.innerHeight - menuHeight - margin
+    );
+
+    top = Math.max(margin, Math.min(top, maxTop));
+
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+
+    // ---------- 菜单操作 ----------
+    menu.addEventListener("click", (e) => {
+        const act = e.target.closest("[data-act]")?.dataset.act;
+        if (!act) return;
+
+        closeMoreMenu();
+
+        if (act === "add") {
+            openCategoryEdit({
+                mode: "create",
+                parentPath: node.path
+            });
+        } else if (act === "rename") {
+            openCategoryEdit({
+                mode: "rename",
+                node
+            });
+        } else if (act === "delete") {
+            openCategoryDelete(node);
+        }
+    });
+}
+
+// ---------- 关闭操作菜单 ----------
+function closeMoreMenu() {
+    if (moreMenuEl) {
+        moreMenuEl.remove();
+        moreMenuEl = null;
+    }
+}
+
+// ---------- 统一管理操作菜单的显示与隐藏 ----------
+function handleGlobalMoreMenuClick(e) {
+    if (!moreMenuEl) return;
+
+    // 点击当前菜单内部，不关闭
+    if (moreMenuEl.contains(e.target)) return;
+
+    // 点击任意“···”按钮，交给对应按钮自己的逻辑处理
+    if (e.target.closest("[data-more]")) return;
+
+    // 点击页面其他位置或其他按钮，关闭菜单
+    closeMoreMenu();
+}
+
+  
 
   // ---------- 分类编辑弹窗 ----------
   let editContext = null;
@@ -492,6 +596,8 @@ if (arrow) {
 
   // ---------- 事件绑定 ----------
   function bindEvents() {
+     // 全局统一管理操作菜单（捕获阶段监听）
+    document.addEventListener("click", handleGlobalMoreMenuClick, true);  
     // scope tabs
     document.querySelectorAll("#scopeTabs .scope-tab").forEach((btn) => {
       btn.addEventListener("click", () => {
