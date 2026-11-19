@@ -130,7 +130,7 @@ if (hasChildren) {
     if (mode === "explorer" && !node.is_system) {
       const moreBtn = document.createElement("button");
       moreBtn.className = "cat-more text-slate-400 hover:text-white px-1";
-      moreBtn.textContent = "···";
+      moreBtn.textContent = "⋯";
       moreBtn.dataset.more = "1";
       row.appendChild(moreBtn);
     }
