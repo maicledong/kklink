@@ -369,10 +369,6 @@ function handleGlobalMoreMenuClick(e) {
 const pickerDropdown = document.getElementById("categoryPickerDropdown");
 const pickerBtn = document.getElementById("categoryPickerBtn");
 
-console.log("点击目标：", target);
-console.log("是否位于蓝色下拉树内部：", pickerDropdown?.contains(target));
-console.log("是否位于蓝色分类按钮内部：", pickerBtn?.contains(target));
-
     // 点击分类选择区域以外的位置，关闭下拉树
     if (
         pickerDropdown &&
