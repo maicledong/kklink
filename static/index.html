@@ -706,16 +706,13 @@
         }
 
         // 绑定批量操作按钮 (假设那个 "..." 按钮是批量操作下拉)
-		const moreBtn = document.querySelector('.toolbar-btn[title="批量操作"]');
-        if (moreBtn) {
-            moreBtn.onclick = (e) => {
-                e.stopPropagation();
-                if (AppState.selectedIds.size === 0) {
-                    return alert('请先勾选需要操作的卡片');
-                }
-                showBatchActionMenu(moreBtn);
-            };
-        }
+const moreBtn = document.querySelector('.toolbar-btn[title="批量操作"]');
+if (moreBtn) {
+    moreBtn.onclick = (e) => {
+        e.stopPropagation();
+        showBatchActionMenu(moreBtn);
+    };
+}
 
         function showBatchActionMenu(anchor) {
             // 先移除已有的
@@ -745,10 +742,13 @@
             }, 0);
         }
 
-        window.batchAction = async function(action, payloadVal) {
-            document.getElementById('batchActionMenu')?.remove();
-            const ids = Array.from(AppState.selectedIds);
-            if (ids.length === 0) return;
+window.batchAction = async function(action, payloadVal) {
+    document.getElementById('batchActionMenu')?.remove();
+    const ids = Array.from(AppState.selectedIds);
+
+    if (ids.length === 0) {
+        return alert('请先勾选需要操作的卡片');
+    }
 
             if (action === 'delete') {
                 if (!confirm(`确定要删除选中的 ${ids.length} 个链接吗？不可恢复！`)) return;
