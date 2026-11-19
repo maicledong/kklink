@@ -366,8 +366,12 @@ function handleGlobalMoreMenuClick(e) {
     const target = e.target;
 
     // ---------- 蓝色选择分类下拉树 ----------
-    const pickerDropdown = document.getElementById("categoryPickerDropdown");
-    const pickerBtn = document.getElementById("categoryPickerBtn");
+const pickerDropdown = document.getElementById("categoryPickerDropdown");
+const pickerBtn = document.getElementById("categoryPickerBtn");
+
+console.log("点击目标：", target);
+console.log("是否位于蓝色下拉树内部：", pickerDropdown?.contains(target));
+console.log("是否位于蓝色分类按钮内部：", pickerBtn?.contains(target));
 
     // 点击分类选择区域以外的位置，关闭下拉树
     if (
@@ -658,7 +662,7 @@ function openPickerDropdown() {
   // ---------- 事件绑定 ----------
   function bindEvents() {
      // 全局统一管理操作菜单（捕获阶段监听）
-    document.addEventListener("click", handleGlobalMoreMenuClick, false); 
+    document.addEventListener("click", handleGlobalMoreMenuClick, true); 
     // scope tabs
     document.querySelectorAll("#scopeTabs .scope-tab").forEach((btn) => {
       btn.addEventListener("click", () => {
