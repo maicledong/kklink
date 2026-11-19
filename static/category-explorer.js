@@ -63,7 +63,14 @@
     // mode: "explorer" | "picker"
     if (!container) return;
     container.innerHTML = "";
-    const roots = getChildren("/");
+    // 获取根分类，并确保“默认”始终排在第一个
+    const roots = getChildren("/").slice();
+    roots.sort((a, b) => {
+      if (a.path === "/default") return -1;
+      if (b.path === "/default") return 1;
+      return 0;
+    });
+    
     if (roots.length === 0) {
       container.innerHTML = `<div class="text-slate-500 text-xs px-2 py-3">暂无分类</div>`;
       return;
