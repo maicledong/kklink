@@ -655,7 +655,7 @@
         /* ============================================================
          * 批量操作与工具栏 (全选、批量移动/收藏/归档/删除)
          * ============================================================ */
-        const selectAllBtn = document.querySelector('.toolbar-btn[title="操作（待添加）"]');
+		const selectAllBtn = document.querySelector('.toolbar-btn[title="全选/反选"]');
         // 重写全选按钮逻辑
         if (selectAllBtn) {
             selectAllBtn.onclick = () => {
@@ -706,7 +706,7 @@
         }
 
         // 绑定批量操作按钮 (假设那个 "..." 按钮是批量操作下拉)
-        const moreBtn = document.querySelector('.toolbar-btn[title="更多（待添加）"]');
+		const moreBtn = document.querySelector('.toolbar-btn[title="批量操作"]');
         if (moreBtn) {
             moreBtn.onclick = (e) => {
                 e.stopPropagation();
