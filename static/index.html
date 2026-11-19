@@ -218,12 +218,12 @@
         padding-right: 0 !important;
     }
 
-    /* 输入区域：左侧留 2px，右侧不留空白 */
+    /* 输入区域：左侧留 5px，右侧留 2px */
     #inputWrapper {
-        width: 100% !important;
+        width: auto !important;
         max-width: none !important;
         margin-left: 5px !important;
-        margin-right: 3px !important;
+        margin-right: 2px !important;
         gap: 8px !important;
         box-sizing: border-box !important;
     }
@@ -233,17 +233,20 @@
         flex-shrink: 0 !important;
     }
 
-    /* 右侧输入框和保存按钮占满剩余宽度 */
+    /* 右侧输入框和保存按钮共用的灰色背景框 */
     #inputWrapper > div:last-child {
         flex: 1 1 0% !important;
         min-width: 0 !important;
         margin-right: 0 !important;
+        box-sizing: border-box !important;
     }
 
-	#saveBtn {
-    padding-left: 8px !important;
-    padding-right: 8px !important;
-	}
+    /* 保存按钮：蓝色背景右侧留出约5px空间 */
+    #saveBtn {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+        margin-right: 3px !important;
+    }
 }
 			
             
