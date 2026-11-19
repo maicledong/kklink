@@ -729,6 +729,7 @@ function showBatchActionMenu(anchor) {
     menu.className = 'absolute right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-[9999] w-40 p-1';
 
     menu.innerHTML = `
+	    <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="copySelectedLinks()">🔗 复制链接</button>
         <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('move')">📁 批量移动</button>
         <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('favorite', 1)">❤️ 批量收藏</button>
         <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('favorite', 0)">🤍 取消收藏</button>
@@ -741,6 +742,35 @@ function showBatchActionMenu(anchor) {
     anchor.parentElement.style.position = 'relative';
     anchor.parentElement.appendChild(menu);
 }
+
+// ---------- 批量复制链接 ----------
+window.copySelectedLinks = async function () {
+    const ids = Array.from(AppState.selectedIds);
+
+    if (ids.length === 0) {
+        alert("请先选择要复制的链接");
+        return;
+    }
+
+    const links = ids
+        .map(id => AppState.listData.find(item => Number(item.id) === Number(id))?.url)
+        .filter(url => url);
+
+    if (links.length === 0) {
+        alert("没有找到选中项的链接");
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(links.join("\n"));
+
+        document.getElementById("batchActionMenu")?.remove();
+
+        alert(`已复制 ${links.length} 个链接`);
+    } catch (e) {
+        alert("复制失败，请检查浏览器剪贴板权限");
+    }
+};		
 
 window.batchAction = async function(action, payloadVal) {
     document.getElementById('batchActionMenu')?.remove();
