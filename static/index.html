@@ -40,10 +40,103 @@
             @apply flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 transition-colors;
         }
 
-        .card {
-            @apply bg-slate-800 rounded-xl overflow-hidden flex flex-col transition-all duration-200 h-full w-full;
-            border: 1px solid rgba(236, 72, 153, 0.5);
-        }
+/* 卡片允许操作菜单显示在卡片外部 */
+.card {
+    overflow: visible !important;
+}
+
+/* 卡片顶部图片保留圆角和裁切 */
+.card-img-container {
+    border-radius: 0.7rem 0.7rem 0 0;
+}
+
+/* 当前打开菜单的卡片提高层级 */
+.card.menu-open {
+    position: relative;
+    z-index: 100;
+}
+
+/* 卡片右下角三个点菜单 */
+.card-action-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 160px;
+    margin-top: 4px;
+    padding: 4px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+    z-index: 9999;
+}
+
+/* 菜单按钮 */
+.card-action-menu button {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 5px;
+    color: #e2e8f0;
+    font-size: 13px;
+    text-align: left;
+}
+
+.card-action-menu button:hover {
+    background: #334155;
+}
+
+/* 菜单分隔线 */
+.card-action-menu .menu-divider {
+    height: 1px;
+    background: #334155;
+    margin: 4px 0;
+}
+
+/* 删除按钮 */
+.card-action-menu button.menu-delete {
+    color: #f87171;
+}
+
+.card-action-menu button.menu-delete:hover {
+    background: rgba(239, 68, 68, 0.15);
+}
+
+/* 卡片左下角域名 */
+.card-domain {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    color: #64748b;
+    font-size: 12px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.card-domain:hover {
+    color: #60a5fa;
+}
+
+/* 右下角三个点 */
+.card-more {
+    flex-shrink: 0;
+    width: 32px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    color: #64748b;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.card-more:hover {
+    background: #334155;
+    color: white;
+}
         .card:hover {
             border-color: rgba(236, 72, 153, 1);
             box-shadow: 0 4px 20px rgba(236, 72, 153, 0.15);
@@ -752,6 +845,18 @@ function getItemTags(item) {
                     // 收藏与归档状态
                     const isFav = item.is_favorite === 1;
                     const isArchived = item.status === 'archived';
+// 提取链接域名
+let hostname = '';
+
+try {
+    hostname = new URL(item.url).hostname;
+} catch (e) {
+    hostname = item.url || '';
+}
+
+
+
+					
 
                     return `
                         <div class="card relative group" data-id="${item.id}">
@@ -760,7 +865,7 @@ function getItemTags(item) {
                                 <input type="checkbox" class="card-checkbox w-5 h-5 rounded cursor-pointer accent-blue-500" data-id="${item.id}">
                             </div>
                             
-                            <!-- 右上角悬浮操作栏 -->
+                            <!-- 右上角悬浮操作栏 
                             <div class="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button class="btn-fav bg-slate-900/80 hover:bg-slate-700 text-white p-1.5 rounded-lg backdrop-blur" title="${isFav ? '取消收藏' : '收藏'}">
                                     ${isFav ? '❤️' : '🤍'}
@@ -777,7 +882,7 @@ function getItemTags(item) {
                                 <button class="btn-delete bg-slate-900/80 hover:bg-red-600 text-white p-1.5 rounded-lg backdrop-blur" title="删除">
                                     🗑️
                                 </button>
-                            </div>
+                            </div>   -->
 
                             <div class="card-img-container cursor-pointer" onclick="window.open('${item.url}', '_blank')">
                                 ${item.image_url ? `
@@ -812,10 +917,59 @@ function getItemTags(item) {
         ).join('')}
     </div>
                                 
-                                <div class="mt-auto flex gap-2">
-                                    <a href="${item.url}" target="_blank" class="flex-1 text-center bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm transition-colors">查看原文</a>
-                                    <a href="${item.url}" target="_blank" class="inline-flex items-center justify-center bg-orange-600 hover:bg-orange-500 px-3 py-2 rounded-lg text-sm transition-colors" title="下载/打开">⬇️</a>
-                                </div>
+
+<div class="mt-auto relative flex items-center justify-between gap-2 pt-2 border-t border-slate-700/50">
+
+    <!-- 左下角：链接官方域名 -->
+    <a href="${item.url}"
+       target="_blank"
+       rel="noopener noreferrer"
+       class="card-domain flex-1"
+       title="${item.url}">
+        ${hostname}
+    </a>
+
+    <!-- 右下角：三个点 -->
+    <button type="button"
+        class="card-more"
+        title="更多操作">
+        ⋯
+    </button>
+
+    <!-- 操作菜单 -->
+    <div class="card-action-menu hidden">
+
+        <button type="button" data-action="edit">
+            ✏️ 编辑
+        </button>
+
+        <button type="button" data-action="favorite">
+            ${isFav ? '❤️ 取消收藏' : '☆ 收藏'}
+        </button>
+
+        <button type="button" data-action="archive">
+            ${isArchived ? '📦 取消归档' : '🗃️ 归档'}
+        </button>
+
+        <div class="menu-divider"></div>
+
+        <button type="button" data-action="copy">
+            🔗 复制链接
+        </button>
+
+        <button type="button" data-action="move">
+            ☷ 管理列表
+        </button>
+
+        <div class="menu-divider"></div>
+
+        <button type="button" data-action="delete" class="menu-delete">
+            🗑️ 删除
+        </button>
+
+    </div>
+</div>
+
                             </div>
                         </div>
                     `;
@@ -1056,62 +1210,146 @@ window.batchAction = async function(action, payloadVal) {
         /* ============================================================
          * 单卡片操作绑定 (收藏、归档、移动、编辑、删除)
          * ============================================================ */
-        function bindCardEvents() {
-            document.querySelectorAll('.card').forEach(cardEl => {
-                const id = Number(cardEl.dataset.id);
-                
-                // 收藏
-                cardEl.querySelector('.btn-fav')?.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const isFav = e.target.textContent.includes('❤️') ? 0 : 1;
-                    await singleAction(id, 'favorite', { is_favorite: isFav });
-                });
 
-                // 归档
-                cardEl.querySelector('.btn-archive')?.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const isArchived = e.target.textContent.includes('📦') ? 0 : 1;
-                    await singleAction(id, 'archive', { archived: isArchived });
-                });
+function bindCardEvents() {
+    document.querySelectorAll('.card').forEach(cardEl => {
+        const id = Number(cardEl.dataset.id);
 
-                // 删除
-                cardEl.querySelector('.btn-delete')?.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    if (confirm('确定删除此链接吗？')) {
-                        await singleAction(id, 'delete');
-                    }
-                });
+        // 获取当前卡片对应的数据
+        const item = AppState.listData.find(
+            x => Number(x.id) === id
+        );
 
-                // 编辑
-                cardEl.querySelector('.btn-edit')?.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const item = AppState.listData.find(x => x.id === id);
-                    if (!item) return;
-                    
-                    const newTitle = prompt('修改标题：', item.title);
-                    if (newTitle === null) return;
-                    const newDesc = prompt('修改描述：', item.description);
-                    if (newDesc === null) return;
+        if (!item) return;
 
-                    fetch('/api/bookmark/update', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id, title: newTitle, description: newDesc })
-                    }).then(r => r.json()).then(res => {
-                        if (res.success) loadCards();
-                        else alert(res.error);
-                    });
-                });
+        const moreBtn = cardEl.querySelector('.card-more');
+        const menu = cardEl.querySelector('.card-action-menu');
 
-                // 移动
-                cardEl.querySelector('.btn-move')?.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const targetCat = prompt("请输入要移动到的目标分类路径（如 /工作）：", "/default");
-                    if (!targetCat) return;
-                    await singleAction(id, 'move', { target_category: targetCat });
-                });
+        // 点击三个点：展开或收起菜单
+        moreBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+
+            // 先关闭其他卡片的菜单
+            document.querySelectorAll('.card.menu-open').forEach(card => {
+                if (card !== cardEl) {
+                    card.classList.remove('menu-open');
+                    card.querySelector('.card-action-menu')?.classList.add('hidden');
+                }
             });
-        }
+
+            // 切换当前菜单
+            const isHidden = menu.classList.contains('hidden');
+
+            menu.classList.toggle('hidden');
+            cardEl.classList.toggle('menu-open', isHidden);
+        });
+
+        // 菜单操作
+        menu?.addEventListener('click', async (e) => {
+            e.stopPropagation();
+
+            const actionBtn = e.target.closest('[data-action]');
+            if (!actionBtn) return;
+
+            const action = actionBtn.dataset.action;
+
+            // 关闭菜单
+            menu.classList.add('hidden');
+            cardEl.classList.remove('menu-open');
+
+            // 编辑
+            if (action === 'edit') {
+                const newTitle = prompt('修改标题：', item.title);
+                if (newTitle === null) return;
+
+                const newDesc = prompt('修改描述：', item.description);
+                if (newDesc === null) return;
+
+                try {
+                    const res = await fetch('/api/bookmark/update', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            id,
+                            title: newTitle,
+                            description: newDesc
+                        })
+                    });
+
+                    const result = await res.json();
+
+                    if (result.success) {
+                        loadCards();
+                    } else {
+                        alert(result.error || '编辑失败');
+                    }
+                } catch (e) {
+                    alert('网络请求失败');
+                }
+            }
+
+            // 收藏 / 取消收藏
+            else if (action === 'favorite') {
+                const isFav = item.is_favorite === 1 ? 0 : 1;
+
+                await singleAction(id, 'favorite', {
+                    is_favorite: isFav
+                });
+            }
+
+            // 归档 / 取消归档
+            else if (action === 'archive') {
+                const isArchived = item.status === 'archived' ? 0 : 1;
+
+                await singleAction(id, 'archive', {
+                    archived: isArchived
+                });
+            }
+
+            // 复制链接
+            else if (action === 'copy') {
+                try {
+                    await navigator.clipboard.writeText(item.url);
+                    alert('链接已复制');
+                } catch (e) {
+                    alert('复制失败，请检查浏览器剪贴板权限');
+                }
+            }
+
+            // 管理列表：移动到其他分类
+            else if (action === 'move') {
+                const targetCat = prompt(
+                    '请输入要移动到的目标分类路径（如 /工作）：',
+                    '/default'
+                );
+
+                if (!targetCat) return;
+
+                await singleAction(id, 'move', {
+                    target_category: targetCat
+                });
+            }
+
+            // 删除
+            else if (action === 'delete') {
+                if (confirm('确定删除此链接吗？')) {
+                    await singleAction(id, 'delete');
+                }
+            }
+        });
+    });
+}
+
+// 点击页面其他位置，关闭卡片操作菜单
+document.addEventListener('click', () => {
+    document.querySelectorAll('.card.menu-open').forEach(card => {
+        card.classList.remove('menu-open');
+        card.querySelector('.card-action-menu')?.classList.add('hidden');
+    });
+});
+
 
         async function singleAction(id, action, payload = {}) {
             try {
