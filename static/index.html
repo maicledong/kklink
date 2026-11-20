@@ -921,18 +921,23 @@ function getItemTags(item) {
             }
         });
 
-        function updateBatchToolbar() {
-            const count = AppState.selectedIds.size;
-            // 更新全选按钮的 UI
-            if (selectAllBtn) {
-                if (count === 0) {
-                    selectAllBtn.classList.replace('bg-purple-600', 'bg-slate-700');
-                } else {
-                    selectAllBtn.innerHTML = `<span>已选 ${count} 项</span>`;
-                    selectAllBtn.classList.replace('bg-slate-700', 'bg-purple-600');
-                }
-            }
-        }
+function updateBatchToolbar() {
+    const count = AppState.selectedIds.size;
+
+    if (!selectAllBtn) return;
+
+    if (count === 0) {
+        // 没有选中项目：恢复显示“全选”
+        selectAllBtn.innerHTML = `<span>全选</span>`;
+        selectAllBtn.classList.remove('bg-purple-600');
+        selectAllBtn.classList.add('bg-slate-700');
+    } else {
+        // 有选中项目：显示选中数量
+        selectAllBtn.innerHTML = `<span>已选 ${count} 项</span>`;
+        selectAllBtn.classList.remove('bg-slate-700');
+        selectAllBtn.classList.add('bg-purple-600');
+    }
+}
 
         // 绑定批量操作按钮 (假设那个 "..." 按钮是批量操作下拉)
 const moreBtn = document.querySelector('.toolbar-btn[title="批量操作"]');
