@@ -1850,12 +1850,43 @@ document.addEventListener('click', () => {
             loadCards();
         };
 
-        // 如果当前分类被删除了，退回主页
-        window.onCategoryDeleted = (result) => {
-            if (AppState.scope === 'category' && AppState.category === result.path) {
-                window.CategoryExplorer.setScope('home');
-            }
-        };
+// 如果当前分类或当前选中的保存分类被删除，修正对应状态
+window.onCategoryDeleted = (result) => {
+    const deletedPath = result?.path;
+
+    if (!deletedPath) {
+        console.warn('分类删除接口没有返回 path');
+        return;
+    }
+
+    // 判断某个路径是否属于被删除分类或其子分类
+    const isInsideDeletedTree = (currentPath) => {
+        return currentPath === deletedPath ||
+            currentPath.startsWith(deletedPath + '/');
+    };
+
+    // 当前正在浏览的分类被删除
+    if (
+        AppState.scope === 'category' &&
+        isInsideDeletedTree(AppState.category)
+    ) {
+        window.CategoryExplorer.setScope('home');
+    }
+
+    // 保存区选中的分类被删除
+    const pickerPath = window.CategoryExplorer?.getPickerPath();
+
+    if (pickerPath && isInsideDeletedTree(pickerPath)) {
+        window.CategoryExplorer.setPickerPath('/default');
+    }
+
+    // 分类资源管理器自身的当前路径也需要修正
+    const currentPath = window.CategoryExplorer?.getCurrentPath();
+
+    if (currentPath && isInsideDeletedTree(currentPath)) {
+        window.CategoryExplorer.setCurrentPath('/default');
+    }
+};
 
         /* ============================================================
          * 保存链接 (修改 category_path 逻辑)
