@@ -407,7 +407,7 @@
 <div class="mb-5 space-y-3 -mt-3">
     <!-- 按钮排列 -->
     <div class="flex items-center gap-2 w-full h-10">
-        <button class="toolbar-btn bg-indigo-600 hover:bg-indigo-500 w-30 h-full shrink-0 rounded-lg" title="AI处理">☰</button>
+        <button class="toolbar-btn bg-indigo-600 hover:bg-indigo-500 w-[80px] h-full shrink-0 rounded-lg" title="AI处理">☰</button>
 
         <button class="toolbar-btn bg-slate-700 hover:bg-slate-600 flex-1 h-full rounded-lg" title="布局与显示">
             <span class="mr-1">显示</span> 
@@ -431,7 +431,7 @@
             <span>全选</span>
         </button>
 
-        <button class="toolbar-btn bg-purple-600 hover:bg-purple-500 w-30 h-full shrink-0 rounded-lg" title="批量操作">
+        <button class="toolbar-btn bg-purple-600 hover:bg-purple-500 w-[100px] h-full shrink-0 rounded-lg" title="批量操作">
 			<span class="more-dots">⋯</span>
 		</button>
     </div>
@@ -696,7 +696,6 @@
             // 更新全选按钮的 UI
             if (selectAllBtn) {
                 if (count === 0) {
-                    selectAllBtn.innerHTML = `<svg viewBox="0 0 24 24" class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg><span>全选</span>`;
                     selectAllBtn.classList.replace('bg-purple-600', 'bg-slate-700');
                 } else {
                     selectAllBtn.innerHTML = `<span>已选 ${count} 项</span>`;
