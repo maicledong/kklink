@@ -422,40 +422,123 @@ const pickerBtn = document.getElementById("categoryPickerBtn");
     setTimeout(() => input.focus(), 50);
   }
 
-  async function submitCategoryEdit() {
+async function submitCategoryEdit() {
     if (!editContext) return;
+
     const input = document.getElementById("categoryEditInput");
     const name = input.value.trim();
-    if (!name) { alert("请输入分类名称"); return; }
-    if (name.includes("/")) { alert("名称不能包含 /"); return; }
+
+    if (!name) {
+        alert("请输入分类名称");
+        return;
+    }
+
+    if (name.includes("/")) {
+        alert("名称不能包含 /");
+        return;
+    }
 
     const confirmBtn = document.getElementById("categoryEditConfirm");
     confirmBtn.disabled = true;
+
     try {
-      if (editContext.mode === "create") {
-        await apiJson("/api/categories/create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ parent_path: editContext.parentPath, name }),
-        });
-      } else {
-        await apiJson("/api/categories/rename", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ old_path: editContext.node.path, new_name: name }),
-        });
-      }
-      invalidateTree();
-      await loadCategoryTree(true);
-      renderExplorerTree();
-      renderPickerTree();
-      closeCategoryEdit();
+        if (editContext.mode === "create") {
+
+            // =========================
+            // 新建分类
+            // =========================
+            await apiJson("/api/categories/create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    parent_path: editContext.parentPath,
+                    name
+                }),
+            });
+
+        } else {
+
+            // =========================
+            // 重命名分类
+            // =========================
+            const oldPath = editContext.node.path;
+
+            const renameResult = await apiJson("/api/categories/rename", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    old_path: oldPath,
+                    new_name: name
+                }),
+            });
+
+            const newPath = renameResult?.new_path;
+
+            if (!renameResult?.success || !newPath) {
+                throw new Error("重命名接口没有返回有效的新路径");
+            }
+
+            // 将路径及其所有后代路径同步更新
+            const updatePath = (currentPath) => {
+                if (!currentPath) return currentPath;
+
+                if (currentPath === oldPath) {
+                    return newPath;
+                }
+
+                if (currentPath.startsWith(oldPath + "/")) {
+                    return newPath + currentPath.slice(oldPath.length);
+                }
+
+                return currentPath;
+            };
+
+            // 更新分类资源管理器当前路径
+            CategoryStore.currentPath = updatePath(
+                CategoryStore.currentPath
+            );
+
+            // 更新保存区当前选择路径
+            CategoryStore.pickerPath = updatePath(
+                CategoryStore.pickerPath
+            );
+
+            // 通知 index 同步 AppState.category
+            if (typeof window.onCategoryRenamed === "function") {
+                window.onCategoryRenamed({
+                    old_path: oldPath,
+                    new_path: newPath
+                });
+            }
+
+            // 第 5 步会在这里同步树的展开状态
+            renameExpandedPaths(oldPath, newPath);
+        }
+
+        // 刷新分类树
+        invalidateTree();
+
+        await loadCategoryTree(true);
+
+        renderExplorerTree();
+        renderPickerTree();
+
+        // 刷新保存区的分类徽标
+        const pickerNode = CategoryStore.treeCache.find(
+            node => node.path === CategoryStore.pickerPath
+        );
+
+        updatePickerBadge(pickerNode);
+
+        closeCategoryEdit();
+
     } catch (e) {
-      alert(e.message || "操作失败");
+        console.error("分类操作失败：", e);
+        alert(e.message || "操作失败");
     } finally {
-      confirmBtn.disabled = false;
+        confirmBtn.disabled = false;
     }
-  }
+}
 
   function closeCategoryEdit() {
     document.getElementById("categoryEditModal").classList.add("hidden");
