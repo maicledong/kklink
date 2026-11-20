@@ -547,59 +547,192 @@ if (path === '/api/bookmark/batch' && request.method === 'POST') {
   }
 }  
 
+
 // ========== 卡片：编辑 ==========
 if (path === '/api/bookmark/update' && request.method === 'POST') {
   try {
-    const { id, title, description, url: newUrl } = await request.json();
+    const data = await request.json();
+
+    const {
+      id,
+      title,
+      description,
+      url: newUrl,
+      tags,
+      notes,
+      summary
+    } = data;
+
+    // 1. 校验 ID
     const bookmarkId = Number(id);
+
     if (!Number.isInteger(bookmarkId) || bookmarkId <= 0) {
-      return new Response(JSON.stringify({ error: '无效的 id' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      return new Response(JSON.stringify({
+        success: false,
+        error: '无效的 id'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    const existing = await env.DB.prepare(`SELECT * FROM bookmarks WHERE id = ?`).bind(bookmarkId).first();
+    // 2. 查询原书签
+    const existing = await env.DB.prepare(
+      `SELECT * FROM bookmarks WHERE id = ?`
+    ).bind(bookmarkId).first();
+
     if (!existing) {
-      return new Response(JSON.stringify({ error: '卡片不存在' }), {
-        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      return new Response(JSON.stringify({
+        success: false,
+        error: '卡片不存在'
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    const finalTitle = title !== undefined ? String(title).trim() : existing.title;
-    const finalDesc = description !== undefined ? String(description).trim() : existing.description;
-    const finalUrl = newUrl !== undefined ? String(newUrl).trim() : existing.url;
+    // 3. 处理六个字段
+    // 未提交的字段保留原值，避免其他调用方式意外清空数据
+    const finalTitle = title !== undefined
+      ? String(title).trim()
+      : (existing.title || '');
+
+    const finalDesc = description !== undefined
+      ? String(description)
+      : (existing.description || '');
+
+    const finalUrl = newUrl !== undefined
+      ? String(newUrl).trim()
+      : (existing.url || '');
+
+    const finalNotes = notes !== undefined
+      ? String(notes)
+      : (existing.notes || '');
+
+    const finalSummary = summary !== undefined
+      ? String(summary)
+      : (existing.summary || '');
 
     if (!finalUrl) {
-      return new Response(JSON.stringify({ error: 'url 不能为空' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'URL 不能为空'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    // 如果改了 url，检查唯一性
+    // 4. 处理标签，数据库统一保存 JSON 数组
+    let finalTags;
+
+    if (tags !== undefined) {
+      if (Array.isArray(tags)) {
+        finalTags = [...new Set(
+          tags
+            .map(tag => String(tag).trim())
+            .filter(Boolean)
+        )];
+      } else {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'tags 必须是数组'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    } else {
+      // 没有提交标签时，保留数据库原来的标签
+      try {
+        const oldTags = JSON.parse(existing.tags || '[]');
+        finalTags = Array.isArray(oldTags) ? oldTags : [];
+      } catch {
+        finalTags = [];
+      }
+    }
+
+    const tagsJson = JSON.stringify(finalTags);
+
+    // 5. 如果修改了 URL，检查是否与其他书签重复
     if (finalUrl !== existing.url) {
-      const dup = await env.DB.prepare(`SELECT id FROM bookmarks WHERE url = ? AND id != ?`).bind(finalUrl, bookmarkId).first();
+      const dup = await env.DB.prepare(
+        `SELECT id FROM bookmarks WHERE url = ? AND id != ?`
+      ).bind(finalUrl, bookmarkId).first();
+
       if (dup) {
-        return new Response(JSON.stringify({ error: '该 URL 已存在' }), {
-          status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        return new Response(JSON.stringify({
+          success: false,
+          error: '该 URL 已存在'
+        }), {
+          status: 409,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
     }
 
-    await env.DB.prepare(
-      `UPDATE bookmarks SET title = ?, description = ?, url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-    ).bind(finalTitle, finalDesc, finalUrl, bookmarkId).run();
+    // 6. 一次性更新六个字段
+    // 不修改封面图、分类、收藏状态和归档状态
+    await env.DB.prepare(`
+      UPDATE bookmarks
+      SET
+        url = ?,
+        title = ?,
+        description = ?,
+        tags = ?,
+        notes = ?,
+        summary = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).bind(
+      finalUrl,
+      finalTitle,
+      finalDesc,
+      tagsJson,
+      finalNotes,
+      finalSummary,
+      bookmarkId
+    ).run();
 
-    const updated = await env.DB.prepare(`SELECT * FROM bookmarks WHERE id = ?`).bind(bookmarkId).first();
+    // 7. 查询更新后的完整书签
+    const updated = await env.DB.prepare(
+      `SELECT * FROM bookmarks WHERE id = ?`
+    ).bind(bookmarkId).first();
 
-    return new Response(JSON.stringify({ success: true, data: updated }), {
+    return new Response(JSON.stringify({
+      success: true,
+      data: updated
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
+
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    console.error('更新书签失败:', e);
+
+    // URL 唯一性冲突
+    if (
+      e.message &&
+      e.message.toLowerCase().includes('unique')
+    ) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: '该 URL 已存在，不能重复保存'
+      }), {
+        status: 409,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    return new Response(JSON.stringify({
+      success: false,
+      error: e.message || '更新书签失败'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
-}  
+}
+ 
 
   return new Response('Not Found', { status: 404, headers: corsHeaders });
 }
