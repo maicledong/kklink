@@ -277,7 +277,45 @@
         top: -5px;
         line-height: 1;
     }
-}			
+}	
+
+/* 显示设置：开关样式 */
+.display-switch {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 30px;
+    height: 17px;
+    flex-shrink: 0;
+    border-radius: 999px;
+    background: #475569;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.display-switch::before {
+    content: "";
+    position: absolute;
+    width: 13px;
+    height: 13px;
+    left: 2px;
+    top: 2px;
+    border-radius: 50%;
+    background: white;
+    transition: transform 0.2s;
+}
+
+.display-switch:checked {
+    background: #f1f5f9;
+}
+
+.display-switch:checked::before {
+    transform: translateX(13px);
+    background: #0f172a;
+}
+
+
+			
             
             
     </style>
@@ -409,9 +447,66 @@
     <div class="flex items-center gap-1 w-full h-9">
         <button class="toolbar-btn bg-indigo-600 hover:bg-indigo-500 w-[45px] h-full shrink-0 rounded-lg" title="AI处理">☰</button>
 
-        <button class="toolbar-btn bg-slate-700 hover:bg-slate-600 flex-1 h-full rounded-lg" title="布局与显示">
-            <span class="mr-1">显示</span> 
-        </button>
+<div class="relative flex-1 h-full min-w-0">
+    <button id="displaySettingsBtn"
+        class="toolbar-btn bg-slate-700 hover:bg-slate-600 w-full h-full rounded-lg"
+        title="布局与显示">
+        <span>显示</span>
+    </button>
+
+    <!-- 显示设置下拉框 -->
+    <div id="displaySettingsDropdown"
+        class="hidden absolute left-0 top-full mt-1 w-[200px] bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-[9999] p-2">
+
+        <!-- 列数设置 -->
+        <div class="pb-2 border-b border-slate-700">
+            <div class="flex items-center justify-between mb-1 text-xs text-slate-400">
+                <span>列</span>
+                <span id="columnCountText">3</span>
+            </div>
+
+            <input id="columnCountSlider"
+                type="range"
+                min="1"
+                max="6"
+                step="1"
+                value="3"
+                class="w-full h-1 accent-white cursor-pointer">
+        </div>
+
+        <!-- 显示选项 -->
+        <div class="pt-2">
+            <div class="text-xs text-slate-400 mb-2">显示选项</div>
+
+            <!-- 显示标题 -->
+            <label class="flex items-center justify-between mb-2 cursor-pointer">
+                <span class="flex items-center gap-2 text-sm text-slate-200">
+                    <span>H</span>
+                    <span>显示标题</span>
+                </span>
+                <input id="showTitleToggle" type="checkbox" checked class="display-switch">
+            </label>
+
+            <!-- 显示描述 -->
+            <label class="flex items-center justify-between mb-2 cursor-pointer">
+                <span class="flex items-center gap-2 text-sm text-slate-200">
+                    <span>▤</span>
+                    <span>显示描述</span>
+                </span>
+                <input id="showDescriptionToggle" type="checkbox" checked class="display-switch">
+            </label>
+
+            <!-- 显示标签 -->
+            <label class="flex items-center justify-between cursor-pointer">
+                <span class="flex items-center gap-2 text-sm text-slate-200">
+                    <span>◇</span>
+                    <span>显示标签</span>
+                </span>
+                <input id="showTagsToggle" type="checkbox" checked class="display-switch">
+            </label>
+        </div>
+    </div>
+</div>
 
         <!-- 刷新当前页 -->
         <button id="refreshCurrentPageBtn"
@@ -495,6 +590,122 @@
             isSelectAll: false,     // 当前页是否全选
             listData: []            // 当前页的数据缓存
         };
+
+		/* ============================================================
+ * 显示设置：列数、标题、描述、标签
+ * ============================================================ */
+
+const displaySettings = {
+    columns: 3,
+    showTitle: true,
+    showDescription: true,
+    showTags: true
+};
+
+const displaySettingsBtn = document.getElementById('displaySettingsBtn');
+const displaySettingsDropdown = document.getElementById('displaySettingsDropdown');
+const columnCountSlider = document.getElementById('columnCountSlider');
+const columnCountText = document.getElementById('columnCountText');
+
+const showTitleToggle = document.getElementById('showTitleToggle');
+const showDescriptionToggle = document.getElementById('showDescriptionToggle');
+const showTagsToggle = document.getElementById('showTagsToggle');
+
+// 点击显示按钮，展开或收起设置面板
+displaySettingsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    displaySettingsDropdown.classList.toggle('hidden');
+});
+
+// 点击下拉框内部不收起
+displaySettingsDropdown.addEventListener('click', (e) => {
+    e.stopPropagation();
+});
+
+// 点击页面其他位置，收起下拉框
+document.addEventListener('click', () => {
+    displaySettingsDropdown.classList.add('hidden');
+});
+
+// 应用显示设置
+function applyDisplaySettings() {
+    // 控制卡片列数
+    cardsContainer.style.gridTemplateColumns =
+        `repeat(${displaySettings.columns}, minmax(0, 1fr))`;
+
+    // 更新卡片标题
+    cardsContainer.querySelectorAll('.card-title').forEach(el => {
+        el.style.display = displaySettings.showTitle ? '' : 'none';
+    });
+
+    // 更新卡片描述
+    cardsContainer.querySelectorAll('.card-description').forEach(el => {
+        el.style.display = displaySettings.showDescription ? '' : 'none';
+    });
+
+    // 更新卡片标签
+    cardsContainer.querySelectorAll('.card-tags').forEach(el => {
+        el.style.display = displaySettings.showTags ? '' : 'none';
+    });
+}
+
+// 列数滑块
+columnCountSlider.addEventListener('input', () => {
+    displaySettings.columns = Number(columnCountSlider.value);
+    columnCountText.textContent = displaySettings.columns;
+    applyDisplaySettings();
+});
+
+// 标题开关
+showTitleToggle.addEventListener('change', () => {
+    displaySettings.showTitle = showTitleToggle.checked;
+    applyDisplaySettings();
+});
+
+// 描述开关
+showDescriptionToggle.addEventListener('change', () => {
+    displaySettings.showDescription = showDescriptionToggle.checked;
+    applyDisplaySettings();
+});
+
+// 标签开关
+showTagsToggle.addEventListener('change', () => {
+    displaySettings.showTags = showTagsToggle.checked;
+    applyDisplaySettings();
+});
+
+
+
+// 获取卡片标签
+function getItemTags(item) {
+    const raw = item.tags;
+
+    if (!raw) return [];
+
+    if (Array.isArray(raw)) {
+        return raw.map(tag =>
+            typeof tag === 'object' ? (tag.name || tag.label || '') : tag
+        ).filter(Boolean);
+    }
+
+    if (typeof raw === 'string') {
+        try {
+            const parsed = JSON.parse(raw);
+
+            if (Array.isArray(parsed)) {
+                return parsed.map(tag =>
+                    typeof tag === 'object' ? (tag.name || tag.label || '') : tag
+                ).filter(Boolean);
+            }
+        } catch (e) {}
+
+        return raw.split(/[,，]/).map(tag => tag.trim()).filter(Boolean);
+    }
+
+    return [];
+}
+
+		
 
         /* ============================================================
          * 渲染列表
@@ -581,9 +792,25 @@
                                         ">
                                 ` : `<div class="text-4xl">🔗</div>`}
                             </div>
-                            <div class="p-4 flex flex-col flex-1">
-                                <h3 class="font-bold text-base mb-2 truncate text-white" title="${item.title || '无标题'}">${item.title || '无标题'}</h3>
-                                <p class="text-xs text-slate-400 line-clamp-2 h-8 mb-4 leading-4">${item.description || '无描述'}</p>
+<div class="p-4 flex flex-col flex-1">
+
+    <!-- 标题 -->
+    <h3 class="card-title font-bold text-base mb-2 truncate text-white"
+        title="${item.title || '无标题'}">
+        ${item.title || '无标题'}
+    </h3>
+
+    <!-- 描述 -->
+    <p class="card-description text-xs text-slate-400 line-clamp-2 h-8 mb-4 leading-4">
+        ${item.description || '无描述'}
+    </p>
+
+    <!-- 标签 -->
+    <div class="card-tags flex flex-wrap gap-1 mb-3">
+        ${getItemTags(item).map(tag =>
+            `<span class="text-xs text-sky-300 bg-sky-900/40 px-2 py-0.5 rounded">${tag}</span>`
+        ).join('')}
+    </div>
                                 
                                 <div class="mt-auto flex gap-2">
                                     <a href="${item.url}" target="_blank" class="flex-1 text-center bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm transition-colors">查看原文</a>
@@ -593,6 +820,9 @@
                         </div>
                     `;
                 }).join('');
+
+				// 应用列数、标题、描述和标签显示设置
+                applyDisplaySettings();
 
                 // 渲染分页
                 renderPagination(AppState.page, totalPages);
