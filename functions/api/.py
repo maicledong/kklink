@@ -14,6 +14,15 @@ sudo journalctl -u oracle-video -f   #日志
 
 sudo systemctl daemon-reload
 
+YouTube 的 Cookie 过期重新获取方法：
+打开电脑浏览器的无痕/隐私模式。
+在无痕窗口里登录你的 YouTube 账号。
+在同一个标签页里，访问 https://www.youtube.com/robots.txt（保持这个页面不要关）。
+用浏览器的 Get cookies.txt LOCALLY 插件，导出当前网站的 Cookie，保存为 cookies.txt。
+立刻关闭这个无痕窗口（让这个会话彻底锁死，防止 Cookie 被 YouTube 刷新轮换）。
+把新的 cookies.txt 上传到你的 Oracle 服务器，覆盖掉 ~/ffmpeg-worker/cookies.txt。
+确保权限正确：chmod 600 ~/ffmpeg-worker/cookies.txt
+
 
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
