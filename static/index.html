@@ -1850,6 +1850,28 @@ document.addEventListener('click', () => {
             loadCards();
         };
 
+// 分类重命名后，同步卡片列表当前分类路径
+window.onCategoryRenamed = (result) => {
+    const oldPath = result?.old_path;
+    const newPath = result?.new_path;
+
+    if (!oldPath || !newPath) return;
+
+    if (AppState.category === oldPath) {
+        AppState.category = newPath;
+    } else if (AppState.category.startsWith(oldPath + '/')) {
+        AppState.category =
+            newPath + AppState.category.slice(oldPath.length);
+    }
+
+    // 如果正在查看分类，刷新卡片列表
+    if (AppState.scope === 'category') {
+        AppState.page = 1;
+        loadCards();
+    }
+};
+
+		
 // 如果当前分类或当前选中的保存分类被删除，修正对应状态
 window.onCategoryDeleted = (result) => {
     const deletedPath = result?.path;
