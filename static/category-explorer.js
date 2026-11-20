@@ -15,7 +15,7 @@
     scope: "home",            // home | fav | archive | category
     loading: false,
     expandedPaths: {explorer: new Set(),picker: new Set(),movePicker: new Set()},   // 分别记录资源管理器和保存区选择器的展开状态
-    movePickerPath: "/default",
+    movePickerPath: "/default"
   };
 
   // ---------- 工具 ----------
@@ -55,6 +55,54 @@
     CategoryStore.treeCache = null;
     CategoryStore.byParent = {};
   }
+
+  // ============================================================
+// 重命名后同步树的展开状态
+// ============================================================
+
+function renameExpandedPaths(oldPath, newPath) {
+
+    const updateSet = (expandedSet) => {
+
+        if (!(expandedSet instanceof Set)) {
+            return;
+        }
+
+        const updated = new Set();
+
+        for (const path of expandedSet) {
+
+            // 当前展开节点就是被重命名的分类
+            if (path === oldPath) {
+                updated.add(newPath);
+                continue;
+            }
+
+            // 当前展开节点是被重命名分类的后代
+            if (path.startsWith(oldPath + "/")) {
+                updated.add(
+                    newPath + path.slice(oldPath.length)
+                );
+                continue;
+            }
+
+            // 不属于被重命名分类的路径，保持不变
+            updated.add(path);
+        }
+
+        // 替换原来的 Set 内容
+        expandedSet.clear();
+
+        for (const path of updated) {
+            expandedSet.add(path);
+        }
+    };
+
+    // 分别迁移资源管理器、保存区、移动选择器的展开状态
+    updateSet(CategoryStore.expandedPaths.explorer);
+    updateSet(CategoryStore.expandedPaths.picker);
+    updateSet(CategoryStore.expandedPaths.movePicker);
+}
 
   function getChildren(path) {
     return CategoryStore.byParent[path] || [];
@@ -678,16 +726,12 @@ function openPickerDropdown() {
 // 移动链接专用分类选择器
 // ============================================================
 
-let movePickerCallback = null;
 let movePickerResolve = null;
 
-function openMoveCategoryPicker(callback) {
-
-    closeMoveCategoryPicker();
-
-    movePickerCallback = callback;
+function openMoveCategoryPicker() {
 
     const modal = document.createElement("div");
+
     modal.id = "moveCategoryPickerModal";
 
     modal.className = `
@@ -787,9 +831,7 @@ function closeMoveCategoryPicker(result = null) {
     }
 
     const resolve = movePickerResolve;
-
     movePickerResolve = null;
-    movePickerCallback = null;
 
     if (resolve) {
         resolve(result);
@@ -797,6 +839,9 @@ function closeMoveCategoryPicker(result = null) {
 }
 
 function chooseMoveCategory() {
+
+    // 先关闭可能存在的旧弹窗
+    closeMoveCategoryPicker(null);
 
     return new Promise((resolve) => {
 
