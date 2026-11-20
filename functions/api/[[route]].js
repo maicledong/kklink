@@ -383,6 +383,7 @@ if (path === '/api/categories/delete' && request.method === 'POST') {
 
     return new Response(JSON.stringify({
       success: true,
+      path,
       deleted_categories: deletedCategories,
       deleted_bookmarks: deletedBookmarks,
     }), {
