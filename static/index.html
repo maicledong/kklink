@@ -1929,19 +1929,55 @@ window.onCategoryDeleted = (result) => {
             statusText.innerText = '正在抓取中... 请等待 40 秒';
 
             try {
-                const saveRes = await fetch('/api/save', { method: 'POST', body: JSON.stringify({ url }) });
-                const { bookmarkId } = await saveRes.json();
+const saveRes = await fetch('/api/save', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ url })
+});
+
+let saveData = {};
+
+try {
+    saveData = await saveRes.json();
+} catch (e) {
+    throw new Error('保存接口返回的数据格式错误');
+}
+
+if (!saveRes.ok || !saveData.success || !saveData.bookmarkId) {
+    throw new Error(
+        saveData.error ||
+        `提交链接失败，HTTP ${saveRes.status}`
+    );
+}
+
+const bookmarkId = saveData.bookmarkId;
 
                 await sleep(40000);
                 
-                let checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
-                let checkData = await checkRes.json();
+let checkRes = await fetch(
+    `/api/check-status?id=${encodeURIComponent(bookmarkId)}`
+);
+
+if (!checkRes.ok) {
+    throw new Error(`检查抓取状态失败，HTTP ${checkRes.status}`);
+}
+
+let checkData = await checkRes.json();
 
                 if (checkData.status !== 'success') {
                     statusText.innerText = '抓取较慢，再等 15 秒...';
                     await sleep(15000);
-                    checkRes = await fetch(`/api/check-status?id=${bookmarkId}`);
-                    checkData = await checkRes.json();
+checkRes = await fetch(
+    `/api/check-status?id=${encodeURIComponent(bookmarkId)}`
+);
+
+if (!checkRes.ok) {
+    throw new Error(`再次检查抓取状态失败，HTTP ${checkRes.status}`);
+}
+
+checkData = await checkRes.json();
                 }
 
                 if (checkData.status === 'success') {
@@ -1964,27 +2000,47 @@ window.onCategoryDeleted = (result) => {
                     // 获取当前选中的分类
                     const targetCategory = window.CategoryExplorer ? window.CategoryExplorer.getPickerPath() : '/default';
 
-                    await fetch('/api/store', {
-                        method: 'POST',
-                        body: JSON.stringify({ 
-                            url: targetUrl, 
-                            title, 
-                            description, 
-                            imageUrl, 
-                            imgFileId,
-                            category_path: targetCategory // 🌟 带上分类路径
-                        })
-                    });
+const storeRes = await fetch('/api/store', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        url: targetUrl,
+        title,
+        description,
+        imageUrl,
+        imgFileId,
+        category_path: targetCategory
+    })
+});
 
-                    // 保存成功后重新加载列表
-                    loadCards();
+let storeData = {};
+
+try {
+    storeData = await storeRes.json();
+} catch (e) {
+    throw new Error('数据库写入接口返回的数据格式错误');
+}
+
+if (!storeRes.ok || !storeData.success) {
+    throw new Error(
+        storeData.error ||
+        `写入数据库失败，HTTP ${storeRes.status}`
+    );
+}
+
+// 只有数据库确认写入成功，才刷新列表
+statusText.innerText = '保存成功，正在刷新列表...';
+
+await loadCards();
                 } else {
                     alert("抓取超时，请稍后刷新查看");
                 }
 
             } catch (e) {
-                console.error(e);
-                alert('保存过程出现异常');
+                console.error('保存过程出现异常：', e);
+                alert(e.message || '保存过程出现异常');
             } finally {
                 statusText.classList.add('hidden');
                 urlInput.value = '';
