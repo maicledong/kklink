@@ -573,26 +573,32 @@ async function submitCategoryEdit() {
                 return currentPath;
             };
 
-            // 更新分类资源管理器当前路径
-            CategoryStore.currentPath = updatePath(
-                CategoryStore.currentPath
-            );
+// 更新资源管理器当前路径
+CategoryStore.currentPath = updatePath(
+    CategoryStore.currentPath
+);
 
-            // 更新保存区当前选择路径
-            CategoryStore.pickerPath = updatePath(
-                CategoryStore.pickerPath
-            );
+// 更新保存区当前选择路径
+CategoryStore.pickerPath = updatePath(
+    CategoryStore.pickerPath
+);
 
-            // 通知 index 同步 AppState.category
-            if (typeof window.onCategoryRenamed === "function") {
-                window.onCategoryRenamed({
-                    old_path: oldPath,
-                    new_path: newPath
-                });
-            }
+// 更新移动分类选择器当前路径
+CategoryStore.movePickerPath = updatePath(
+    CategoryStore.movePickerPath
+);
 
-            // 第 5 步会在这里同步树的展开状态
-            renameExpandedPaths(oldPath, newPath);
+// 同步所有分类树的展开状态
+// 必须在 invalidateTree() 之前执行
+renameExpandedPaths(oldPath, newPath);
+
+// 通知 index 同步 AppState.category
+if (typeof window.onCategoryRenamed === "function") {
+    window.onCategoryRenamed({
+        old_path: oldPath,
+        new_path: newPath
+    });
+}
         }
 
         // 刷新分类树
@@ -602,6 +608,13 @@ async function submitCategoryEdit() {
 
         renderExplorerTree();
         renderPickerTree();
+
+// 如果移动分类弹窗正打开，同步刷新移动树
+const moveTree = document.getElementById("moveCategoryPickerTree");
+
+if (moveTree) {
+    renderTreeInto(moveTree, "movePicker");
+}
 
         // 刷新保存区的分类徽标
         const pickerNode = CategoryStore.treeCache.find(
@@ -635,30 +648,102 @@ async function submitCategoryEdit() {
     modal.classList.remove("hidden");
   }
 
-  async function submitCategoryDelete() {
+async function submitCategoryDelete() {
     if (!deleteContext) return;
+
     const confirmBtn = document.getElementById("categoryDeleteConfirm");
+    const deletedPath = deleteContext.path;
+
     confirmBtn.disabled = true;
+
     try {
-      const r = await apiJson("/api/categories/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: deleteContext.path }),
-      });
-      invalidateTree();
-      await loadCategoryTree(true);
-      renderExplorerTree();
-      renderPickerTree();
-      closeCategoryDelete();
-      if (typeof window.onCategoryDeleted === "function") {
-        window.onCategoryDeleted(r);
-      }
+        const r = await apiJson("/api/categories/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ path: deletedPath }),
+        });
+
+        // 确认接口确实删除成功，并且返回的是本次删除路径
+        if (!r?.success || r.path !== deletedPath) {
+            throw new Error("删除接口没有返回有效的删除结果");
+        }
+
+        // 删除成功后，清理失效路径和展开状态
+        cleanupDeletedCategoryState(deletedPath);
+
+        // 刷新分类树
+        invalidateTree();
+        await loadCategoryTree(true);
+
+        renderExplorerTree();
+        renderPickerTree();
+
+        // 如果移动分类弹窗正打开，也同步刷新它
+        const moveTree = document.getElementById("moveCategoryPickerTree");
+        if (moveTree) {
+            renderTreeInto(moveTree, "movePicker");
+        }
+
+        // 更新保存区分类徽标
+        const pickerNode = CategoryStore.treeCache.find(
+            node => node.path === CategoryStore.pickerPath
+        );
+
+        updatePickerBadge(pickerNode);
+
+        closeCategoryDelete();
+
+        // 通知 index 更新 AppState.category
+        if (typeof window.onCategoryDeleted === "function") {
+            window.onCategoryDeleted(r);
+        }
+
     } catch (e) {
-      alert(e.message || "删除失败");
+        console.error("删除分类失败：", e);
+        alert(e.message || "删除失败");
     } finally {
-      confirmBtn.disabled = false;
+        confirmBtn.disabled = false;
     }
-  }
+}
+
+
+// 删除分类后，清理所有指向已删除分类及其后代的状态
+function cleanupDeletedCategoryState(deletedPath) {
+
+    const isInsideDeletedTree = (currentPath) => {
+        return currentPath === deletedPath ||
+            currentPath.startsWith(deletedPath + "/");
+    };
+
+    // 清理资源管理器当前路径
+    if (isInsideDeletedTree(CategoryStore.currentPath)) {
+        CategoryStore.currentPath = "/default";
+    }
+
+    // 清理保存区选择路径
+    if (isInsideDeletedTree(CategoryStore.pickerPath)) {
+        CategoryStore.pickerPath = "/default";
+    }
+
+    // 清理移动选择器路径
+    if (isInsideDeletedTree(CategoryStore.movePickerPath)) {
+        CategoryStore.movePickerPath = "/default";
+    }
+
+    // 清理三棵树的展开状态
+    for (const expandedSet of Object.values(CategoryStore.expandedPaths)) {
+        if (!(expandedSet instanceof Set)) continue;
+
+        for (const expandedPath of expandedSet) {
+            if (isInsideDeletedTree(expandedPath)) {
+                expandedSet.delete(expandedPath);
+            }
+        }
+    }
+}
+
+
+  
 
   function closeCategoryDelete() {
     document.getElementById("categoryDeleteModal").classList.add("hidden");
@@ -838,9 +923,12 @@ function closeMoveCategoryPicker(result = null) {
     }
 }
 
-function chooseMoveCategory() {
+async function chooseMoveCategory() {
 
-    // 先关闭可能存在的旧弹窗
+    // 确保分类树已经加载
+    await loadCategoryTree();
+
+    // 关闭可能存在的旧弹窗
     closeMoveCategoryPicker(null);
 
     return new Promise((resolve) => {
