@@ -527,7 +527,7 @@ async function submitCategoryEdit() {
             // =========================
             // 新建分类
             // =========================
-            await apiJson("/api/categories/create", {
+            const createResult = await apiJson("/api/categories/create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -535,6 +535,8 @@ async function submitCategoryEdit() {
                     name
                 }),
             });
+          if (!createResult?.success || !createResult?.path) {
+            throw new Error("创建分类接口没有返回有效的创建结果");}
 
         } else {
 
