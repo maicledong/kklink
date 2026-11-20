@@ -149,6 +149,129 @@
             @apply text-blue-400 text-sm;
         }
 
+
+
+/* ==============================
+   书签编辑面板
+   ============================== */
+
+.bookmark-edit-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.65);
+}
+
+.bookmark-edit-panel {
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: #020817;
+    border: 1px solid #334155;
+    border-radius: 12px;
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.5);
+}
+
+.bookmark-edit-body {
+    padding: 18px;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.bookmark-edit-field {
+    margin-bottom: 16px;
+}
+
+.bookmark-edit-field label {
+    display: block;
+    margin-bottom: 7px;
+    color: #f1f5f9;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.bookmark-edit-input,
+.bookmark-edit-textarea {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    color: #f8fafc;
+    background: #0b1220;
+    border: 1px solid #334155;
+    border-radius: 7px;
+    outline: none;
+    font-size: 13px;
+}
+
+.bookmark-edit-input:focus,
+.bookmark-edit-textarea:focus {
+    border-color: #3b82f6;
+}
+
+.bookmark-edit-textarea {
+    min-height: 80px;
+    line-height: 1.6;
+    overflow-y: auto;
+
+    /* 允许上下调整高度，浏览器拖动把手默认在右下角 */
+    resize: vertical;
+}
+
+.bookmark-edit-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 18px;
+    border-top: 1px solid #334155;
+    background: #020817;
+    flex-shrink: 0;
+}
+
+.bookmark-edit-btn {
+    padding: 9px 18px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.bookmark-edit-cancel {
+    color: #e2e8f0;
+    background: #1e293b;
+}
+
+.bookmark-edit-save {
+    color: white;
+    background: #2563eb;
+}
+
+.bookmark-edit-save:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+    .bookmark-edit-modal {
+        padding: 8px;
+    }
+
+    .bookmark-edit-panel {
+        max-height: 94vh;
+    }
+
+    .bookmark-edit-body {
+        padding: 14px;
+    }
+}
+		
+
 @media (min-width: 1024px) {
 /* 展开分类资源管理器时，修复左侧输入框被垂直拉伸的问题 */
 #saveZone:has(#explorerView:not(.hidden)) #saveZoneMainRow {
@@ -657,6 +780,121 @@
             </div>
         </div>
     </div>
+
+<!-- ================= 书签编辑弹窗 ================= -->
+<div id="bookmarkEditModal" class="bookmark-edit-modal hidden">
+
+    <div class="bookmark-edit-panel">
+
+        <!-- 标题栏 -->
+        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-700 shrink-0">
+            <div>
+                <h3 class="text-lg font-bold text-white">编辑书签</h3>
+                <p class="text-xs text-slate-400 mt-1">
+                    更改书签详细信息。完成后点击保存。
+                </p>
+            </div>
+
+            <button
+                type="button"
+                id="bookmarkEditClose"
+                class="text-slate-400 hover:text-white text-xl">
+                ×
+            </button>
+        </div>
+
+        <!-- 编辑内容 -->
+        <div class="bookmark-edit-body">
+
+            <!-- 1. URL -->
+            <div class="bookmark-edit-field">
+                <label for="editBookmarkUrl">1. URL</label>
+                <input
+                    type="url"
+                    id="editBookmarkUrl"
+                    class="bookmark-edit-input"
+                    placeholder="请输入 URL">
+            </div>
+
+            <!-- 2. 标题 -->
+            <div class="bookmark-edit-field">
+                <label for="editBookmarkTitle">2. 标题（Title）</label>
+                <input
+                    type="text"
+                    id="editBookmarkTitle"
+                    class="bookmark-edit-input"
+                    placeholder="请输入标题">
+            </div>
+
+            <!-- 3. 描述 -->
+            <div class="bookmark-edit-field">
+                <label for="editBookmarkDescription">3. 描述（Description）</label>
+                <textarea
+                    id="editBookmarkDescription"
+                    class="bookmark-edit-textarea"
+                    rows="3"
+                    placeholder="请输入描述"></textarea>
+            </div>
+
+            <!-- 4. 标签 -->
+            <div class="bookmark-edit-field">
+                <label for="editBookmarkTags">4. 标签（Tags）</label>
+                <input
+                    type="text"
+                    id="editBookmarkTags"
+                    class="bookmark-edit-input"
+                    placeholder="多个标签用逗号分隔，例如：技术, Cloudflare, Telegram">
+
+                <p class="text-xs text-slate-500 mt-1">
+                    支持多个标签，使用英文逗号或中文逗号分隔。
+                </p>
+            </div>
+
+            <!-- 5. 笔记 -->
+            <div class="bookmark-edit-field">
+                <label for="editBookmarkNotes">5. 笔记（Notes）</label>
+                <textarea
+                    id="editBookmarkNotes"
+                    class="bookmark-edit-textarea"
+                    rows="3"
+                    placeholder="请输入笔记"></textarea>
+            </div>
+
+            <!-- 6. 摘要 -->
+            <div class="bookmark-edit-field mb-0">
+                <label for="editBookmarkSummary">6. 摘要（Summary）</label>
+                <textarea
+                    id="editBookmarkSummary"
+                    class="bookmark-edit-textarea"
+                    rows="3"
+                    placeholder="请输入摘要"></textarea>
+            </div>
+
+        </div>
+
+        <!-- 底部按钮 -->
+        <div class="bookmark-edit-footer">
+
+            <button
+                type="button"
+                id="bookmarkEditCancel"
+                class="bookmark-edit-btn bookmark-edit-cancel">
+                取消
+            </button>
+
+            <button
+                type="button"
+                id="bookmarkEditSave"
+                class="bookmark-edit-btn bookmark-edit-save">
+                保存更改
+            </button>
+
+        </div>
+
+    </div>
+</div>
+
+	
 
     <script>
         /* ============================================================
@@ -1234,6 +1472,175 @@ window.batchAction = async function(action, payloadVal) {
             }
         };
 
+
+/* ============================================================
+ * 书签编辑面板
+ * ============================================================ */
+
+const bookmarkEditModal = document.getElementById('bookmarkEditModal');
+
+const editBookmarkUrl = document.getElementById('editBookmarkUrl');
+const editBookmarkTitle = document.getElementById('editBookmarkTitle');
+const editBookmarkDescription = document.getElementById('editBookmarkDescription');
+const editBookmarkTags = document.getElementById('editBookmarkTags');
+const editBookmarkNotes = document.getElementById('editBookmarkNotes');
+const editBookmarkSummary = document.getElementById('editBookmarkSummary');
+
+const bookmarkEditSave = document.getElementById('bookmarkEditSave');
+
+let editingBookmarkId = null;
+
+
+// 打开编辑面板
+function openBookmarkEdit(item) {
+
+    editingBookmarkId = Number(item.id);
+
+    editBookmarkUrl.value = item.url || '';
+    editBookmarkTitle.value = item.title || '';
+    editBookmarkDescription.value = item.description || '';
+
+    // 将标签数组转换成输入框文字
+    editBookmarkTags.value = getItemTags(item).join(', ');
+
+    editBookmarkNotes.value = item.notes || '';
+    editBookmarkSummary.value = item.summary || '';
+
+    bookmarkEditSave.disabled = false;
+    bookmarkEditSave.textContent = '保存更改';
+
+    bookmarkEditModal.classList.remove('hidden');
+
+    // 自动聚焦 URL
+    editBookmarkUrl.focus();
+}
+
+
+// 关闭编辑面板
+function closeBookmarkEdit() {
+
+    bookmarkEditModal.classList.add('hidden');
+
+    editingBookmarkId = null;
+
+    bookmarkEditSave.disabled = false;
+    bookmarkEditSave.textContent = '保存更改';
+}
+
+
+// 标签输入文字转换成数组
+function parseBookmarkTags(value) {
+
+    return [...new Set(
+        value
+            .split(/[,，]/)
+            .map(tag => tag.trim())
+            .filter(Boolean)
+    )];
+}
+
+
+// 保存书签编辑内容
+async function saveBookmarkEdit() {
+
+    if (!editingBookmarkId) return;
+
+    const url = editBookmarkUrl.value.trim();
+
+    if (!url) {
+        alert('URL 不能为空');
+        editBookmarkUrl.focus();
+        return;
+    }
+
+    // 六个字段一次性提交
+    const payload = {
+        id: editingBookmarkId,
+        url,
+        title: editBookmarkTitle.value.trim(),
+        description: editBookmarkDescription.value,
+        tags: parseBookmarkTags(editBookmarkTags.value),
+        notes: editBookmarkNotes.value,
+        summary: editBookmarkSummary.value
+    };
+
+    bookmarkEditSave.disabled = true;
+    bookmarkEditSave.textContent = '正在保存...';
+
+    try {
+
+        const res = await fetch('/api/bookmark/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await res.json();
+
+        if (!res.ok || !result.success) {
+            throw new Error(result.error || '编辑失败');
+        }
+
+        closeBookmarkEdit();
+
+        // 刷新当前列表，显示最新内容
+        await loadCards();
+
+    } catch (e) {
+
+        console.error('保存书签失败：', e);
+
+        alert(e.message || '保存失败，请稍后重试');
+
+        bookmarkEditSave.disabled = false;
+        bookmarkEditSave.textContent = '保存更改';
+    }
+}
+
+
+// 绑定关闭按钮
+document.getElementById('bookmarkEditClose').addEventListener(
+    'click',
+    closeBookmarkEdit
+);
+
+document.getElementById('bookmarkEditCancel').addEventListener(
+    'click',
+    closeBookmarkEdit
+);
+
+
+// 点击面板外部关闭
+bookmarkEditModal.addEventListener('click', (e) => {
+
+    if (e.target === bookmarkEditModal) {
+        closeBookmarkEdit();
+    }
+
+});
+
+
+// 点击保存
+bookmarkEditSave.addEventListener(
+    'click',
+    saveBookmarkEdit
+);
+
+
+// 按 ESC 关闭
+document.addEventListener('keydown', (e) => {
+
+    if (
+        e.key === 'Escape' &&
+        !bookmarkEditModal.classList.contains('hidden')
+    ) {
+        closeBookmarkEdit();
+    }
+
+});
+		
         /* ============================================================
          * 单卡片操作绑定 (收藏、归档、移动、编辑、删除)
          * ============================================================ */
@@ -1284,38 +1691,10 @@ function bindCardEvents() {
             menu.classList.add('hidden');
             cardEl.classList.remove('menu-open');
 
-            // 编辑
-            if (action === 'edit') {
-                const newTitle = prompt('修改标题：', item.title);
-                if (newTitle === null) return;
-
-                const newDesc = prompt('修改描述：', item.description);
-                if (newDesc === null) return;
-
-                try {
-                    const res = await fetch('/api/bookmark/update', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            id,
-                            title: newTitle,
-                            description: newDesc
-                        })
-                    });
-
-                    const result = await res.json();
-
-                    if (result.success) {
-                        loadCards();
-                    } else {
-                        alert(result.error || '编辑失败');
-                    }
-                } catch (e) {
-                    alert('网络请求失败');
-                }
-            }
+// 编辑
+if (action === 'edit') {
+    openBookmarkEdit(item);
+}
 
             // 收藏 / 取消收藏
             else if (action === 'favorite') {
