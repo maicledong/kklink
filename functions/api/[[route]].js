@@ -125,7 +125,7 @@ if (path === '/api/store' && request.method === 'POST') {
     await env.DB.prepare(
       `INSERT OR REPLACE INTO bookmarks (url, title, description, image_url, img_file_id, category_path, updated_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
     ).bind(originalUrl, title, description, imageUrl, imgFileId, finalCategory).run();
-    return new Response(JSON.stringify({ status: 'success', category_path: finalCategory }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({success: true, status: 'success', category_path: finalCategory }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
   }
