@@ -1445,17 +1445,21 @@ window.batchAction = async function(action, payloadVal) {
             if (action === 'favorite') payload.is_favorite = payloadVal;
             if (action === 'archive') payload.archived = payloadVal;
 
-            if (action === 'move') {
-                // 弹出分类选择器
-                if (window.CategoryExplorer) {
-                    // 借用 picker 树弹窗，我们需要在这里定义一个回调
-                    const targetCat = prompt("请输入目标分类路径（如 /工作）：", "/default");
-                    if (!targetCat) return;
-                    payload.target_category = targetCat;
-                } else {
-                    return alert('分类组件未加载');
-                }
-            }
+if (action === 'move') {
+
+    if (!window.CategoryExplorer) {
+        return alert('分类组件未加载');
+    }
+
+    // 使用真正的分类树选择器
+    const targetCat =
+        await window.CategoryExplorer.chooseMoveCategory();
+
+    // 用户取消选择
+    if (!targetCat) return;
+
+    payload.target_category = targetCat;
+}
 
             try {
                 const res = await fetch('/api/bookmark/batch', {
@@ -1728,19 +1732,21 @@ if (action === 'edit') {
                 }
             }
 
-            // 管理列表：移动到其他分类
-            else if (action === 'move') {
-                const targetCat = prompt(
-                    '请输入要移动到的目标分类路径（如 /工作）：',
-                    '/default'
-                );
+else if (action === 'move') {
 
-                if (!targetCat) return;
+    if (!window.CategoryExplorer) {
+        return alert('分类组件未加载');
+    }
 
-                await singleAction(id, 'move', {
-                    target_category: targetCat
-                });
-            }
+    const targetCat =
+        await window.CategoryExplorer.chooseMoveCategory();
+
+    if (!targetCat) return;
+
+    await singleAction(id, 'move', {
+        target_category: targetCat
+    });
+}
 
             // 删除
             else if (action === 'delete') {
