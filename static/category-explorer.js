@@ -14,7 +14,8 @@
     pickerPath: "/default",   // 保存区选中的分类
     scope: "home",            // home | fav | archive | category
     loading: false,
-    expandedPaths: {explorer: new Set(),picker: new Set(),},   // 分别记录资源管理器和保存区选择器的展开状态
+    expandedPaths: {explorer: new Set(),picker: new Set(),movePicker: new Set()},   // 分别记录资源管理器和保存区选择器的展开状态
+    movePickerPath: "/default",
   };
 
   // ---------- 工具 ----------
@@ -88,12 +89,26 @@
 
     const row = document.createElement("div");
     row.className = "cat-row flex items-center gap-1 px-2 py-1.5 rounded cursor-pointer hover:bg-slate-700/60 transition-colors";
-    if (mode === "explorer" && CategoryStore.currentPath === node.path) {
-      row.classList.add("bg-blue-600/20", "text-blue-300");
-    }
-    if (mode === "picker" && CategoryStore.pickerPath === node.path) {
-      row.classList.add("bg-blue-600/20", "text-blue-300");
-    }
+if (
+    mode === "explorer" &&
+    CategoryStore.currentPath === node.path
+) {
+    row.classList.add("bg-blue-600/20", "text-blue-300");
+}
+
+if (
+    mode === "picker" &&
+    CategoryStore.pickerPath === node.path
+) {
+    row.classList.add("bg-blue-600/20", "text-blue-300");
+}
+
+if (
+    mode === "movePicker" &&
+    CategoryStore.movePickerPath === node.path
+) {
+    row.classList.add("bg-blue-600/20", "text-blue-300");
+}
 
     const hasChildren = node.has_children || (node.child_count || 0) > 0;
 const toggle = document.createElement("span");
@@ -175,15 +190,32 @@ if (expandedSet && expandedSet.has(node.path)) {
         openMoreMenu(e.target.closest("[data-more]"), node, mode);
         return;
       }
-      // 点击行
-      if (mode === "picker") {
-        CategoryStore.pickerPath = node.path;
-        renderTreeInto(document.getElementById("categoryPickerTree"), "picker");
-        closePickerDropdown();
-        updatePickerBadge(node); // 🌟 新增：更新悬浮文字
-      } else {
-        selectCategory(node.path);
-      }
+// 点击行
+if (mode === "picker") {
+
+    // 保存区选择分类
+    CategoryStore.pickerPath = node.path;
+
+    renderTreeInto(
+        document.getElementById("categoryPickerTree"),
+        "picker"
+    );
+
+    closePickerDropdown();
+    updatePickerBadge(node);
+
+} else if (mode === "movePicker") {
+
+    // 移动链接时选择目标分类
+    CategoryStore.movePickerPath = node.path;
+
+closeMoveCategoryPicker(node.path);
+
+} else {
+
+    // 资源管理器选择分类
+    selectCategory(node.path);
+}
     });
 
     return wrap;
@@ -642,6 +674,138 @@ function openPickerDropdown() {
     document.getElementById("categoryPickerDropdown")?.classList.add("hidden");
   }
 
+// ============================================================
+// 移动链接专用分类选择器
+// ============================================================
+
+let movePickerCallback = null;
+let movePickerResolve = null;
+
+function openMoveCategoryPicker(callback) {
+
+    closeMoveCategoryPicker();
+
+    movePickerCallback = callback;
+
+    const modal = document.createElement("div");
+    modal.id = "moveCategoryPickerModal";
+
+    modal.className = `
+        fixed inset-0 z-[100002]
+        flex items-center justify-center
+        bg-black/60 p-4
+    `;
+
+    modal.innerHTML = `
+        <div class="
+            w-full max-w-md
+            max-h-[85vh]
+            flex flex-col
+            rounded-xl border border-slate-700
+            bg-slate-900 shadow-2xl
+        ">
+            <div class="
+                flex items-center justify-between
+                px-4 py-3 border-b border-slate-700
+            ">
+                <div class="text-white font-semibold">
+                    选择目标分类
+                </div>
+
+                <button
+                    type="button"
+                    data-move-picker-close
+                    class="text-slate-400 hover:text-white text-xl"
+                >×</button>
+            </div>
+
+            <div class="px-4 py-2 text-xs text-slate-400">
+                点击分类名称即可选择；点击左侧箭头可以展开或折叠子分类。
+            </div>
+
+            <div
+                id="moveCategoryPickerTree"
+                class="overflow-y-auto flex-1 min-h-0 px-3 py-2"
+            ></div>
+
+            <div class="
+                px-4 py-3 border-t border-slate-700
+                flex justify-end
+            ">
+                <button
+                    type="button"
+                    data-move-picker-close
+                    class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm"
+                >取消</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    CategoryStore.movePickerPath = "/default";
+
+    renderTreeInto(
+        document.getElementById("moveCategoryPickerTree"),
+        "movePicker"
+    );
+
+    modal.querySelectorAll("[data-move-picker-close]").forEach(btn => {
+        btn.addEventListener("click", () => {
+            closeMoveCategoryPicker(null);
+        });
+    });
+
+    modal.addEventListener("click", (e) => {
+        if (e.target === modal) {
+            closeMoveCategoryPicker(null);
+        }
+    });
+
+    modal._escHandler = (e) => {
+        if (e.key === "Escape") {
+            closeMoveCategoryPicker(null);
+        }
+    };
+
+    document.addEventListener("keydown", modal._escHandler);
+}
+
+function closeMoveCategoryPicker(result = null) {
+
+    const modal = document.getElementById("moveCategoryPickerModal");
+
+    if (modal) {
+        if (modal._escHandler) {
+            document.removeEventListener(
+                "keydown",
+                modal._escHandler
+            );
+        }
+
+        modal.remove();
+    }
+
+    const resolve = movePickerResolve;
+
+    movePickerResolve = null;
+    movePickerCallback = null;
+
+    if (resolve) {
+        resolve(result);
+    }
+}
+
+function chooseMoveCategory() {
+
+    return new Promise((resolve) => {
+
+        movePickerResolve = resolve;
+
+        openMoveCategoryPicker();
+    });
+}
+
   // ---------- 保存区展开/折叠 ----------
   function toggleSaveZone() {
     const explorer = document.getElementById("explorerView");
@@ -798,7 +962,7 @@ function openPickerDropdown() {
   }
 
   // ---------- 对外 API ----------
-  window.CategoryExplorer = {
+window.CategoryExplorer = {
     CategoryStore,
     loadCategoryTree,
     invalidateTree,
@@ -810,11 +974,31 @@ function openPickerDropdown() {
     openCategoryEdit,
     openPickerDropdown,
     closePickerDropdown,
+
+    openMoveCategoryPicker,
+    closeMoveCategoryPicker,
+    chooseMoveCategory,
+
     getCurrentPath: () => CategoryStore.currentPath,
     getPickerPath: () => CategoryStore.pickerPath,
     getScope: () => CategoryStore.scope,
-    setPickerPath: (p) => { CategoryStore.pickerPath = p; },
-  };
+
+    setCurrentPath: (p) => {
+        CategoryStore.currentPath = p;
+        renderExplorerTree();
+    },
+
+    setPickerPath: (p) => {
+        CategoryStore.pickerPath = p;
+        renderPickerTree();
+
+        const node = CategoryStore.treeCache?.find(
+            item => item.path === p
+        );
+
+        updatePickerBadge(node);
+    },
+};
 
   // ---------- 初始化 ----------
   document.addEventListener("DOMContentLoaded", () => {
