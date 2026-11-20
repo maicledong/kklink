@@ -689,7 +689,21 @@
  * ============================================================ */
 
 const displaySettings = {
-    columns: 3,
+    columns: (() => {
+        // 优先读取上次保存的列数
+        const savedColumns = localStorage.getItem('linkmind_columns');
+
+        if (savedColumns !== null) {
+            const columns = Number(savedColumns);
+
+            if (Number.isInteger(columns) && columns >= 1 && columns <= 6) {
+                return columns;
+            }
+        }
+
+        // 首次打开：手机端默认 2 列，电脑端默认 5 列
+        return window.matchMedia('(max-width: 640px)').matches ? 2 : 5;
+    })(),
     showTitle: true,
     showDescription: true,
     showTags: true
@@ -741,11 +755,24 @@ function applyDisplaySettings() {
         el.style.display = displaySettings.showTags ? '' : 'none';
     });
 }
+// 页面初始化：同步滑块、数字和卡片列数
+columnCountSlider.value = displaySettings.columns;
+columnCountText.textContent = displaySettings.columns;
+
+applyDisplaySettings();
+		
 
 // 列数滑块
-columnCountSlider.addEventListener('input', () => {
-    displaySettings.columns = Number(columnCountSlider.value);
+columnCountSlider.addEventListener('input', (e) => {
+    displaySettings.columns = Number(e.target.value);
+
+    // 同步显示当前列数
     columnCountText.textContent = displaySettings.columns;
+
+    // 保存当前列数
+    localStorage.setItem('linkmind_columns', displaySettings.columns);
+
+    // 应用列数
     applyDisplaySettings();
 });
 
