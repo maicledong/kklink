@@ -334,7 +334,7 @@ function openMoreMenu(btn, node, mode) {
         fixed z-[100001]
         bg-slate-800 border border-slate-700
         rounded-lg shadow-xl p-1
-        min-w-[160px]
+        w-[100px] min-w-[100px]
         max-h-[calc(100vh-16px)]
         overflow-y-auto
     `;
@@ -343,17 +343,17 @@ function openMoreMenu(btn, node, mode) {
 
     menu.innerHTML = `
         <button data-act="add"
-            class="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-700 text-slate-200">
+            class="w-full text-left px-2.5 py-1.5 text-[13px] rounded hover:bg-slate-700 text-slate-200">
             ＋ 新建子列表
         </button>
 
         <button data-act="rename"
-            class="w-full text-left px-3 py-2 text-sm rounded hover:bg-slate-700 text-slate-200">
+            class="w-full text-left px-2.5 py-1.5 text-[13px] rounded hover:bg-slate-700 text-slate-200">
             ✏️ 重命名
         </button>
 
         <button data-act="delete"
-            class="w-full text-left px-3 py-2 text-sm rounded hover:bg-red-600/20 text-red-400">
+            class="w-full text-left px-2.5 py-1.5 text-[13px] rounded hover:bg-red-600/20 text-red-400">
             🗑️ 删除
         </button>
     `;
