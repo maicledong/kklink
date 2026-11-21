@@ -365,54 +365,67 @@ function openMoreMenu(btn, node, mode) {
     document.body.appendChild(menu);
     moreMenuEl = menu;
 
-// ---------- 自动计算菜单位置 ----------
-requestAnimationFrame(() => {
+    // ---------- 菜单位置跟随按钮 ----------
+    const updateMoreMenuPosition = () => {
+        if (!menu.isConnected || !btn.isConnected) return;
 
-    // 等待菜单样式应用后，再获取按钮和菜单的实际尺寸
-    const rect = btn.getBoundingClientRect();
-    const menuRect = menu.getBoundingClientRect();
+        const rect = btn.getBoundingClientRect();
+        const menuRect = menu.getBoundingClientRect();
 
-    const menuWidth = menuRect.width;
-    const menuHeight = menuRect.height;
+        // 水平方向：菜单右边缘对齐“···”按钮左边缘
+        let left = rect.left - menuRect.width;
 
-    const margin = 8;
-    const gap = 4;
+        // 垂直方向：菜单顶部与“···”按钮顶部对齐
+        let top = rect.top;
 
-    // 水平方向：优先与“···”按钮左侧对齐
-    let left = rect.left - menuWidth;
+        // 防止菜单超出浏览器左右边界
+        left = Math.max(
+            8,
+            Math.min(left, window.innerWidth - menuRect.width - 8)
+        );
 
-    const maxLeft = Math.max(
-        margin,
-        window.innerWidth - menuWidth - margin
+        // 防止菜单超出浏览器上下边界
+        top = Math.max(
+            8,
+            Math.min(top, window.innerHeight - menuRect.height - 8)
+        );
+
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+    };
+
+    // 使用 requestAnimationFrame 合并连续滚动事件
+    let positionFrame = null;
+
+    const scheduleMenuPositionUpdate = () => {
+        if (positionFrame !== null) return;
+
+        positionFrame = requestAnimationFrame(() => {
+            positionFrame = null;
+            updateMoreMenuPosition();
+        });
+    };
+
+    // 监听页面及内部滚动容器的滚动
+    document.addEventListener(
+        "scroll",
+        scheduleMenuPositionUpdate,
+        true
     );
 
-    left = Math.max(margin, Math.min(left, maxLeft));
-
-    // 垂直方向：优先显示在按钮下方
-    let top;
-
-    if (
-        rect.bottom + gap + menuHeight <=
-        window.innerHeight - margin
-    ) {
-        top = rect.bottom + gap;
-    } else {
-        // 下方空间不足，显示在按钮上方
-        top = rect.top - menuHeight - gap;
-    }
-
-    // 最终限制在屏幕范围内
-    const maxTop = Math.max(
-        margin,
-        window.innerHeight - menuHeight - margin
+    // 监听浏览器窗口尺寸变化
+    window.addEventListener(
+        "resize",
+        scheduleMenuPositionUpdate
     );
 
-    top = Math.max(margin, Math.min(top, maxTop));
+    // 保存监听函数和动画帧，供关闭菜单时清理
+    menu._onMenuScroll = scheduleMenuPositionUpdate;
+    menu._onMenuResize = scheduleMenuPositionUpdate;
+    menu._positionFrame = () => positionFrame;
 
-    menu.style.left = `${left}px`;
-    menu.style.top = `${top}px`;
-
-});
+    // 首次打开时立即计算菜单位置
+    updateMoreMenuPosition();
 
     // ---------- 菜单操作 ----------
     menu.addEventListener("click", (e) => {
@@ -437,10 +450,33 @@ requestAnimationFrame(() => {
     });
 }
 
-// ---------- 关闭操作菜单 ----------
+// ---------- 关闭更多菜单 ----------
 function closeMoreMenu() {
     if (moreMenuEl) {
+
+        // 移除滚动监听
+        document.removeEventListener(
+            "scroll",
+            moreMenuEl._onMenuScroll,
+            true
+        );
+
+        // 移除窗口尺寸监听
+        window.removeEventListener(
+            "resize",
+            moreMenuEl._onMenuResize
+        );
+
+        // 取消尚未执行的位置更新
+        const frame = moreMenuEl._positionFrame?.();
+
+        if (frame !== null && frame !== undefined) {
+            cancelAnimationFrame(frame);
+        }
+
+        // 移除菜单
         moreMenuEl.remove();
+
         moreMenuEl = null;
     }
 }
