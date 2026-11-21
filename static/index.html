@@ -572,7 +572,79 @@
     height: 16px;
 }
 			
-            
+/* ==================================================
+   顶部搜索栏：搜索和重置按钮统一样式
+   ================================================== */
+
+/* 搜索按钮 */
+button[title="搜索"] {
+    width: 36px !important;
+    height: 34px !important;
+    padding: 0 !important;
+
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    flex-shrink: 0 !important;
+
+    background: #334155 !important;
+    color: #cbd5e1 !important;
+
+    border: 1px solid #475569 !important;
+    border-radius: 7px !important;
+
+    font-size: 16px !important;
+
+    transition: all 0.2s ease !important;
+}
+
+/* 重置按钮 */
+button[title="重置"] {
+    width: 36px !important;
+    height: 34px !important;
+    padding: 0 !important;
+
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    flex-shrink: 0 !important;
+
+    background: #334155 !important;
+    color: #cbd5e1 !important;
+
+    border: 1px solid #475569 !important;
+    border-radius: 7px !important;
+
+    transition: all 0.2s ease !important;
+}
+
+/* 重置图标缩小并统一颜色 */
+button[title="重置"] svg {
+    width: 21px !important;
+    height: 21px !important;
+}
+
+button[title="重置"] svg path {
+    fill: #cbd5e1 !important;
+    opacity: 1 !important;
+}
+
+/* 两个按钮统一悬停效果 */
+button[title="搜索"]:hover,
+button[title="重置"]:hover {
+    background: #475569 !important;
+    border-color: #64748b !important;
+    color: #ffffff !important;
+}
+
+/* 搜索栏中间的分隔线 */
+button[title="搜索"] + div {
+    margin-left: 5px !important;
+    margin-right: 5px !important;
+    opacity: 0.5;
+}   
             
     </style>
 </head>
