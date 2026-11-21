@@ -552,7 +552,25 @@
     background: #0f172a;
 }
 
+#batchActionMenu button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 
+#batchActionMenu button .menu-icon {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#batchActionMenu button .menu-icon svg {
+    width: 16px;
+    height: 16px;
+}
 			
             
             
@@ -1421,14 +1439,42 @@ function showBatchActionMenu(anchor) {
     menu.className = 'absolute right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-[9999] w-40 p-1';
 
     menu.innerHTML = `
-	    <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="copySelectedLinks()">🔗 复制链接</button>
-		<button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('move')">${MOVE_SVG} 批量移动</button>
-        <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('favorite', 1)">❤️ 批量收藏</button>
-        <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('favorite', 0)">🤍 取消收藏</button>
-        <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('archive', 1)">🗃️ 批量归档</button>
-        <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('archive', 0)">📂 取消归档</button>
+        <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="copySelectedLinks()">
+            <span class="menu-icon">🔗</span>
+            复制链接
+        </button>
+
+        <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('move')">
+            <span class="menu-icon">${MOVE_SVG}</span>
+            批量移动
+        </button>
+
+        <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('favorite', 1)">
+            <span class="menu-icon">❤️</span>
+            批量收藏
+        </button>
+
+        <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('favorite', 0)">
+            <span class="menu-icon">🤍</span>
+            取消收藏
+        </button>
+
+        <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('archive', 1)">
+            <span class="menu-icon">🗃️</span>
+            批量归档
+        </button>
+
+        <button class="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 rounded" onclick="batchAction('archive', 0)">
+            <span class="menu-icon">📂</span>
+            取消归档
+        </button>
+
         <div class="h-px bg-slate-700 my-1"></div>
-        <button class="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-red-500/20 rounded" onclick="batchAction('delete')">${TRASH_SVG} 批量删除</button>
+
+        <button class="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-red-500/20 rounded" onclick="batchAction('delete')">
+            <span class="menu-icon">${TRASH_SVG}</span>
+            批量删除
+        </button>
     `;
 
     anchor.parentElement.style.position = 'relative';
