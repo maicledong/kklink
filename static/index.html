@@ -1748,7 +1748,52 @@ document.addEventListener('keydown', (e) => {
     }
 
 });
-		
+
+
+/* ============================================================
+ * 卡片操作菜单：全局互斥管理
+ * ============================================================ */
+
+// 关闭所有已经展开的卡片菜单
+function closeAllCardMenus() {
+
+    document.querySelectorAll('.card-action-menu').forEach(menu => {
+
+        menu.classList.add('hidden');
+
+        const card = menu.closest('.card');
+
+        if (card) {
+            card.classList.remove('menu-open');
+        }
+    });
+}
+
+
+// 捕获阶段监听全局点击
+document.addEventListener('click', (e) => {
+
+    if (!(e.target instanceof Element)) return;
+
+    // 点击卡片右下角的三个点：
+    // 保留按钮自身的展开/折叠逻辑
+    if (e.target.closest('.card-more')) {
+        return;
+    }
+
+    // 点击卡片菜单内部：
+    // 保留菜单自身的操作逻辑
+    if (e.target.closest('.card-action-menu')) {
+        return;
+    }
+
+    // 点击其他任何位置：
+    // 关闭所有卡片菜单
+    closeAllCardMenus();
+
+}, true);
+
+	
         /* ============================================================
          * 单卡片操作绑定 (收藏、归档、移动、编辑、删除)
          * ============================================================ */
