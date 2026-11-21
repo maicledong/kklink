@@ -363,9 +363,9 @@ function openMoreMenu(btn, node, mode) {
     menu.style.maxWidth = "calc(100vw - 16px)";
     menu.style.maxHeight = "calc(100vh - 16px)";
 
+
     // 添加菜单，但暂时隐藏，避免首次显示时出现位置偏移
     menu.style.visibility = "hidden";
-
     document.body.appendChild(menu);
     moreMenuEl = menu;
 
@@ -398,17 +398,27 @@ function openMoreMenu(btn, node, mode) {
         menu.style.top = `${top}px`;
     };
 
-    // 强制浏览器完成菜单的布局和尺寸计算
-    void menu.offsetWidth;
+    // 强制浏览器完成菜单布局和尺寸计算
+    menu.getBoundingClientRect();
 
-    // 首次计算菜单位置
-    updateMoreMenuPosition();
+    // 首次定位：等待浏览器完成布局后再计算
+    requestAnimationFrame(() => {
+        if (!menu.isConnected || !btn.isConnected) return;
 
-    // 定位完成后再显示菜单
-    menu.style.visibility = "visible";
+        // 获取真实尺寸并计算菜单位置
+        updateMoreMenuPosition();
+
+        // 定位完成后再显示菜单
+        menu.style.visibility = "visible";
+    });
 
     // 使用 requestAnimationFrame 合并连续滚动事件
     let positionFrame = null;
+
+
+
+
+  
 
     const scheduleMenuPositionUpdate = () => {
         if (positionFrame !== null) return;
