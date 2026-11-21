@@ -375,7 +375,7 @@ function openMoreMenu(btn, node, mode) {
     const gap = 4;
 
     // 水平方向：优先与按钮右侧对齐
-    let left = rect.left - menuWidth + 18;
+    let left = rect.left - menuWidth + 30;
 
     const maxLeft = Math.max(
         margin,
