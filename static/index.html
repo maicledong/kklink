@@ -149,7 +149,25 @@
             @apply text-blue-400 text-sm;
         }
 
+.card-action-menu button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 
+.card-action-menu button .menu-icon {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-action-menu button .menu-icon svg {
+    width: 16px;
+    height: 16px;
+}
 
 /* ==============================
    书签编辑面板
@@ -1210,38 +1228,48 @@ try {
         ⋯
     </button>
 
-    <!-- 操作菜单 -->
-    <div class="card-action-menu hidden">
+<!-- 操作菜单 -->
+<div class="card-action-menu hidden">
 
-        <button type="button" data-action="edit">
-            ✏️ 编辑
-        </button>
+    <button type="button" data-action="edit">
+        <span class="menu-icon">✏️</span>
+        编辑
+    </button>
 
-        <button type="button" data-action="favorite">
-            ${isFav ? '❤️ 取消收藏' : '🤍 收藏'}
-        </button>
+    <button type="button" data-action="favorite">
+        <span class="menu-icon">
+            ${isFav ? '❤️' : '🤍'}
+        </span>
+        ${isFav ? '取消收藏' : '收藏'}
+    </button>
 
-        <button type="button" data-action="archive">
-            ${isArchived ? '📦 取消归档' : '🗃️ 归档'}
-        </button>
+    <button type="button" data-action="archive">
+        <span class="menu-icon">
+            ${isArchived ? '📦' : '🗃️'}
+        </span>
+        ${isArchived ? '取消归档' : '归档'}
+    </button>
 
-        <div class="menu-divider"></div>
+    <div class="menu-divider"></div>
 
-        <button type="button" data-action="copy">
-            🔗 复制
-        </button>
+    <button type="button" data-action="copy">
+        <span class="menu-icon">🔗</span>
+        复制
+    </button>
 
-        <button type="button" data-action="move">
-            ${MOVE_SVG} 移动
-        </button>
+    <button type="button" data-action="move">
+        <span class="menu-icon">${MOVE_SVG}</span>
+        移动
+    </button>
 
-        <div class="menu-divider"></div>
+    <div class="menu-divider"></div>
 
-        <button type="button" data-action="delete" class="menu-delete">
-            ${TRASH_SVG} 删除
-        </button>
+    <button type="button" data-action="delete" class="menu-delete">
+        <span class="menu-icon">${TRASH_SVG}</span>
+        删除
+    </button>
 
-    </div>
+</div>
 </div>
 
 
