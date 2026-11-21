@@ -1016,10 +1016,25 @@ displaySettingsDropdown.addEventListener('click', (e) => {
     e.stopPropagation();
 });
 
-// 点击页面其他位置，收起下拉框
-document.addEventListener('click', () => {
+// 统一关闭显示设置菜单
+function closeDisplaySettingsDropdown() {
     displaySettingsDropdown.classList.add('hidden');
-});
+}
+
+// 捕获阶段监听：即使其他按钮调用 stopPropagation()，也能正常关闭
+document.addEventListener('click', (e) => {
+    const target = e.target;
+
+    // 点击“显示”按钮本身：不关闭，交给按钮自己的展开/折叠逻辑处理
+    if (displaySettingsBtn.contains(target)) return;
+
+    // 点击显示设置菜单内部：不关闭
+    if (displaySettingsDropdown.contains(target)) return;
+
+    // 点击其他任何位置：关闭显示设置菜单
+    closeDisplaySettingsDropdown();
+
+}, true);
 
 // 应用显示设置
 function applyDisplaySettings() {
