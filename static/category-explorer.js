@@ -344,7 +344,7 @@ function openMoreMenu(btn, node, mode) {
     menu.innerHTML = `
         <button data-act="add"
             class="w-full text-left px-2.5 py-1.5 text-[13px] rounded hover:bg-slate-700 text-slate-200">
-            ＋ 新建子列表
+            ➕ 子列表
         </button>
 
         <button data-act="rename"
