@@ -334,7 +334,7 @@ function openMoreMenu(btn, node, mode) {
         fixed z-[100001]
         bg-slate-800 border border-slate-700
         rounded-lg shadow-xl p-1
-        w-[100px] min-w-[100px]
+        w-[120px] min-w-[120px]
         max-h-[calc(100vh-16px)]
         overflow-y-auto
     `;
