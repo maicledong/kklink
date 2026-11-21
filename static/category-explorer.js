@@ -365,16 +365,20 @@ function openMoreMenu(btn, node, mode) {
     document.body.appendChild(menu);
     moreMenuEl = menu;
 
-    // ---------- 自动计算菜单位置 ----------
-    const rect = btn.getBoundingClientRect();
+// ---------- 自动计算菜单位置 ----------
+requestAnimationFrame(() => {
 
-    const menuWidth = menu.offsetWidth;
-    const menuHeight = menu.offsetHeight;
+    // 等待菜单样式应用后，再获取按钮和菜单的实际尺寸
+    const rect = btn.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+
+    const menuWidth = menuRect.width;
+    const menuHeight = menuRect.height;
 
     const margin = 8;
     const gap = 4;
 
-    // 水平方向：优先与按钮右侧对齐
+    // 水平方向：优先与“···”按钮左侧对齐
     let left = rect.left - menuWidth;
 
     const maxLeft = Math.max(
@@ -407,6 +411,8 @@ function openMoreMenu(btn, node, mode) {
 
     menu.style.left = `${left}px`;
     menu.style.top = `${top}px`;
+
+});
 
     // ---------- 菜单操作 ----------
     menu.addEventListener("click", (e) => {
