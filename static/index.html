@@ -12,7 +12,24 @@
             color: #f8fafc;
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }
-        /* 图片区域：完整显示，深色背景填充留白 */
+
+        /* 🌟 卡片整体样式（带有粉色边框和悬浮发光） */
+        .card {
+            @apply bg-slate-800 rounded-xl overflow-visible flex flex-col transition-all duration-200 h-full w-full;
+            border: 1px solid rgba(236, 72, 153, 0.5); 
+        }
+        .card:hover {
+            border-color: rgba(236, 72, 153, 1);
+            box-shadow: 0 4px 20px rgba(236, 72, 153, 0.15); 
+        }
+
+        /* 当前打开菜单的卡片提高层级 */
+        .card.menu-open {
+            position: relative;
+            z-index: 100;
+        }
+
+        /* 图片区域：高度 10rem，裁切填满，保留顶部圆角 */
         .card-img-container {
             height: 10rem;
             width: 100%;
@@ -21,7 +38,9 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            border-radius: 0.7rem 0.7rem 0 0;
         }
+        
         .card-img {
             width: 100%;
             height: 100%;
@@ -32,142 +51,118 @@
             transform: scale(1.05);
         }
         
+        /* 工具栏按钮 */
         .toolbar-btn {
             @apply inline-flex items-center justify-center rounded-lg bg-slate-700 hover:bg-slate-600 text-white transition-colors px-4 py-2 text-sm font-medium whitespace-nowrap;
         }
         
+        /* 搜索框 */
         .search-input {
             @apply flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 transition-colors;
         }
 
-/* 卡片允许操作菜单显示在卡片外部 */
-.card {
-    overflow: visible !important;
-}
-
-/* 卡片顶部图片保留圆角和裁切 */
-.card-img-container {
-    border-radius: 0.7rem 0.7rem 0 0;
-}
-
-/* 当前打开菜单的卡片提高层级 */
-.card.menu-open {
-    position: relative;
-    z-index: 100;
-}
-
-/* 卡片右下角三个点菜单：向上展开 */
-.card-action-menu {
-    position: absolute;
-    bottom: 100%;
-    right: -17px;
-    width: 130px;
-    margin-bottom: -5px;
-    padding: 4px;
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 8px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-    z-index: 9999;
-}
-
-/* 菜单按钮 */
-.card-action-menu button {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    gap: 8px;
-    padding: 8px 10px;
-    border-radius: 5px;
-    color: #e2e8f0;
-    font-size: 13px;
-    text-align: left;
-}
-
-.card-action-menu button:hover {
-    background: #334155;
-}
-
-/* 菜单分隔线 */
-.card-action-menu .menu-divider {
-    height: 1px;
-    background: #334155;
-    margin: 4px 0;
-}
-
-/* 删除按钮 */
-.card-action-menu button.menu-delete {
-    color: #f87171;
-}
-
-.card-action-menu button.menu-delete:hover {
-    background: rgba(239, 68, 68, 0.15);
-}
-
-/* 卡片左下角域名 */
-.card-domain {
-    display: block;
-    min-width: 0;
-    overflow: hidden;
-    color: #64748b;
-    font-size: 12px;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-
-.card-domain:hover {
-    color: #60a5fa;
-}
-
-/* 右下角三个点 */
-.card-more {
-    flex-shrink: 0;
-    width: 32px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 5px;
-    color: #64748b;
-    font-size: 22px;
-    line-height: 1;
-}
-
-.card-more:hover {
-    background: #334155;
-    color: white;
-}
-        .card:hover {
-            border-color: rgba(236, 72, 153, 1);
-            box-shadow: 0 4px 20px rgba(236, 72, 153, 0.15);
-        }
-        
+        /* 图标按钮 */
         .icon-btn {
             @apply inline-flex items-center justify-center w-9 h-9 rounded-lg bg-slate-700 hover:bg-slate-600 transition-colors;
         }
+        
         #statusText {
             @apply text-blue-400 text-sm;
         }
 
-.card-action-menu button {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
+        /* 卡片右下角三个点菜单：向上展开 */
+        .card-action-menu {
+            position: absolute;
+            bottom: 100%;
+            right: -17px;
+            width: 130px;
+            margin-bottom: -5px;
+            padding: 4px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+            z-index: 9999;
+        }
 
-.card-action-menu button .menu-icon {
-    width: 20px;
-    height: 20px;
-    flex: 0 0 20px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
+        .card-action-menu button {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 5px;
+            color: #e2e8f0;
+            font-size: 13px;
+            text-align: left;
+        }
 
-.card-action-menu button .menu-icon svg {
-    width: 16px;
-    height: 16px;
-}
+        .card-action-menu button:hover {
+            background: #334155;
+        }
+
+        .card-action-menu .menu-divider {
+            height: 1px;
+            background: #334155;
+            margin: 4px 0;
+        }
+
+        .card-action-menu button.menu-delete {
+            color: #f87171;
+        }
+
+        .card-action-menu button.menu-delete:hover {
+            background: rgba(239, 68, 68, 0.15);
+        }
+
+        /* 卡片左下角域名 */
+        .card-domain {
+            display: block;
+            min-width: 0;
+            overflow: hidden;
+            color: #64748b;
+            font-size: 12px;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .card-domain:hover {
+            color: #60a5fa;
+        }
+
+        /* 右下角三个点图标 */
+        .card-more {
+            flex-shrink: 0;
+            width: 32px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            color: #64748b;
+            font-size: 22px;
+            line-height: 1;
+        }
+
+        .card-more:hover {
+            background: #334155;
+            color: white;
+        }
+
+        /* 菜单里的图标尺寸限制 */
+        .card-action-menu button .menu-icon {
+            width: 20px;
+            height: 20px;
+            flex: 0 0 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-action-menu button .menu-icon svg {
+            width: 16px;
+            height: 16px;
+        }
 
 /* ==============================
    书签编辑面板
