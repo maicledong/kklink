@@ -1343,12 +1343,25 @@ try {
         ${item.description || '无描述'}
     </p>
 
-<!-- 标签 -->
+<!-- 标签 
 <div class="card-tags flex flex-wrap gap-1 mb-1">
     ${getItemTags(item).map(tag =>
         `<span class="text-xs text-sky-300 bg-sky-900/40 px-2 py-0.5 rounded">${tag}</span>`
     ).join('')}
+</div>  -->
+
+
+<!-- 当前所属分类 -->
+<div class="card-category flex flex-wrap gap-1 mb-1">
+    <span class="text-xs text-amber-300 bg-amber-900/40 px-2 py-0.5 rounded">
+        ${(item.category_path || '/default')
+            .split('/')
+            .filter(Boolean)
+            .join('/') || '默认分类'}
+    </span>
 </div>
+
+
 
 <div class="mt-auto relative flex items-center justify-between gap-2 pt-0 border-t border-slate-700/50">
 
