@@ -1343,34 +1343,35 @@ try {
         ${item.description || '无描述'}
     </p>
 
-<!-- 标签 -->
-<div class="card-tags flex flex-wrap gap-1 mb-1">
-    ${getItemTags(item).map(tag =>
-        `<span class="text-xs text-sky-300 bg-sky-900/40 px-2 py-0.5 rounded">${tag}</span>`
-    ).join('')}
-</div>
+    <!-- 标签 -->
+    <div class="card-tags flex flex-wrap gap-1 mb-0">
+        ${getItemTags(item).map(tag =>
+            `<span class="text-xs text-sky-300 bg-sky-900/40 px-2 py-0.5 rounded">${tag}</span>`
+        ).join('')}
+    </div>
 
-<div class="mt-auto relative flex items-center justify-between gap-2 pt-0 border-t border-slate-700/50">
+    <!-- 底部操作行 -->
+    <div class="mt-auto relative flex items-center justify-between gap-2 pt-2 border-t border-slate-700/50">
 
-    <!-- 左下角：链接官方域名 -->
-    <a href="${item.url}"
-       target="_blank"
-       rel="noopener noreferrer"
-       class="card-domain flex-1"
-       title="${item.url}">
-        ${hostname}
-    </a>
+        <!-- 左下角：链接官方域名 -->
+        <a href="${item.url}"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="card-domain flex-1"
+           title="${item.url}">
+            ${hostname}
+        </a>
 
-    <!-- 右下角：三个点 -->
-    <button type="button"
-        class="card-more"
-        title="更多操作">
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="5" cy="12" r="1.8" fill="currentColor"/>
-        <circle cx="12" cy="12" r="1.8" fill="currentColor"/>
-        <circle cx="19" cy="12" r="1.8" fill="currentColor"/>
-    </svg>
-    </button>
+        <!-- 右下角：三个点 -->
+        <button type="button"
+            class="card-more"
+            title="更多操作">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="5" cy="12" r="1.8" fill="currentColor"/>
+                <circle cx="12" cy="12" r="1.8" fill="currentColor"/>
+                <circle cx="19" cy="12" r="1.8" fill="currentColor"/>
+            </svg>
+        </button>
 
 <!-- 操作菜单 -->
 <div class="card-action-menu hidden">
