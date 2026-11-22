@@ -1297,6 +1297,14 @@ try {
                             <div class="absolute top-2 left-2 z-10">
                                 <input type="checkbox" class="card-checkbox w-5 h-5 rounded cursor-pointer accent-blue-500" data-id="${item.id}">
                             </div>
+
+<!-- 图片右下角：标签 -->
+<div class="card-tags absolute bottom-2 right-2 z-10 flex flex-wrap justify-end gap-1">
+    ${getItemTags(item).map(tag =>
+        `<span class="text-xs text-white bg-slate-900/80 backdrop-blur-sm px-2 py-1 rounded-md shadow">${tag}</span>`
+    ).join('')}
+</div>
+		
                             
                             <!-- 右上角悬浮操作栏 
                             <div class="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
