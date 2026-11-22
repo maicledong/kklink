@@ -1343,15 +1343,14 @@ try {
         ${item.description || '无描述'}
     </p>
 
-    <!-- 标签 -->
-    <div class="card-tags flex flex-wrap gap-1 mb-2">
-        ${getItemTags(item).map(tag =>
-            `<span class="text-xs text-sky-300 bg-sky-900/40 px-2 py-0.5 rounded">${tag}</span>`
-        ).join('')}
-    </div>
-                                
+<!-- 标签 -->
+<div class="card-tags flex flex-wrap gap-1 mb-1">
+    ${getItemTags(item).map(tag =>
+        `<span class="text-xs text-sky-300 bg-sky-900/40 px-2 py-0.5 rounded">${tag}</span>`
+    ).join('')}
+</div>
 
-<div class="mt-auto relative flex items-center justify-between gap-2 pt-1 border-t border-slate-700/50">
+<div class="mt-auto relative flex items-center justify-between gap-2 pt-0 border-t border-slate-700/50">
 
     <!-- 左下角：链接官方域名 -->
     <a href="${item.url}"
