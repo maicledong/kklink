@@ -1790,14 +1790,17 @@ function confirmCloseBookmarkEdit() {
     if (!confirmed) return;
 
     closeBookmarkEdit();
-}		
+}
 
-// 绑定关闭按钮
+
+// 绑定右上角关闭按钮
 document.getElementById('bookmarkEditClose').addEventListener(
     'click',
     confirmCloseBookmarkEdit
 );
 
+
+// 绑定底部取消按钮
 document.getElementById('bookmarkEditCancel').addEventListener(
     'click',
     confirmCloseBookmarkEdit
@@ -1808,7 +1811,7 @@ document.getElementById('bookmarkEditCancel').addEventListener(
 bookmarkEditModal.addEventListener('click', (e) => {
 
     if (e.target === bookmarkEditModal) {
-        confirmCloseBookmarkEdit
+        confirmCloseBookmarkEdit();
     }
 
 });
