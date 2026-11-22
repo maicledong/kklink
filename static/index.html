@@ -293,7 +293,20 @@
 /* 确保 hidden 能正常隐藏编辑面板 */
 .bookmark-edit-modal.hidden {
     display: none;
-}		
+}
+/* 手机端：让卡片右下角三个点垂直居中 */
+@media (max-width: 640px) {
+    .card-more {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        line-height: 1 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        transform: translateY(-2px);
+    }
+}
+			
 
 @media (max-width: 640px) {
     .bookmark-edit-modal {
