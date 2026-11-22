@@ -1780,16 +1780,27 @@ async function saveBookmarkEdit() {
     }
 }
 
+// 统一处理编辑书签的退出确认
+function confirmCloseBookmarkEdit() {
+
+    const confirmed = confirm(
+        "确定要退出编辑吗？\n\n尚未保存的修改将会丢失。"
+    );
+
+    if (!confirmed) return;
+
+    closeBookmarkEdit();
+}		
 
 // 绑定关闭按钮
 document.getElementById('bookmarkEditClose').addEventListener(
     'click',
-    closeBookmarkEdit
+    confirmCloseBookmarkEdit
 );
 
 document.getElementById('bookmarkEditCancel').addEventListener(
     'click',
-    closeBookmarkEdit
+    confirmCloseBookmarkEdit
 );
 
 
@@ -1797,7 +1808,7 @@ document.getElementById('bookmarkEditCancel').addEventListener(
 bookmarkEditModal.addEventListener('click', (e) => {
 
     if (e.target === bookmarkEditModal) {
-        closeBookmarkEdit();
+        confirmCloseBookmarkEdit
     }
 
 });
