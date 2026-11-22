@@ -151,24 +151,34 @@
             color: #60a5fa;
         }
 
-        /* 右下角三个点图标 */
-        .card-more {
-            flex-shrink: 0;
-            width: 32px;
-            height: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 5px;
-            color: #64748b;
-            font-size: 22px;
-            line-height: 1;
-        }
+/* 右下角三个点图标 */
+.card-more {
+    flex-shrink: 0;
+    width: 32px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    color: #64748b;
+    font-size: 22px;
+    line-height: 1;
+    padding: 0;
+    position: relative;
+}
 
-        .card-more:hover {
-            background: #334155;
-            color: white;
-        }
+.card-more:hover {
+    background: #334155;
+    color: white;
+}
+
+/* 三个点使用 SVG，避免手机端字体基线导致位置偏下 */
+.card-more svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
 
         /* 菜单里的图标尺寸限制 */
         .card-action-menu button .menu-icon {
@@ -186,20 +196,8 @@
         }
 
 
-/* 手机端：让卡片右下角三个点垂直居中 */
-@media (max-width: 640px) {
-    .card-more {
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        line-height: 0 !important; /* 🌟 只在手机端把行高归零 */
-        padding-top: 0 !important;
-        padding-bottom: 4px !important; /* 🌟 手机端微调底边距 */
-        transform: none !important; /* 移除之前可能存在的 translateY */
-    }
-}
 
-			
+
 /* ==============================
    书签编辑面板
    ============================== */
@@ -1368,7 +1366,11 @@ try {
     <button type="button"
         class="card-more"
         title="更多操作">
-        ⋯
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="5" cy="12" r="1.8" fill="currentColor"/>
+        <circle cx="12" cy="12" r="1.8" fill="currentColor"/>
+        <circle cx="19" cy="12" r="1.8" fill="currentColor"/>
+    </svg>
     </button>
 
 <!-- 操作菜单 -->
