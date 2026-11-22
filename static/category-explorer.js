@@ -342,22 +342,27 @@ function openMoreMenu(btn, node, mode) {
 
     menu.dataset.triggerPath = node.path;
 
-    menu.innerHTML = `
-        <button data-act="add"
-            class="w-full text-left px-2.5 py-1.5 text-[13px] rounded hover:bg-slate-700 text-slate-200">
-            ➕ 子列表
-        </button>
 
-        <button data-act="rename"
-            class="w-full text-left px-2.5 py-1.5 text-[13px] rounded hover:bg-slate-700 text-slate-200">
-            ✏️ 重命名
-        </button>
+menu.innerHTML = `
+    <button data-act="add"
+        class="w-full flex items-center text-left px-2.5 py-1.5 text-[13px] rounded hover:bg-slate-700 text-slate-200">
+        <span class="w-5 shrink-0 inline-flex items-center justify-start">➕</span>
+        <span>子列表</span>
+    </button>
 
-        <button data-act="delete"
-            class="w-full text-left px-2.5 py-1.5 text-[13px] rounded hover:bg-red-600/20 text-red-400">
-            ${window.TRASH_SVG} 删除
-        </button>
-    `;
+    <button data-act="rename"
+        class="w-full flex items-center text-left px-2.5 py-1.5 text-[13px] rounded hover:bg-slate-700 text-slate-200">
+        <span class="w-5 shrink-0 inline-flex items-center justify-start">✏️</span>
+        <span>重命名</span>
+    </button>
+
+    <button data-act="delete"
+        class="w-full flex items-center text-left px-2.5 py-1.5 text-[13px] rounded hover:bg-red-600/20 text-red-400">
+        <span class="w-5 shrink-0 inline-flex items-center justify-start">${window.TRASH_SVG}</span>
+        <span>删除</span>
+    </button>
+`;
+
 
     // 限制菜单尺寸，防止手机屏幕太窄或太矮时越界
     menu.style.maxWidth = "calc(100vw - 16px)";
