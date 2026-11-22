@@ -355,7 +355,7 @@ function openMoreMenu(btn, node, mode) {
 
         <button data-act="delete"
             class="w-full text-left px-2.5 py-1.5 text-[13px] rounded hover:bg-red-600/20 text-red-400">
-            🗑️ 删除
+            ${window.TRASH_SVG} 删除
         </button>
     `;
 
