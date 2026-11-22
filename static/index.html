@@ -1353,11 +1353,11 @@ try {
 
 <!-- 当前所属分类 -->
 <div class="card-category flex flex-wrap gap-1 mb-1">
-    <span class="text-xs text-amber-300 bg-amber-900/40 px-2 py-0.5 rounded">
+    <span class="text-xs text-sky-300 bg-sky-900/40 px-2 py-0 rounded">
         ${(item.category_path || '/default')
             .split('/')
             .filter(Boolean)
-            .join('/') || '默认分类'}
+            .join('/') || '未分类'}
     </span>
 </div>
 
