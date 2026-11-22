@@ -1080,8 +1080,8 @@ button[title="搜索"] + div {
         * ============================================================ */
 
 const displaySettings = {
+    // 优先读取上次保存的列数
     columns: (() => {
-        // 优先读取上次保存的列数
         const savedColumns = localStorage.getItem('linkmind_columns');
 
         if (savedColumns !== null) {
@@ -1095,10 +1095,14 @@ const displaySettings = {
         // 首次打开：手机端默认 2 列，电脑端默认 5 列
         return window.matchMedia('(max-width: 640px)').matches ? 2 : 5;
     })(),
-    showTitle: true,
-    showDescription: true,
-    showTags: true
+
+    // 读取上次保存的显示状态
+    showTitle: localStorage.getItem('linkmind_showTitle') !== 'false',
+    showDescription: localStorage.getItem('linkmind_showDescription') !== 'false',
+    showTags: localStorage.getItem('linkmind_showTags') !== 'false'
 };
+
+		
 
 const displaySettingsBtn = document.getElementById('displaySettingsBtn');
 const displaySettingsDropdown = document.getElementById('displaySettingsDropdown');
@@ -1161,10 +1165,16 @@ function applyDisplaySettings() {
         el.style.display = displaySettings.showTags ? '' : 'none';
     });
 }
-// 页面初始化：同步滑块、数字和卡片列数
+// 页面初始化：同步滑块、数字和显示选项
 columnCountSlider.value = displaySettings.columns;
 columnCountText.textContent = displaySettings.columns;
 
+// 同步三个显示开关的勾选状态
+showTitleToggle.checked = displaySettings.showTitle;
+showDescriptionToggle.checked = displaySettings.showDescription;
+showTagsToggle.checked = displaySettings.showTags;
+
+// 应用上次保存的显示设置
 applyDisplaySettings();
 		
 
@@ -1185,18 +1195,30 @@ columnCountSlider.addEventListener('input', (e) => {
 // 标题开关
 showTitleToggle.addEventListener('change', () => {
     displaySettings.showTitle = showTitleToggle.checked;
+
+    // 保存标题显示状态
+    localStorage.setItem('linkmind_showTitle', displaySettings.showTitle);
+
     applyDisplaySettings();
 });
 
 // 描述开关
 showDescriptionToggle.addEventListener('change', () => {
     displaySettings.showDescription = showDescriptionToggle.checked;
+
+    // 保存描述显示状态
+    localStorage.setItem('linkmind_showDescription', displaySettings.showDescription);
+
     applyDisplaySettings();
 });
 
 // 标签开关
 showTagsToggle.addEventListener('change', () => {
     displaySettings.showTags = showTagsToggle.checked;
+
+    // 保存标签显示状态
+    localStorage.setItem('linkmind_showTags', displaySettings.showTags);
+
     applyDisplaySettings();
 });
 
