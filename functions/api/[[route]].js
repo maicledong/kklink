@@ -530,12 +530,30 @@ if (path === '/api/bookmark/batch' && request.method === 'POST') {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
-      const r = await env.DB.prepare(
-        `UPDATE bookmarks SET category_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`
-      ).bind(target, ...cleanIds).run();
-      return new Response(JSON.stringify({ success: true, affected: r.meta?.changes || 0, action, target_category: target }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+const r = await env.DB.prepare(
+    `UPDATE bookmarks SET category_path = ?, updated_at = CURRENT_TIMESTAMP WHERE id IN (${placeholders})`
+).bind(target, ...cleanIds).run();
+
+// 实际成功移动的数量
+const successCount = Number(r.meta?.changes || 0);
+
+// 未成功移动的数量
+const failedCount = Math.max(0, cleanIds.length - successCount);
+
+return new Response(JSON.stringify({
+    success: true,
+    action,
+    target_category: target,
+    affected: successCount,
+    success_count: successCount,
+    failed_count: failedCount,
+    total: cleanIds.length
+}), {
+    headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+    }
+});
     }
 
     return new Response(JSON.stringify({ error: '未知的 action' }), {
