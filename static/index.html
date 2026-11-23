@@ -1561,15 +1561,32 @@ try {
          * 批量操作与工具栏 (全选、批量移动/收藏/归档/删除)
          * ============================================================ */
 
+
 const selectAllBtn = document.querySelector('.toolbar-btn[title="全选/反选"]');
+
+// 记录鼠标是否停留在全选/反选按钮上
+let isSelectAllBtnHovered = false;
 
 // 全选 / 反选按钮逻辑
 if (selectAllBtn) {
+
+    // 鼠标进入按钮：显示当前操作模式
+    selectAllBtn.addEventListener('mouseenter', () => {
+        isSelectAllBtnHovered = true;
+        updateBatchToolbar();
+    });
+
+    // 鼠标离开按钮：根据选中数量决定显示内容
+    selectAllBtn.addEventListener('mouseleave', () => {
+        isSelectAllBtnHovered = false;
+        updateBatchToolbar();
+    });
+
     selectAllBtn.onclick = () => {
 
         const checkboxes = document.querySelectorAll('.card-checkbox');
 
-        // 根据按钮当前状态决定执行全选还是反选
+        // 根据当前按钮模式决定执行全选还是反选
         const isSelectAction = !AppState.isSelectAll;
 
         checkboxes.forEach(cb => {
@@ -1594,47 +1611,58 @@ if (selectAllBtn) {
             }
         });
 
-        // 更新全选状态
+        // 更新按钮操作模式
         AppState.isSelectAll = isSelectAction;
 
-        // 更新按钮文字和选中数量
         updateBatchToolbar();
     };
 }
 
+// 监听单张卡片的复选框
+cardsContainer.addEventListener('change', (e) => {
+    if (e.target.classList.contains('card-checkbox')) {
+        const id = Number(e.target.dataset.id);
 
-        // 监听单张卡片的复选框
-        cardsContainer.addEventListener('change', (e) => {
-            if (e.target.classList.contains('card-checkbox')) {
-                const id = Number(e.target.dataset.id);
-                if (e.target.checked) {
-                    AppState.selectedIds.add(id);
-                    e.target.closest('.card').classList.add('border-blue-500');
-                } else {
-                    AppState.selectedIds.delete(id);
-                    e.target.closest('.card').classList.remove('border-blue-500');
-                }
-                updateBatchToolbar();
-            }
-        });
+        if (e.target.checked) {
+            AppState.selectedIds.add(id);
+            e.target.closest('.card').classList.add('border-blue-500');
+        } else {
+            AppState.selectedIds.delete(id);
+            e.target.closest('.card').classList.remove('border-blue-500');
+        }
 
+        updateBatchToolbar();
+    }
+});
+
+// 更新全选/反选按钮
 function updateBatchToolbar() {
+
     const count = AppState.selectedIds.size;
 
     if (!selectAllBtn) return;
 
+    // 当前按钮应该执行的操作模式
+    const modeText = AppState.isSelectAll ? '反选' : '全选';
+
+    // 鼠标停留按钮上，或者没有任何选中项时，显示操作模式
+    // 鼠标离开按钮且存在选中项时，显示选中数量
+    if (isSelectAllBtnHovered || count === 0) {
+        selectAllBtn.innerHTML = `<span>${modeText}</span>`;
+    } else {
+        selectAllBtn.innerHTML = `<span>已选 ${count} 项</span>`;
+    }
+
+    // 保留原来的颜色变化逻辑
     if (count === 0) {
-        // 没有选中项目：恢复显示“全选”
-        selectAllBtn.innerHTML = `<span>全选</span>`;
         selectAllBtn.classList.remove('bg-purple-600');
         selectAllBtn.classList.add('bg-slate-700');
     } else {
-        // 有选中项目：显示选中数量
-        selectAllBtn.innerHTML = `<span>已选 ${count} 项</span>`;
         selectAllBtn.classList.remove('bg-slate-700');
         selectAllBtn.classList.add('bg-purple-600');
     }
 }
+
 
         // 绑定批量操作按钮 (假设那个 "..." 按钮是批量操作下拉)
 const moreBtn = document.querySelector('.toolbar-btn[title="批量操作"]');
