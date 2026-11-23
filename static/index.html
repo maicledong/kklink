@@ -100,10 +100,10 @@
         .card-action-menu {
             position: absolute;
             bottom: 100%;
-            right: -17px;
-            width: 130px;
-            margin-bottom: -5px;
-            padding: 4px;
+            right: 0;
+            width: 115px;
+            margin-bottom: 1px;
+            padding: 2px;
             background: #0f172a;
             border: 1px solid #334155;
             border-radius: 8px;
@@ -115,8 +115,8 @@
             display: flex;
             align-items: center;
             width: 100%;
-            gap: 8px;
-            padding: 8px 10px;
+            gap: 6px;
+            padding: 5px 6px;
             border-radius: 5px;
             color: #e2e8f0;
             font-size: 13px;
@@ -130,7 +130,7 @@
         .card-action-menu .menu-divider {
             height: 1px;
             background: #334155;
-            margin: 4px 0;
+            margin: 2px 0;
         }
 
         .card-action-menu button.menu-delete {
@@ -456,7 +456,7 @@
     border-color: transparent !important;
     box-shadow: none !important;
 }
-/* 资源管理器收起时，缩小主页/收藏/归档与输入框之间的距离 */
+/* 资源管理器收起时，缩小主页//归档与输入框之间的距离 */
 #saveZone:not(:has(#explorerView:not(.hidden))) {
     row-gap: 1px !important;
 }
@@ -537,7 +537,7 @@
         row-gap: 5px !important;
     }
 
-    /* 展开时取消主页、收藏、归档容器的底部外边距 */
+    /* 展开时取消主页、、归档容器的底部外边距 */
     #saveZone:has(#explorerView:not(.hidden)) #scopeTabsWrapper {
         margin-bottom: 0 !important;
     }
@@ -1340,26 +1340,6 @@ try {
         </div>
 		
                             
-                            <!-- 右上角悬浮操作栏 
-                            <div class="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button class="btn-fav bg-slate-900/80 hover:bg-slate-700 text-white p-1.5 rounded-lg backdrop-blur" title="${isFav ? '取消收藏' : '收藏'}">
-                                    ${isFav ? '❤️' : '🤍'}
-                                </button>
-                                <button class="btn-archive bg-slate-900/80 hover:bg-slate-700 text-white p-1.5 rounded-lg backdrop-blur" title="${isArchived ? '取消归档' : '归档'}">
-                                    ${isArchived ? '📦' : '🗃️'}
-                                </button>
-                                <button class="btn-move bg-slate-900/80 hover:bg-slate-700 text-white p-1.5 rounded-lg backdrop-blur" title="移动到分类">
-                                    📁
-                                </button>
-                                <button class="btn-edit bg-slate-900/80 hover:bg-slate-700 text-white p-1.5 rounded-lg backdrop-blur" title="编辑">
-                                    ✏️
-                                </button>
-                                <button class="btn-delete bg-slate-900/80 hover:bg-red-600 text-white p-1.5 rounded-lg backdrop-blur" title="删除">
-                                    🗑️
-                                </button>
-                            </div>   -->
-
-                        
                                 ${item.image_url ? `
                                     <img src="${item.image_url}" class="card-img" referrerpolicy="no-referrer" 
                                         onerror="
@@ -1384,13 +1364,6 @@ try {
     <p class="card-description text-xs text-slate-400 line-clamp-2 h-8 mb-1 leading-4">
         ${item.description || '无描述'}
     </p>
-
-<!-- 标签 
-<div class="card-tags flex flex-wrap gap-1 mb-1">
-    ${getItemTags(item).map(tag =>
-        `<span class="text-xs text-sky-300 bg-sky-900/40 px-2 py-0.5 rounded">${tag}</span>`
-    ).join('')}
-</div>  -->
 
 
 <!-- 当前所属分类 -->
