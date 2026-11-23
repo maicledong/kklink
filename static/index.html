@@ -714,7 +714,10 @@ button[title="搜索"] + div {
 
                         
             <input type="text" id="searchKeyword" placeholder="搜索标签、标题、文本、URL" class="flex-1 bg-transparent px-3 py-2 text-white placeholder-slate-400 focus:outline-none">
-            <button class="px-3 py-2 text-slate-300 hover:text-white transition-colors bg-[#cbd5e1]" title="搜索">🔍</button>
+			<button id="searchBtn"
+        type="button"
+        class="px-3 py-2 text-slate-300 hover:text-white transition-colors bg-[#cbd5e1]"
+        title="搜索">🔍</button>
             <div class="w-px h-6 bg-slate-600"></div>
             <button class="px-3 py-2 text-slate-300 hover:text-white transition-colors flex items-center justify-center bg-[#cbd5e1]" title="重置">    
                 <svg t="1792208764843" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="26" height="24">
@@ -2272,27 +2275,27 @@ document.addEventListener('click', () => {
             }
         }
 
-        /* ============================================================
-         * 搜索功能
-         * ============================================================ */
-        let searchTimer = null;
-        searchInput.addEventListener('input', (e) => {
-            clearTimeout(searchTimer);
-            searchTimer = setTimeout(() => {
-                AppState.keyword = e.target.value.trim();
-                AppState.page = 1;
-                loadCards();
-            }, 400); // 400ms 防抖
-        });
+/* ============================================================
+ * 搜索功能：手动点击搜索按钮触发
+ * ============================================================ */
 
-        const searchBtn = document.querySelector('.search-btn') || document.querySelectorAll('button[title="搜索"]')[0];
-        if (searchBtn) {
-            searchBtn.onclick = () => {
-                AppState.keyword = searchInput.value.trim();
-                AppState.page = 1;
-                loadCards();
-            };
-        }
+const searchBtn = document.getElementById('searchBtn');
+
+if (searchBtn) {
+    searchBtn.onclick = () => {
+        AppState.keyword = searchInput.value.trim();
+        AppState.page = 1;
+        loadCards();
+    };
+}
+
+// 按 Enter 键也可以触发搜索
+searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        searchBtn?.click();
+    }
+});
         
         const resetBtn = document.querySelector('button[title="重置"]');
         if (resetBtn) {
