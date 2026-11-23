@@ -1129,6 +1129,51 @@ displaySettingsDropdown.addEventListener('click', (e) => {
     e.stopPropagation();
 });
 
+
+// 自动消失的操作提示
+function showActionToast(message, duration = 3000) {
+    let toast = document.getElementById('actionToast');
+
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'actionToast';
+
+        Object.assign(toast.style, {
+            position: 'fixed',
+            left: '50%',
+            bottom: '40px',
+            transform: 'translateX(-50%) translateY(10px)',
+            padding: '12px 20px',
+            background: 'rgba(30, 41, 59, 0.95)',
+            color: '#fff',
+            fontSize: '14px',
+            borderRadius: '10px',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+            zIndex: '999999',
+            opacity: '0',
+            transition: 'opacity 0.25s ease, transform 0.25s ease',
+            pointerEvents: 'none',
+            maxWidth: '90%',
+            textAlign: 'center',
+            whiteSpace: 'normal'
+        });
+
+        document.body.appendChild(toast);
+    }
+
+    clearTimeout(toast.hideTimer);
+
+    toast.textContent = message;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+
+    toast.hideTimer = setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(-50%) translateY(10px)';
+    }, duration);
+}
+		
+
 // 统一关闭显示设置菜单
 function closeDisplaySettingsDropdown() {
     displaySettingsDropdown.classList.add('hidden');
@@ -1705,8 +1750,16 @@ if (action === 'move') {
                 const result = await res.json();
 if (result.success) {
 
-    // 移动成功后不再弹出多余的成功对话框
-    if (action !== 'move') {
+    if (action === 'move') {
+
+        // 移动完成后显示成功和失败数量
+        showActionToast(
+            `移动完成：成功移动 ${result.success_count} 条，失败 ${result.failed_count} 条`
+        );
+
+    } else {
+
+        // 其他操作保留原来的提示
         alert(`操作成功，影响了 ${result.affected} 条数据`);
     }
 
@@ -1714,12 +1767,23 @@ if (result.success) {
     loadCards();
 
 } else {
-    alert('操作失败：' + result.error);
+
+    if (action === 'move') {
+        // 移动失败时也使用自动消失的提示
+        showActionToast('移动失败：' + (result.error || '未知错误'));
+    } else {
+        alert('操作失败：' + result.error);
+    }
 }
-            } catch (e) {
-                console.error(e);
-                alert('网络请求失败');
-            }
+} catch (e) {
+    console.error(e);
+
+    if (action === 'move') {
+        showActionToast('移动失败：网络请求异常');
+    } else {
+        alert('网络请求失败');
+    }
+}
         };
 
 
