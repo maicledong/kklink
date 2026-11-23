@@ -1428,6 +1428,17 @@ try {
        title="${item.url}">
         ${hostname}
     </a>
+    <!-- 🌟 新增：预览图标按钮 -->
+    <a href="https://karakeep.mcck.ccwu.cc/dashboard/preview/${item.karakeep_id}?section=cached" 
+       target="_blank" 
+       class="flex items-center justify-center w-8 h-8 rounded hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+       title="查看 Karakeep 缓存预览">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+    </a>
+			
 
     <!-- 右下角：三个点 -->
     <button type="button"
@@ -2392,7 +2403,7 @@ checkData = await checkRes.json();
 
                 if (checkData.status === 'success') {
                     statusText.innerText = '正在将封面图转存至 Telegram...';
-                    const { url: targetUrl, title, description, imageUrl, karakeepLocalImage } = checkData.data;
+                    const { url: targetUrl, title, description, imageUrl, karakeepLocalImage, karakeepId } = checkData.data;
                     let imgFileId = "";
 
                     if (karakeepLocalImage) {
@@ -2421,6 +2432,7 @@ const storeRes = await fetch('/api/store', {
         description,
         imageUrl,
         imgFileId,
+		karakeepId,
         category_path: targetCategory
     })
 });
