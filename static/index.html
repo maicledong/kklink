@@ -1325,18 +1325,19 @@ document.addEventListener('click', function (e) {
         title._scrollAnimation.cancel();
     }
 
-    // 从当前位置重新向左滚动
-    title._scrollAnimation = title.animate(
-        [
-            { transform: 'translateX(0)' },
-            { transform: `translateX(-${distance}px)` }
-        ],
-        {
-            duration: Math.max(2500, distance * 35),
-            easing: 'linear',
-            fill: 'forwards'
-        }
-    );
+// 从最前面滚动到最后，再返回最前面
+title._scrollAnimation = title.animate(
+    [
+        { transform: 'translateX(0)' },
+        { transform: `translateX(-${distance}px)`, offset: 0.7 },
+        { transform: 'translateX(0)' }
+    ],
+    {
+        duration: Math.max(5000, distance * 70),
+        easing: 'linear',
+        fill: 'none'
+    }
+);
 
 });
 
