@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS bookmarks (
     image_url TEXT,
     img_file_id TEXT,
     vid_file_id TEXT,
+    karakeep_id TEXT,
     category_path TEXT DEFAULT '/default',
     is_favorite INTEGER DEFAULT 0,
     status TEXT DEFAULT 'active',
