@@ -1560,26 +1560,48 @@ try {
         /* ============================================================
          * 批量操作与工具栏 (全选、批量移动/收藏/归档/删除)
          * ============================================================ */
-		const selectAllBtn = document.querySelector('.toolbar-btn[title="全选/反选"]');
-        // 重写全选按钮逻辑
-        if (selectAllBtn) {
-            selectAllBtn.onclick = () => {
-                AppState.isSelectAll = !AppState.isSelectAll;
-                const checkboxes = document.querySelectorAll('.card-checkbox');
-                checkboxes.forEach(cb => {
-                    cb.checked = AppState.isSelectAll;
-                    const id = Number(cb.dataset.id);
-                    if (AppState.isSelectAll) {
-                        AppState.selectedIds.add(id);
-                        cb.closest('.card').classList.add('border-blue-500');
-                    } else {
-                        AppState.selectedIds.delete(id);
-                        cb.closest('.card').classList.remove('border-blue-500');
-                    }
-                });
-                updateBatchToolbar();
-            };
-        }
+
+const selectAllBtn = document.querySelector('.toolbar-btn[title="全选/反选"]');
+
+// 全选 / 反选按钮逻辑
+if (selectAllBtn) {
+    selectAllBtn.onclick = () => {
+
+        const checkboxes = document.querySelectorAll('.card-checkbox');
+
+        // 根据按钮当前状态决定执行全选还是反选
+        const isSelectAction = !AppState.isSelectAll;
+
+        checkboxes.forEach(cb => {
+
+            const id = Number(cb.dataset.id);
+            const card = cb.closest('.card');
+
+            if (isSelectAction) {
+                // 全选：不管之前的状态，全部勾选
+                cb.checked = true;
+            } else {
+                // 反选：将每个复选框当前状态反转
+                cb.checked = !cb.checked;
+            }
+
+            if (cb.checked) {
+                AppState.selectedIds.add(id);
+                card?.classList.add('border-blue-500');
+            } else {
+                AppState.selectedIds.delete(id);
+                card?.classList.remove('border-blue-500');
+            }
+        });
+
+        // 更新全选状态
+        AppState.isSelectAll = isSelectAction;
+
+        // 更新按钮文字和选中数量
+        updateBatchToolbar();
+    };
+}
+
 
         // 监听单张卡片的复选框
         cardsContainer.addEventListener('change', (e) => {
