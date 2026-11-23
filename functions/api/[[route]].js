@@ -432,11 +432,28 @@ if (path === '/api/list' && request.method === 'GET') {
       });
     }
 
-    if (keyword) {
-      where.push(`(title LIKE ? OR description LIKE ? OR url LIKE ?)`);
-      const like = `%${keyword}%`;
-      binds.push(like, like, like);
-    }
+// 搜索范围：标题、描述、URL、标签、备注、摘要
+if (keyword) {
+  where.push(`(
+    title LIKE ?
+    OR description LIKE ?
+    OR url LIKE ?
+    OR tags LIKE ?
+    OR notes LIKE ?
+    OR summary LIKE ?
+  )`);
+
+  const like = `%${keyword}%`;
+
+  binds.push(
+    like, // title
+    like, // description
+    like, // url
+    like, // tags
+    like, // notes
+    like  // summary
+  );
+}
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
