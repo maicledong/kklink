@@ -100,7 +100,8 @@ export async function onRequest(context) {
               title, 
               description, // 这里返回的 description 已经是覆盖后的真实简介了
               imageUrl: externalImageUrl,       
-              karakeepLocalImage: localKarakeepImageUrl 
+              karakeepLocalImage: localKarakeepImageUrl,
+              karakeepId: bookmarkId
           } 
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     } catch (e) {
@@ -111,7 +112,7 @@ export async function onRequest(context) {
 // 3. 存入 D1（支持 category_path）
 if (path === '/api/store' && request.method === 'POST') {
   try {
-    const { url: originalUrl, title, description, imageUrl, imgFileId, category_path } = await request.json();
+    const { url: originalUrl, title, description, imageUrl, imgFileId, category_path, karakeepId } = await request.json();
     const finalCategory = (category_path || '/default').trim() || '/default';
 
     // 校验分类存在
@@ -123,8 +124,8 @@ if (path === '/api/store' && request.method === 'POST') {
     }
 
     await env.DB.prepare(
-      `INSERT OR REPLACE INTO bookmarks (url, title, description, image_url, img_file_id, category_path, updated_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
-    ).bind(originalUrl, title, description, imageUrl, imgFileId, finalCategory).run();
+      `INSERT OR REPLACE INTO bookmarks (url, title, description, image_url, img_file_id, category_path, karakeep_id, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
+    ).bind(originalUrl, title, description, imageUrl, imgFileId, finalCategory, karakeepId).run();
     return new Response(JSON.stringify({success: true, status: 'success', category_path: finalCategory }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
