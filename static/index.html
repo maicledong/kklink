@@ -1086,7 +1086,7 @@ button[title="搜索"] + div {
             category: '',           // 当 scope === 'category' 时有效
             keyword: '',            // 搜索关键字
             page: 1,
-            pageSize: 20,
+            pageSize: (() => {const savedPageSize = Number(localStorage.getItem('linkmind_pageSize')); if ([10, 20, 30, 50, 100].includes(savedPageSize)) {return savedPageSize;} return 20;})(),
             selectedIds: new Set(), // 选中的卡片 ID 集合
             isSelectAll: false,     // 当前页是否全选
             listData: []            // 当前页的数据缓存
@@ -1147,13 +1147,11 @@ const showTagsToggle = document.getElementById('showTagsToggle');
 
 const pageSizeSelect = document.getElementById('pageSizeSelect');
 
-// 初始化下拉框，显示当前每页数量
+// 初始化下拉框，显示上次保存的分页数量
 if (pageSizeSelect) {
-
     pageSizeSelect.value = String(AppState.pageSize);
 
     pageSizeSelect.addEventListener('change', () => {
-
         const newPageSize = Number(pageSizeSelect.value);
 
         // 数量没有变化，不重复加载
@@ -1161,6 +1159,9 @@ if (pageSizeSelect) {
 
         // 更新每页显示数量
         AppState.pageSize = newPageSize;
+
+        // 保存分页数量，下次打开浏览器继续使用
+        localStorage.setItem('linkmind_pageSize', newPageSize);
 
         // 切换分页数量后，回到第一页
         AppState.page = 1;
