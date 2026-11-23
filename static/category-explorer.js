@@ -254,10 +254,17 @@ if (mode === "picker") {
 
 } else if (mode === "movePicker") {
 
-    // 移动链接时选择目标分类
+    // 只更新选中的目标分类，不立即执行移动
     CategoryStore.movePickerPath = node.path;
 
-closeMoveCategoryPicker(node.path);
+    // 刷新分类树的选中状态
+    renderTreeInto(
+        document.getElementById("moveCategoryPickerTree"),
+        "movePicker"
+    );
+
+    // 更新左下角显示的分类路径
+    updateMoveCategoryPath();
 
 } else {
 
@@ -905,6 +912,8 @@ function openMoveCategoryPicker() {
             rounded-xl border border-slate-700
             bg-slate-900 shadow-2xl
         ">
+
+            <!-- 标题栏 -->
             <div class="
                 flex items-center justify-between
                 px-4 py-3 border-b border-slate-700
@@ -920,49 +929,92 @@ function openMoveCategoryPicker() {
                 >×</button>
             </div>
 
+            <!-- 提示 -->
             <div class="px-4 py-2 text-xs text-slate-400">
-                点击分类名称即可选择；点击左侧箭头可以展开或折叠子分类。
+                点击分类名称选择目标分类；点击左侧箭头可以展开或折叠子分类。
             </div>
 
+            <!-- 分类树 -->
             <div
                 id="moveCategoryPickerTree"
                 class="overflow-y-auto flex-1 min-h-0 px-3 py-2"
             ></div>
 
+            <!-- 底部操作栏 -->
             <div class="
                 px-4 py-3 border-t border-slate-700
-                flex justify-end
+                flex items-center justify-between gap-3
             ">
-                <button
-                    type="button"
-                    data-move-picker-close
-                    class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm"
-                >取消</button>
+
+                <!-- 左下角：当前选中的分类路径 -->
+                <div
+                    id="moveCategorySelectedPath"
+                    class="text-xs text-slate-400 truncate flex-1 min-w-0"
+                    title="/default"
+                >
+                    已选：/default
+                </div>
+
+                <!-- 右下角：取消 + 确定 -->
+                <div class="flex items-center gap-2 shrink-0">
+
+                    <button
+                        type="button"
+                        data-move-picker-close
+                        class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm"
+                    >取消</button>
+
+                    <button
+                        type="button"
+                        id="moveCategoryPickerConfirm"
+                        class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm"
+                    >确定</button>
+
+                </div>
             </div>
+
         </div>
     `;
 
     document.body.appendChild(modal);
 
+    // 默认选中分类
     CategoryStore.movePickerPath = "/default";
 
+    // 渲染分类树
     renderTreeInto(
         document.getElementById("moveCategoryPickerTree"),
         "movePicker"
     );
 
+    // 初始化当前选中的分类路径
+    updateMoveCategoryPath();
+
+    // 取消按钮和右上角关闭按钮
     modal.querySelectorAll("[data-move-picker-close]").forEach(btn => {
         btn.addEventListener("click", () => {
             closeMoveCategoryPicker(null);
         });
     });
 
+    // 点击遮罩层取消
     modal.addEventListener("click", (e) => {
         if (e.target === modal) {
             closeMoveCategoryPicker(null);
         }
     });
 
+    // 确定按钮：正式返回选中的分类路径
+    modal.querySelector("#moveCategoryPickerConfirm")
+        ?.addEventListener("click", () => {
+
+            closeMoveCategoryPicker(
+                CategoryStore.movePickerPath
+            );
+
+        });
+
+    // ESC 取消
     modal._escHandler = (e) => {
         if (e.key === "Escape") {
             closeMoveCategoryPicker(null);
@@ -972,6 +1024,24 @@ function openMoveCategoryPicker() {
     document.addEventListener("keydown", modal._escHandler);
 }
 
+// 更新移动分类弹窗左下角的当前选中路径
+function updateMoveCategoryPath() {
+
+    const pathEl = document.getElementById(
+        "moveCategorySelectedPath"
+    );
+
+    if (!pathEl) return;
+
+    const path = CategoryStore.movePickerPath || "/default";
+
+    pathEl.textContent = `已选：${path}`;
+
+    pathEl.title = path;
+}
+
+
+  
 function closeMoveCategoryPicker(result = null) {
 
     const modal = document.getElementById("moveCategoryPickerModal");
