@@ -1298,6 +1298,49 @@ function getItemTags(item) {
     return [];
 }
 
+
+// ============================================================
+// 手机端点击卡片标题，向左滚动显示完整文字
+// ============================================================
+
+document.addEventListener('click', function (e) {
+
+    // 仅在手机端生效
+    if (!window.matchMedia('(max-width: 767px)').matches) return;
+
+    // 判断是否点击了卡片标题
+    const title = e.target.closest('.card-title');
+    if (!title) return;
+
+    const wrapper = title.parentElement;
+
+    // 计算标题超出容器的距离
+    const distance = title.scrollWidth - wrapper.clientWidth;
+
+    // 标题没有超出容器宽度时，不执行滚动
+    if (distance <= 0) return;
+
+    // 如果之前正在滚动，先取消之前的动画
+    if (title._scrollAnimation) {
+        title._scrollAnimation.cancel();
+    }
+
+    // 从当前位置重新向左滚动
+    title._scrollAnimation = title.animate(
+        [
+            { transform: 'translateX(0)' },
+            { transform: `translateX(-${distance}px)` }
+        ],
+        {
+            duration: Math.max(2500, distance * 35),
+            easing: 'linear',
+            fill: 'forwards'
+        }
+    );
+
+});
+
+		
 		
 
         /* ============================================================
@@ -1395,11 +1438,13 @@ try {
                             </div>
 <div class="px-1 pt-1 pb-0.5 flex flex-col flex-1">
 
-    <!-- 标题 -->
-    <h3 class="card-title font-bold mb-1 truncate"
+<!-- 卡片标题：手机端点击后向左滚动 -->
+<div class="card-title-wrapper w-full overflow-hidden whitespace-nowrap mb-1">
+    <h3 class="card-title font-bold inline-block whitespace-nowrap"
         title="${item.title || '无标题'}">
         ${item.title || '无标题'}
     </h3>
+</div>
 
     <!-- 描述 -->
     <p class="card-description text-xs text-slate-400 line-clamp-2 h-8 mb-1 leading-4">
