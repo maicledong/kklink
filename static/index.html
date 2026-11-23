@@ -1703,12 +1703,19 @@ if (action === 'move') {
                     body: JSON.stringify({ ids, action, payload })
                 });
                 const result = await res.json();
-                if (result.success) {
-                    alert(`操作成功，影响了 ${result.affected} 条数据`);
-                    loadCards(); // 重新加载列表刷新状态
-                } else {
-                    alert('操作失败：' + result.error);
-                }
+if (result.success) {
+
+    // 移动成功后不再弹出多余的成功对话框
+    if (action !== 'move') {
+        alert(`操作成功，影响了 ${result.affected} 条数据`);
+    }
+
+    // 重新加载列表刷新状态
+    loadCards();
+
+} else {
+    alert('操作失败：' + result.error);
+}
             } catch (e) {
                 console.error(e);
                 alert('网络请求失败');
