@@ -13,11 +13,16 @@
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }
 
-        /* 🌟 卡片整体样式（带有粉色边框和悬浮发光） */
-        .card {
-            @apply bg-slate-800 rounded-xl overflow-visible flex flex-col transition-all duration-200 h-full w-full;
-            border: 2px solid rgba(236, 72, 153, 0.5); 
-        }
+/* 🌟 卡片整体样式（带有粉色圆角边框和悬浮发光） */
+.card {
+    @apply bg-slate-800 overflow-visible flex flex-col transition-all duration-200 h-full w-full;
+
+    /* 卡片圆角 */
+    border-radius: 12px !important;
+
+    /* 粉色边框 */
+    border: 2px solid rgba(236, 72, 153, 0.5);
+}
 
 /* 卡片标题：黄色、小字号、靠近卡片左侧 */
 .card-title {
