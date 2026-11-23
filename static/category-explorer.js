@@ -978,8 +978,8 @@ function openMoveCategoryPicker() {
 
     document.body.appendChild(modal);
 
-    // 默认选中分类
-    CategoryStore.movePickerPath = "/default";
+    // 初始不选中任何分类
+    CategoryStore.movePickerPath = null;
 
     // 渲染分类树
     renderTreeInto(
@@ -1004,15 +1004,21 @@ function openMoveCategoryPicker() {
         }
     });
 
-    // 确定按钮：正式返回选中的分类路径
-    modal.querySelector("#moveCategoryPickerConfirm")
-        ?.addEventListener("click", () => {
+// 确定按钮：正式返回选中的分类路径
+modal.querySelector("#moveCategoryPickerConfirm")
+    ?.addEventListener("click", () => {
 
-            closeMoveCategoryPicker(
-                CategoryStore.movePickerPath
-            );
+        // 尚未选择分类，不允许确认
+        if (!CategoryStore.movePickerPath) {
+            alert("请先选择目标分类");
+            return;
+        }
 
-        });
+        closeMoveCategoryPicker(
+            CategoryStore.movePickerPath
+        );
+
+    });
 
     // ESC 取消
     modal._escHandler = (e) => {
@@ -1033,10 +1039,15 @@ function updateMoveCategoryPath() {
 
     if (!pathEl) return;
 
-    const path = CategoryStore.movePickerPath || "/default";
+    const path = CategoryStore.movePickerPath;
+
+    if (!path) {
+        pathEl.textContent = "未选择";
+        pathEl.title = "未选择";
+        return;
+    }
 
     pathEl.textContent = `已选：${path}`;
-
     pathEl.title = path;
 }
 
