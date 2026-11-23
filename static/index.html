@@ -842,6 +842,30 @@ button[title="搜索"] + div {
                 class="w-full h-1 accent-white cursor-pointer">
         </div>
 
+		
+<!-- 每页显示数量 -->
+<div class="py-2 border-b border-slate-700">
+    <div class="flex items-center justify-between">
+        <span class="text-sm text-slate-300">每页显示数量</span>
+
+        <select
+            id="pageSizeSelect"
+            class="bg-slate-700 text-white text-sm rounded px-2 py-1 border border-slate-600 focus:outline-none focus:border-blue-500"
+        >
+            <option value="10">10 个</option>
+            <option value="20" selected>20 个</option>
+            <option value="30">30 个</option>
+            <option value="50">50 个</option>
+            <option value="100">100 个</option>
+        </select>
+    </div>
+</div>
+
+
+
+
+		
+
         <!-- 显示选项 -->
         <div class="pt-2">
             <div class="text-xs text-slate-400 mb-2">显示选项</div>
@@ -1115,6 +1139,38 @@ const columnCountText = document.getElementById('columnCountText');
 const showTitleToggle = document.getElementById('showTitleToggle');
 const showDescriptionToggle = document.getElementById('showDescriptionToggle');
 const showTagsToggle = document.getElementById('showTagsToggle');
+
+
+// ============================================================
+// 每页显示数量设置
+// ============================================================
+
+const pageSizeSelect = document.getElementById('pageSizeSelect');
+
+// 初始化下拉框，显示当前每页数量
+if (pageSizeSelect) {
+
+    pageSizeSelect.value = String(AppState.pageSize);
+
+    pageSizeSelect.addEventListener('change', () => {
+
+        const newPageSize = Number(pageSizeSelect.value);
+
+        // 数量没有变化，不重复加载
+        if (newPageSize === AppState.pageSize) return;
+
+        // 更新每页显示数量
+        AppState.pageSize = newPageSize;
+
+        // 切换分页数量后，回到第一页
+        AppState.page = 1;
+
+        // 重新加载链接列表
+        loadCards();
+    });
+}
+
+		
 
 // 点击显示按钮，展开或收起设置面板
 displaySettingsBtn.addEventListener('click', (e) => {
