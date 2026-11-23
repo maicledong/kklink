@@ -1366,16 +1366,16 @@ try {
                     return `
 <div class="card relative group" data-id="${item.id}">
 
+    <!-- 左上角复选框：放在图片点击区域外面 -->
+    <div class="absolute top-2 left-2 z-20">
+        <input type="checkbox"
+               class="card-checkbox w-5 h-5 rounded cursor-pointer accent-blue-500"
+               data-id="${item.id}">
+    </div>
+
     <!-- 图片区域 -->
     <div class="card-img-container relative cursor-pointer"
          onclick="window.open('${item.url}', '_blank')">
-
-        <!-- 左上角复选框 -->
-        <div class="absolute top-2 left-2 z-10">
-            <input type="checkbox"
-                   class="card-checkbox w-5 h-5 rounded cursor-pointer accent-blue-500"
-                   data-id="${item.id}">
-        </div>
 
         <!-- 图片右下角：标签 -->
         <div class="card-tags absolute bottom-2 right-2 z-10 flex flex-wrap justify-end gap-1">
