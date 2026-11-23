@@ -1329,11 +1329,11 @@ document.addEventListener('click', function (e) {
 title._scrollAnimation = title.animate(
     [
         { transform: 'translateX(0)' },
-        { transform: `translateX(-${distance}px)`, offset: 0.7 },
+        { transform: `translateX(-${distance}px)`, offset: 0.85 },
         { transform: 'translateX(0)' }
     ],
     {
-        duration: Math.max(5000, distance * 70),
+        duration: Math.max(3000, distance * 40),
         easing: 'linear',
         fill: 'none'
     }
