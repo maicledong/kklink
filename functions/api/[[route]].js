@@ -25,13 +25,14 @@ if (
     try {
         const body = await request.json();
 
-        const urls = Array.isArray(body.urls)
-            ? [...new Set(
-                body.urls.filter(
-                    item => typeof item === 'string' && item.trim()
-                )
-            )]
-            : [];
+const urls = Array.isArray(body.urls)
+    ? [...new Set(
+        body.urls
+            .filter(item => typeof item === 'string')
+            .map(item => item.trim())
+            .filter(Boolean)
+    )]
+    : [];
 
         if (urls.length === 0) {
             return new Response(
@@ -49,11 +50,11 @@ if (
         }
 
         // 防止一次提交过多数据
-        if (urls.length > 500) {
+        if (urls.length > 60) {
             return new Response(
                 JSON.stringify({
                     success: false,
-                    error: '单次最多检查 500 个链接'
+                    error: '单次最多检查 60 个链接'
                 }),
                 {
                     status: 400,
@@ -67,10 +68,10 @@ if (
 
         const duplicates = [];
 
-        // 每 80 个 URL 执行一次 SQL，避免参数数量过多
-        for (let i = 0; i < urls.length; i += 80) {
+        // 每 30 个 URL 执行一次 SQL，避免参数数量过多
+        for (let i = 0; i < urls.length; i += 30) {
 
-            const chunk = urls.slice(i, i + 80);
+            const chunk = urls.slice(i, i + 30);
 
             const placeholders = chunk.map(() => '?').join(',');
 
@@ -320,11 +321,16 @@ if (path === '/api/categories/create' && request.method === 'POST') {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-    if (/[\/]/.test(rawName)) {
-      return new Response(JSON.stringify({ error: '分类名称不能包含 /' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+// 分类名称禁止包含路径分隔符和 SQL LIKE 通配符
+if (/[\/%_]/.test(rawName)) {
+    return new Response(JSON.stringify({
+        success: false,
+        error: '分类名称不能包含 /、% 和 _'
+    }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+}
 
     // 规范化父路径
     let normalizedParent = parentPath;
@@ -390,11 +396,16 @@ if (path === '/api/categories/rename' && request.method === 'POST') {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-    if (/[\/]/.test(rawName)) {
-      return new Response(JSON.stringify({ error: '名称不能包含 /' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+// 分类名称禁止包含路径分隔符和 SQL LIKE 通配符
+if (/[\/%_]/.test(rawName)) {
+    return new Response(JSON.stringify({
+        success: false,
+        error: '分类名称不能包含 /、% 和 _'
+    }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+}
 
     // 系统分类禁止重命名
     const target = await env.DB.prepare(
@@ -422,138 +433,104 @@ if (path === '/api/categories/rename' && request.method === 'POST') {
       });
     }
 
-    // 校验新名重名
-    const exists = await env.DB.prepare(
-      `SELECT path FROM categories WHERE path = ?`
-    ).bind(newPath).first();
-    if (exists) {
-      return new Response(JSON.stringify({ error: '同名分类已存在' }), {
-        status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+// 检查新路径及其子路径是否已经被占用
+const newPrefix = newPath + '/';
 
-    // 事务：更新自身 + 子分类 path/parent_path + bookmarks.category_path
-    // D1 用 batch 保证原子性
-// ---------- 获取全部分类 ----------
-const { results: categories } = await env.DB.prepare(`
-    SELECT path, name, parent_path, is_system
+const exists = await env.DB.prepare(`
+    SELECT path
     FROM categories
-`).all();
+    WHERE path = ?
+       OR substr(path, 1, length(?)) = ?
+    LIMIT 1
+`).bind(
+    newPath,
+    newPrefix,
+    newPrefix
+).first();
 
-// ---------- 找出当前分类及所有后代 ----------
+if (exists) {
+    return new Response(JSON.stringify({
+        success: false,
+        error: '目标位置已经存在分类路径：' + exists.path
+    }), {
+        status: 409,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+}
+
+// ============================================================
+// 精简重命名：3 条 SQL 更新整棵分类子树
+// ============================================================
+
 const oldPrefix = oldPath + '/';
 
-const subtree = categories.filter(item => {
-    return item.path === oldPath ||
-           item.path.startsWith(oldPrefix);
-});
+// 1. 更新当前分类及所有后代分类的 path，同时更新当前分类名称
+const stmts = [
 
-// ---------- 建立旧路径与新路径映射 ----------
-const pathMap = new Map();
+env.DB.prepare(`
+    UPDATE categories
+    SET
+        path = CASE
+            WHEN path = ? THEN ?
+            ELSE ? || substr(path, length(?) + 1)
+        END,
+        name = CASE
+            WHEN path = ? THEN ?
+            ELSE name
+        END
+    WHERE path = ? OR substr(path, 1, length(?)) = ?
+`).bind(
+    oldPath,
+    newPath,
+    newPath,
+    oldPath,
+    oldPath,
+    rawName,
+    oldPath,
+    oldPrefix,
+    oldPrefix
+),
 
-for (const item of subtree) {
-    const newItemPath = newPath + item.path.slice(oldPath.length);
+    // 2. 更新所有后代分类的 parent_path
+env.DB.prepare(`
+    UPDATE categories
+    SET parent_path = CASE
+        WHEN parent_path = ? THEN ?
+        ELSE ? || substr(parent_path, length(?) + 1)
+    END
+    WHERE parent_path = ? OR substr(parent_path, 1, length(?)) = ?
+`).bind(
+    oldPath,
+    newPath,
+    newPath,
+    oldPath,
+    oldPath,
+    oldPrefix,
+    oldPrefix
+),
 
-    pathMap.set(item.path, newItemPath);
-}
+    // 3. 更新当前分类及所有后代分类中的书签路径
+env.DB.prepare(`
+    UPDATE bookmarks
+    SET category_path = CASE
+        WHEN category_path = ? THEN ?
+        ELSE ? || substr(category_path, length(?) + 1)
+    END
+    WHERE category_path = ? OR substr(category_path, 1, length(?)) = ?
+`).bind(
+    oldPath,
+    newPath,
+    newPath,
+    oldPath,
+    oldPath,
+    oldPrefix,
+    oldPrefix
+)
 
-// ---------- 生成唯一临时路径 ----------
-const existingPaths = new Set(
-    categories.map(item => item.path)
-);
+];
 
-const temporaryPathMap = new Map();
-
-const temporaryPrefix =
-    `/__category_rename_tmp_${crypto.randomUUID()}`;
-
-for (let i = 0; i < subtree.length; i++) {
-    let temporaryPath = `${temporaryPrefix}/${i}`;
-
-    while (existingPaths.has(temporaryPath)) {
-        temporaryPath += '_';
-    }
-
-    existingPaths.add(temporaryPath);
-
-    temporaryPathMap.set(
-        subtree[i].path,
-        temporaryPath
-    );
-}
-
-// ---------- 生成 SQL ----------
-const statements = [];
-
-// 第一阶段：将所有受影响分类修改为临时路径
-for (const item of subtree) {
-    statements.push(
-        env.DB.prepare(`
-            UPDATE categories
-            SET path = ?
-            WHERE path = ?
-        `).bind(
-            temporaryPathMap.get(item.path),
-            item.path
-        )
-    );
-}
-
-// 第二阶段：临时路径修改为最终路径
-for (const item of subtree) {
-    const updatedPath = pathMap.get(item.path);
-
-    // 当前分类的父路径不变
-    // 后代分类的父路径同步更新
-    const updatedParentPath = item.path === oldPath
-        ? item.parent_path
-        : pathMap.get(item.parent_path);
-
-    if (item.path === oldPath) {
-        // 当前分类更新 path 和 name
-        statements.push(
-            env.DB.prepare(`
-                UPDATE categories
-                SET path = ?, name = ?
-                WHERE path = ?
-            `).bind(
-                updatedPath,
-                rawName,
-                temporaryPathMap.get(item.path)
-            )
-        );
-    } else {
-        // 后代分类更新 path 和 parent_path
-        statements.push(
-            env.DB.prepare(`
-                UPDATE categories
-                SET path = ?, parent_path = ?
-                WHERE path = ?
-            `).bind(
-                updatedPath,
-                updatedParentPath,
-                temporaryPathMap.get(item.path)
-            )
-        );
-    }
-}
-
-// 第三阶段：同步更新书签所属分类路径
-for (const item of subtree) {
-    statements.push(
-        env.DB.prepare(`
-            UPDATE bookmarks
-            SET category_path = ?
-            WHERE category_path = ?
-        `).bind(
-            pathMap.get(item.path),
-            item.path
-        )
-    );
-}
-
-// ---------- 批量执行 ----------
-await env.DB.batch(statements);
+// 一次性批量执行
+await env.DB.batch(stmts);
     return new Response(JSON.stringify({ success: true, old_path: oldPath, new_path: newPath, name: rawName }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
@@ -886,114 +863,121 @@ for (let i = 0; i < subtree.length; i++) {
 
 // ========== 分类：删除（连带子分类 + 链接）==========
 if (path === '/api/categories/delete' && request.method === 'POST') {
-  try {
-    const { path: targetPath } = await request.json();
-    const delPath = (targetPath || '').trim();
+    try {
+        const { path: targetPath } = await request.json();
+        const delPath = (targetPath || '').trim();
 
-    if (!delPath || delPath === '/') {
-      return new Response(JSON.stringify({ error: '无效的分类路径' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+        if (!delPath || delPath === '/') {
+            return new Response(JSON.stringify({
+                success: false,
+                error: '无效的分类路径'
+            }), {
+                status: 400,
+                headers: {
+                    ...corsHeaders,
+                    'Content-Type': 'application/json'
+                }
+            });
+        }
+
+        // 查询目标分类
+        const target = await env.DB.prepare(`
+            SELECT path, is_system
+            FROM categories
+            WHERE path = ?
+        `).bind(delPath).first();
+
+        if (!target) {
+            return new Response(JSON.stringify({
+                success: false,
+                error: '分类不存在'
+            }), {
+                status: 404,
+                headers: {
+                    ...corsHeaders,
+                    'Content-Type': 'application/json'
+                }
+            });
+        }
+
+        // 系统分类禁止删除
+        if (Number(target.is_system) === 1) {
+            return new Response(JSON.stringify({
+                success: false,
+                error: '系统分类不可删除'
+            }), {
+                status: 403,
+                headers: {
+                    ...corsHeaders,
+                    'Content-Type': 'application/json'
+                }
+            });
+        }
+
+        const prefix = delPath + '/';
+
+        // 一次性删除书签和分类
+        const results = await env.DB.batch([
+
+            // 1. 删除当前分类及其所有后代分类中的书签
+env.DB.prepare(`
+    DELETE FROM bookmarks
+    WHERE category_path = ?
+       OR substr(category_path, 1, length(?)) = ?
+`).bind(
+    delPath,
+    prefix,
+    prefix
+),
+
+            // 2. 删除当前分类及其所有后代分类
+env.DB.prepare(`
+    DELETE FROM categories
+    WHERE path = ?
+       OR substr(path, 1, length(?)) = ?
+`).bind(
+    delPath,
+    prefix,
+    prefix
+)
+
+        ]);
+
+        // 从实际删除结果获取数量
+        const deletedBookmarks = Number(
+            results[0]?.meta?.changes || 0
+        );
+
+        const deletedCategories = Number(
+            results[1]?.meta?.changes || 0
+        );
+
+        return new Response(JSON.stringify({
+            success: true,
+            path: delPath,
+            deleted_categories: deletedCategories,
+            deleted_bookmarks: deletedBookmarks
+        }), {
+            headers: {
+                ...corsHeaders,
+                'Content-Type': 'application/json'
+            }
+        });
+
+    } catch (e) {
+        console.error('删除分类失败：', e);
+
+        return new Response(JSON.stringify({
+            success: false,
+            error: e.message || '删除分类失败'
+        }), {
+            status: 500,
+            headers: {
+                ...corsHeaders,
+                'Content-Type': 'application/json'
+            }
+        });
     }
-
-    const target = await env.DB.prepare(
-      `SELECT path, is_system FROM categories WHERE path = ?`
-    ).bind(delPath).first();
-    if (!target) {
-      return new Response(JSON.stringify({ error: '分类不存在' }), {
-        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-    if (Number(target.is_system) === 1) {
-      return new Response(JSON.stringify({ error: '系统分类不可删除' }), {
-        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-// ---------- 获取全部分类 ----------
-const { results: categories } = await env.DB.prepare(`
-    SELECT path
-    FROM categories
-`).all();
-
-// ---------- 找出当前分类及所有后代 ----------
-const prefix = delPath + '/';
-
-const subtree = (categories || []).filter(item => {
-    return item.path === delPath ||
-           item.path.startsWith(prefix);
-});
-
-// 提取需要删除的分类路径
-const categoryPaths = subtree.map(item => item.path);
-
-// ---------- 统计需要删除的书签数量 ----------
-let deletedBookmarks = 0;
-
-// 每批最多处理 80 个分类路径，避免 SQL 参数过多
-for (let i = 0; i < categoryPaths.length; i += 80) {
-    const chunk = categoryPaths.slice(i, i + 80);
-    const placeholders = chunk.map(() => '?').join(',');
-
-    const row = await env.DB.prepare(`
-        SELECT COUNT(*) AS c
-        FROM bookmarks
-        WHERE category_path IN (${placeholders})
-    `).bind(...chunk).first();
-
-    deletedBookmarks += Number(row?.c || 0);
-}
-
-// 当前分类及其所有后代分类数量
-const deletedCategories = categoryPaths.length;
-
-// ---------- 生成删除 SQL ----------
-const statements = [];
-
-// 第一阶段：删除所有关联书签
-for (let i = 0; i < categoryPaths.length; i += 80) {
-    const chunk = categoryPaths.slice(i, i + 80);
-    const placeholders = chunk.map(() => '?').join(',');
-
-    statements.push(
-        env.DB.prepare(`
-            DELETE FROM bookmarks
-            WHERE category_path IN (${placeholders})
-        `).bind(...chunk)
-    );
-}
-
-// 第二阶段：删除所有分类
-for (let i = 0; i < categoryPaths.length; i += 80) {
-    const chunk = categoryPaths.slice(i, i + 80);
-    const placeholders = chunk.map(() => '?').join(',');
-
-    statements.push(
-        env.DB.prepare(`
-            DELETE FROM categories
-            WHERE path IN (${placeholders})
-        `).bind(...chunk)
-    );
-}
-
-// ---------- 批量执行 ----------
-if (statements.length > 0) {
-    await env.DB.batch(statements);
-}
-
-    return new Response(JSON.stringify({
-      success: true,
-      path: delPath,
-      deleted_categories: deletedCategories,
-      deleted_bookmarks: deletedBookmarks,
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
 }
 
   
