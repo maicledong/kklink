@@ -1,3 +1,4 @@
+//static/category-explorer.js
 /* ============================================================
  * 分类资源管理器（第 3 批：树 + 选择器 + 新建/重命名/删除）
  * 依赖：/api/categories/tree /create /rename /delete
