@@ -2513,6 +2513,333 @@ function createSemaphore(limit) {
 // Oracle 图片转存最多 3 个并发
 const withOracleImageLimit = createSemaphore(3);
 
+// ============================================================
+// 超时任务管理
+// 1. 保存超时任务及 Karakeep bookmarkId
+// 2. 使用 localStorage，刷新页面后仍然保留
+// 3. 手动重新检查时只请求一次 /api/check-status
+// ============================================================
+
+const TIMEOUT_STORAGE_KEY = 'linkmind_timeout_tasks';
+
+// 读取之前保存的超时任务
+function getTimeoutTasks() {
+    try {
+        const data = JSON.parse(
+            localStorage.getItem(TIMEOUT_STORAGE_KEY) || '[]'
+        );
+
+        return Array.isArray(data) ? data : [];
+
+    } catch (e) {
+        return [];
+    }
+}
+
+let timeoutTasks = getTimeoutTasks();
+
+
+// 保存超时任务
+function saveTimeoutTasks() {
+    localStorage.setItem(
+        TIMEOUT_STORAGE_KEY,
+        JSON.stringify(timeoutTasks)
+    );
+}
+
+
+// 创建超时任务显示区域
+const timeoutRetryPanel = document.createElement('div');
+
+timeoutRetryPanel.id = 'timeoutRetryPanel';
+timeoutRetryPanel.className =
+    'hidden mt-3 p-3 rounded-lg border border-amber-500/30 bg-amber-500/5';
+
+timeoutRetryPanel.innerHTML = `
+    <div class="text-sm font-semibold text-amber-400 mb-2">
+        抓取超时的链接
+    </div>
+
+    <div id="timeoutRetryList" class="space-y-2"></div>
+`;
+
+// 放在保存状态文字的下方
+statusText.insertAdjacentElement(
+    'afterend',
+    timeoutRetryPanel
+);
+
+
+// 渲染超时任务
+function renderTimeoutTasks() {
+
+    const list = document.getElementById('timeoutRetryList');
+
+    list.innerHTML = '';
+
+    if (timeoutTasks.length === 0) {
+        timeoutRetryPanel.classList.add('hidden');
+        return;
+    }
+
+    timeoutRetryPanel.classList.remove('hidden');
+
+    timeoutTasks.forEach(task => {
+
+        const item = document.createElement('div');
+
+        item.className =
+            'flex items-center justify-between gap-3 p-2 rounded bg-slate-800/70';
+
+        const info = document.createElement('div');
+        info.className = 'min-w-0 flex-1';
+
+        const url = document.createElement('div');
+        url.className = 'text-xs text-slate-300 break-all';
+        url.textContent = task.url;
+
+        const state = document.createElement('div');
+        state.className = 'text-xs text-amber-400 mt-1';
+        state.textContent = task.checking
+            ? '正在检查...'
+            : '抓取超时，等待手动重新检查';
+
+        info.appendChild(url);
+        info.appendChild(state);
+
+        const button = document.createElement('button');
+
+        button.type = 'button';
+        button.dataset.bookmarkId = task.bookmarkId;
+        button.className =
+            'shrink-0 px-3 py-1.5 text-xs rounded bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50';
+
+        button.textContent = task.checking
+            ? '检查中...'
+            : '重新检查';
+
+        button.disabled = !!task.checking;
+
+        item.appendChild(info);
+        item.appendChild(button);
+
+        list.appendChild(item);
+    });
+}
+
+
+// 添加超时任务
+function addTimeoutTask(bookmarkId, targetUrl, categoryPath) {
+
+    const id = String(bookmarkId);
+
+    // 防止重复记录同一个任务
+    const exists = timeoutTasks.some(
+        item => String(item.bookmarkId) === id
+    );
+
+    if (exists) return;
+
+    timeoutTasks.push({
+        bookmarkId: id,
+        url: targetUrl,
+        categoryPath,
+        checking: false,
+        createdAt: Date.now()
+    });
+
+    saveTimeoutTasks();
+    renderTimeoutTasks();
+}
+
+
+// 页面初始化时显示之前的超时任务
+renderTimeoutTasks();
+
+
+// ============================================================
+// 抓取成功后：转存图片并写入 D1
+// 初次保存和手动重新检查共用
+// ============================================================
+
+async function saveCrawledBookmark(checkData, categoryPath) {
+
+    const {
+        url: finalUrl,
+        title,
+        description,
+        imageUrl,
+        karakeepLocalImage,
+        karakeepId
+    } = checkData.data;
+
+    let imgFileId = '';
+
+    // Oracle 图片转存，最多 3 个并发
+    if (karakeepLocalImage) {
+
+        try {
+
+            await withOracleImageLimit(async () => {
+
+                const proxyRes = await fetch(
+                    `${ORACLE_DOMAIN}/proxy-image?url=${encodeURIComponent(karakeepLocalImage)}`
+                );
+
+                if (!proxyRes.ok) {
+                    return;
+                }
+
+                const proxyData = await proxyRes.json();
+
+                if (proxyData.success) {
+                    imgFileId = proxyData.file_id || '';
+                }
+            });
+
+        } catch (e) {
+
+            console.error(
+                '封面图转存失败：',
+                finalUrl,
+                e
+            );
+        }
+    }
+
+
+    // 写入 D1
+    const storeRes = await fetch('/api/store', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            url: finalUrl,
+            title,
+            description,
+            imageUrl,
+            imgFileId,
+            karakeepId,
+            category_path: categoryPath
+        })
+    });
+
+    let storeData = {};
+
+    try {
+        storeData = await storeRes.json();
+    } catch (e) {
+        throw new Error('数据库写入接口返回的数据格式错误');
+    }
+
+    if (!storeRes.ok || !storeData.success) {
+        throw new Error(
+            storeData.error ||
+            `写入数据库失败，HTTP ${storeRes.status}`
+        );
+    }
+
+    return storeData;
+}
+
+
+// ============================================================
+// 手动重新检查超时任务
+// 每次点击只检查一次，不调用 /api/save
+// ============================================================
+
+timeoutRetryPanel.addEventListener('click', async event => {
+
+    const button = event.target.closest('button[data-bookmark-id]');
+
+    if (!button) return;
+
+    const bookmarkId = button.dataset.bookmarkId;
+
+    const task = timeoutTasks.find(
+        item => String(item.bookmarkId) === String(bookmarkId)
+    );
+
+    if (!task || task.checking) return;
+
+    task.checking = true;
+
+    saveTimeoutTasks();
+    renderTimeoutTasks();
+
+    try {
+
+        // 只检查一次原来的 Karakeep 任务
+        const checkRes = await fetch(
+            `/api/check-status?id=${encodeURIComponent(bookmarkId)}`
+        );
+
+        if (!checkRes.ok) {
+            throw new Error(
+                `检查抓取状态失败，HTTP ${checkRes.status}`
+            );
+        }
+
+        const checkData = await checkRes.json();
+
+        // Karakeep 仍在抓取
+        if (checkData.status !== 'success') {
+
+            alert('该链接仍在抓取中，请稍后再手动检查。');
+
+            task.checking = false;
+
+            saveTimeoutTasks();
+            renderTimeoutTasks();
+
+            return;
+        }
+
+
+        // 抓取成功，转存图片并写入 D1
+        const storeData = await saveCrawledBookmark(
+            checkData,
+            task.categoryPath
+        );
+
+
+        // 保存完成，移除超时记录
+        timeoutTasks = timeoutTasks.filter(
+            item => String(item.bookmarkId) !== String(bookmarkId)
+        );
+
+        saveTimeoutTasks();
+        renderTimeoutTasks();
+
+
+        // 只有真正新增书签才刷新列表
+        if (!storeData.duplicate) {
+            await loadCards();
+        }
+
+        alert(
+            storeData.duplicate
+                ? '检查成功，但该链接已经存在于数据库中。'
+                : '重新检查成功，书签已保存。'
+        );
+
+
+    } catch (e) {
+
+        console.error('手动重新检查失败：', bookmarkId, e);
+
+        task.checking = false;
+
+        saveTimeoutTasks();
+        renderTimeoutTasks();
+
+        alert(e.message || '重新检查失败，请稍后重试。');
+    }
+});
+
+		
+
 
 // ---------- 保存按钮 ----------
 saveBtn.onclick = async () => {
@@ -2565,8 +2892,8 @@ saveBtn.onclick = async () => {
         validUrls.length - uniqueUrls.length;
 
 
-    if (uniqueUrls.length > 500) {
-        return alert('单次最多保存 500 个链接');
+    if (uniqueUrls.length > 20) {
+        return alert('单次最多保存 20 个链接');
     }
 
 
@@ -2595,198 +2922,132 @@ saveBtn.onclick = async () => {
     }
 
 
-    // ---------- 单个链接处理 ----------
-    async function processOne(targetUrl, categoryPath) {
+// ---------- 单个链接处理 ----------
+async function processOne(targetUrl, categoryPath) {
 
-        try {
-
-            // 1. 提交 Karakeep
-            const saveRes = await fetch('/api/save', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    url: targetUrl
-                })
-            });
-
-            let saveData = {};
-
-            try {
-                saveData = await saveRes.json();
-            } catch (e) {
-                throw new Error('保存接口返回的数据格式错误');
-            }
-
-            if (
-                !saveRes.ok ||
-                !saveData.success ||
-                !saveData.bookmarkId
-            ) {
-                throw new Error(
-                    saveData.error ||
-                    `提交链接失败，HTTP ${saveRes.status}`
-                );
-            }
-
-
-            const bookmarkId = saveData.bookmarkId;
-
-
-
-// 2. 先固定等待 40 秒，再开始检查抓取状态
-let checkData = null;
-
-// 第一次检查前等待 40 秒
-await sleep(40000);
-
-// 最多检查 3 次
-// 第一次在第 40 秒，之后每隔 10 秒检查一次
-for (let i = 0; i < 3; i++) {
-
-    const checkRes = await fetch(
-        `/api/check-status?id=${encodeURIComponent(bookmarkId)}`
-    );
-
-    if (!checkRes.ok) {
-        throw new Error(
-            `检查抓取状态失败，HTTP ${checkRes.status}`
-        );
-    }
+    // 提前声明，确保发生超时时仍然可以保存 bookmarkId
+    let bookmarkId = null;
 
     try {
-        checkData = await checkRes.json();
-    } catch (e) {
-        throw new Error('抓取状态接口返回的数据格式错误');
-    }
 
-    // 抓取完成，立即进入后续处理
-    if (checkData.status === 'success') {
-        break;
-    }
+        // 1. 提交 Karakeep
+        const saveRes = await fetch('/api/save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                url: targetUrl
+            })
+        });
 
-    // 尚未完成，等待 10 秒后再次检查
-    if (i < 2) {
-        await sleep(10000);
-    }
-}
+        let saveData = {};
 
-// 3 次检查后仍未完成
-if (!checkData || checkData.status !== 'success') {
-    throw new Error('抓取超时，请稍后刷新查看');
-}
+        try {
+            saveData = await saveRes.json();
+        } catch (e) {
+            throw new Error('保存接口返回的数据格式错误');
+        }
 
+        if (
+            !saveRes.ok ||
+            !saveData.success ||
+            !saveData.bookmarkId
+        ) {
+            throw new Error(
+                saveData.error ||
+                `提交链接失败，HTTP ${saveRes.status}`
+            );
+        }
 
-
-            // 3. 获取抓取结果
-            const {
-                url: finalUrl,
-                title,
-                description,
-                imageUrl,
-                karakeepLocalImage,
-                karakeepId
-            } = checkData.data;
-
-
-            let imgFileId = '';
+        bookmarkId = saveData.bookmarkId;
 
 
-            // 4. Oracle 图片转存，最多 3 个并发
-            if (karakeepLocalImage) {
+        // 2. 先等待 40 秒，再检查抓取状态
+        let checkData = null;
 
-                try {
-
-                    await withOracleImageLimit(async () => {
-
-                        const proxyRes = await fetch(
-                            `${ORACLE_DOMAIN}/proxy-image?url=${encodeURIComponent(karakeepLocalImage)}`
-                        );
-
-                        if (!proxyRes.ok) {
-                            return;
-                        }
-
-                        const proxyData = await proxyRes.json();
-
-                        if (proxyData.success) {
-                            imgFileId = proxyData.file_id || '';
-                        }
-                    });
-
-                } catch (e) {
-
-                    // 图片转存失败不影响书签保存
-                    console.error(
-                        '封面图转存失败：',
-                        finalUrl,
-                        e
-                    );
-                }
-            }
+        await sleep(40000);
 
 
-            // 5. 写入 D1
-            const storeRes = await fetch('/api/store', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    url: finalUrl,
-                    title,
-                    description,
-                    imageUrl,
-                    imgFileId,
-                    karakeepId,
-                    category_path: categoryPath
-                })
-            });
+        // 最多检查 3 次
+        for (let i = 0; i < 3; i++) {
 
-            let storeData = {};
+            const checkRes = await fetch(
+                `/api/check-status?id=${encodeURIComponent(bookmarkId)}`
+            );
 
-            try {
-                storeData = await storeRes.json();
-            } catch (e) {
-                throw new Error('数据库写入接口返回的数据格式错误');
-            }
-
-            if (!storeRes.ok || !storeData.success) {
+            if (!checkRes.ok) {
                 throw new Error(
-                    storeData.error ||
-                    `写入数据库失败，HTTP ${storeRes.status}`
+                    `检查抓取状态失败，HTTP ${checkRes.status}`
                 );
             }
 
-
-            // 6. 统计写入结果
-            if (storeData.duplicate) {
-
-                duplicateCount++;
-
-            } else {
-
-                successCount++;
+            try {
+                checkData = await checkRes.json();
+            } catch (e) {
+                throw new Error('抓取状态接口返回的数据格式错误');
             }
 
+            // 抓取完成
+            if (checkData.status === 'success') {
+                break;
+            }
 
-        } catch (e) {
+            // 尚未完成，等待 10 秒
+            if (i < 2) {
+                await sleep(10000);
+            }
+        }
 
-            failedCount++;
 
-            console.error(
-                '单个链接保存失败：',
+        // 3. 超时：保存任务 ID，等待手动重新检查
+        if (!checkData || checkData.status !== 'success') {
+
+            addTimeoutTask(
+                bookmarkId,
                 targetUrl,
-                e
+                categoryPath
             );
 
-        } finally {
-
-            completedCount++;
-
+            throw new Error(
+                '抓取超时，已保留任务，可稍后手动重新检查'
+            );
         }
+
+
+        // 4. 抓取成功，转存图片并写入 D1
+        const storeData = await saveCrawledBookmark(
+            checkData,
+            categoryPath
+        );
+
+
+        // 5. 统计写入结果
+        if (storeData.duplicate) {
+
+            duplicateCount++;
+
+        } else {
+
+            successCount++;
+        }
+
+
+    } catch (e) {
+
+        failedCount++;
+
+        console.error(
+            '单个链接保存失败：',
+            targetUrl,
+            e
+        );
+
+    } finally {
+
+        completedCount++;
     }
+}
 
 
     try {
