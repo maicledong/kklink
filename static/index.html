@@ -2536,7 +2536,10 @@ function getTimeoutTasks() {
     }
 }
 
-let timeoutTasks = getTimeoutTasks();
+let timeoutTasks = getTimeoutTasks().map(task => ({
+    ...task,
+    checking: false
+}));
 
 
 // 保存超时任务
