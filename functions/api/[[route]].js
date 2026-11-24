@@ -126,7 +126,7 @@ if (
 
   
 
-  // 1. 触发抓取
+  // 1. 触发抓取  /api/save 并不是直接把书签保存到你的 D1 数据库，而是先让 Karakeep 抓取链接
   if (path === '/api/save' && request.method === 'POST') {
     try {
       const { url: targetUrl } = await request.json();
@@ -224,7 +224,7 @@ if (
     }
   }
 
-// 3. 存入 D1（支持 category_path）
+// 3. 存入 D1（支持 category_path） /api/store：将抓取完成的书签信息正式写入你的 D1 数据库。
 if (path === '/api/store' && request.method === 'POST') {
   try {
     const { url: originalUrl, title, description, imageUrl, imgFileId, category_path, karakeepId } = await request.json();
