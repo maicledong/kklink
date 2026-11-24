@@ -7,17 +7,42 @@
 (function () {
   "use strict";
 
-  // ---------- 状态 ----------
-  const CategoryStore = {
-    treeCache: null,          // null = 未加载；数组 = 已加载
-    byParent: {},             // { "/": [...], "/工作": [...] }
-    currentPath: "/default",  // 资源管理器当前分类
-    pickerPath: "/default",   // 保存区选中的分类
-    scope: "home",            // home | fav | archive | category
+// ---------- 状态 ----------
+const CategoryStore = {
+    // 分类树数据缓存
+    treeCache: null,
+
+    // 按父级分类建立索引
+    byParent: {},
+
+    // 当前分类树是否已经初始化
+    loaded: false,
+
+    // 分类数据版本号，每次缓存发生变化时递增
+    version: 0,
+
+    // 当前资源管理器所在分类
+    currentPath: "/default",
+
+    // 保存区选中的分类
+    pickerPath: "/default",
+
+    // 当前 scope
+    scope: "home",
+
+    // 分类树加载状态
     loading: false,
-    expandedPaths: {explorer: new Set(),picker: new Set(),movePicker: new Set()},   // 分别记录资源管理器和保存区选择器的展开状态
+
+    // 各个分类树独立维护展开状态
+    expandedPaths: {
+        explorer: new Set(),
+        picker: new Set(),
+        movePicker: new Set()
+    },
+
+    // 移动书签时选中的目标分类
     movePickerPath: "/default"
-  };
+};
 
   // ---------- 工具 ----------
   function escapeHtml(s) {
@@ -38,73 +63,281 @@
     return data;
   }
 
-  // ---------- 树数据 ----------
-  async function loadCategoryTree(force = false) {
-    if (!force && CategoryStore.treeCache) return CategoryStore.treeCache;
-    const data = await apiJson("/api/categories/tree");
-    CategoryStore.treeCache = data.data || [];
+
+// ============================================================
+// 分类树缓存管理
+// ============================================================
+
+// ---------- 重建分类父级索引 ----------
+function rebuildCategoryIndex() {
+
     const byParent = {};
-    for (const node of CategoryStore.treeCache) {
-      const p = node.parent_path || "/";
-      (byParent[p] ||= []).push(node);
+
+    for (const node of CategoryStore.treeCache || []) {
+
+        const parentPath = node.parent_path || "/";
+
+        (byParent[parentPath] ||= []).push(node);
     }
+
     CategoryStore.byParent = byParent;
-    return CategoryStore.treeCache;
-  }
+}
 
-  function invalidateTree() {
+
+// ---------- 初始化或获取分类树缓存 ----------
+async function loadCategoryTree(force = false) {
+
+    // 已经有缓存，而且不要求强制刷新
+    if (
+        !force &&
+        CategoryStore.loaded &&
+        Array.isArray(CategoryStore.treeCache)
+    ) {
+        return CategoryStore.treeCache;
+    }
+
+    // 防止同一时间重复请求
+    if (CategoryStore.loading) {
+
+        while (CategoryStore.loading) {
+            await new Promise(resolve => setTimeout(resolve, 20));
+        }
+
+        if (
+            !force &&
+            CategoryStore.loaded &&
+            Array.isArray(CategoryStore.treeCache)
+        ) {
+            return CategoryStore.treeCache;
+        }
+    }
+
+    CategoryStore.loading = true;
+
+    try {
+
+        const data = await apiJson("/api/categories/tree");
+
+        CategoryStore.treeCache = Array.isArray(data.data)
+            ? data.data
+            : [];
+
+        // 重建父级索引
+        rebuildCategoryIndex();
+
+        // 标记缓存已经初始化
+        CategoryStore.loaded = true;
+
+        // 数据版本递增
+        CategoryStore.version++;
+
+        return CategoryStore.treeCache;
+
+    } finally {
+
+        CategoryStore.loading = false;
+    }
+}
+
+
+// ---------- 使分类缓存失效 ----------
+function invalidateTree() {
+
     CategoryStore.treeCache = null;
-    CategoryStore.byParent = {};
-  }
 
-  // ============================================================
-// 重命名后同步树的展开状态
+    CategoryStore.byParent = {};
+
+    CategoryStore.loaded = false;
+
+    CategoryStore.version++;
+}
+
+
+// ============================================================
+// 以下操作只修改前端缓存，不请求服务器
+// ============================================================
+
+
+// ---------- 新增分类到缓存 ----------
+function addCategoryToCache(node) {
+
+    if (!CategoryStore.loaded || !Array.isArray(CategoryStore.treeCache)) {
+        throw new Error("分类缓存尚未初始化");
+    }
+
+    if (!node || !node.path) {
+        throw new Error("新增分类数据无效");
+    }
+
+    // 防止重复添加
+    const exists = CategoryStore.treeCache.some(
+        item => item.path === node.path
+    );
+
+    if (exists) return;
+
+    // 只向缓存增加这一条分类
+    CategoryStore.treeCache.push({
+        path: node.path,
+        name: node.name,
+        parent_path: node.parent_path || "/",
+        is_system: !!node.is_system,
+        has_children: false,
+        child_count: 0
+    });
+
+    // 更新父级索引
+    rebuildCategoryIndex();
+
+    CategoryStore.version++;
+}
+
+
+// ---------- 更新分类及其后代路径 ----------
+function updateCategoryPathInCache(oldPath, newPath, newName = null) {
+
+    if (!CategoryStore.loaded || !Array.isArray(CategoryStore.treeCache)) {
+        throw new Error("分类缓存尚未初始化");
+    }
+
+    const updatePath = (path) => {
+
+        if (path === oldPath) {
+            return newPath;
+        }
+
+        if (path.startsWith(oldPath + "/")) {
+            return newPath + path.slice(oldPath.length);
+        }
+
+        return path;
+    };
+
+    for (const node of CategoryStore.treeCache) {
+
+        const oldNodePath = node.path;
+
+        // 不属于当前分类及其后代，不需要修改
+        if (
+            oldNodePath !== oldPath &&
+            !oldNodePath.startsWith(oldPath + "/")
+        ) {
+            continue;
+        }
+
+        // 更新分类路径
+        node.path = updatePath(oldNodePath);
+
+        // 更新父级路径
+        const lastSlash = node.path.lastIndexOf("/");
+
+        node.parent_path = lastSlash <= 0
+            ? "/"
+            : node.path.slice(0, lastSlash);
+
+        // 只有被重命名的分类本身需要更新名称
+        if (oldNodePath === oldPath && newName !== null) {
+            node.name = newName;
+        }
+    }
+
+    // 重新建立父级索引
+    rebuildCategoryIndex();
+
+    CategoryStore.version++;
+}
+
+
+// ---------- 从缓存删除分类及其所有后代 ----------
+function removeCategoryFromCache(deletedPath) {
+
+    if (!CategoryStore.loaded || !Array.isArray(CategoryStore.treeCache)) {
+        throw new Error("分类缓存尚未初始化");
+    }
+
+    const oldLength = CategoryStore.treeCache.length;
+
+    CategoryStore.treeCache = CategoryStore.treeCache.filter(node => {
+
+        return node.path !== deletedPath &&
+            !node.path.startsWith(deletedPath + "/");
+    });
+
+    // 只有确实删除了数据才更新索引
+    if (CategoryStore.treeCache.length !== oldLength) {
+
+        rebuildCategoryIndex();
+
+        CategoryStore.version++;
+    }
+}
+
+
+// ---------- 根据缓存重新渲染所有现有分类树 ----------
+function renderAllCategoryTrees() {
+
+    // Lists 资源管理器
+    renderExplorerTree();
+
+    // 保存区蓝色分类选择树
+    renderPickerTree();
+
+    // 移动书签分类选择树
+    const moveTree = document.getElementById("moveCategoryPickerTree");
+
+    if (moveTree) {
+        renderTreeInto(moveTree, "movePicker");
+    }
+
+    // 更新保存区分类徽标
+    const pickerNode = CategoryStore.treeCache?.find(
+        node => node.path === CategoryStore.pickerPath
+    );
+
+    updatePickerBadge(pickerNode);
+}
+
+
+
+// ============================================================
+// 分类路径变化后，同步各个分类树的展开状态
 // ============================================================
 
 function renameExpandedPaths(oldPath, newPath) {
 
-    const updateSet = (expandedSet) => {
+    for (const expandedSet of Object.values(CategoryStore.expandedPaths)) {
 
-        if (!(expandedSet instanceof Set)) {
-            return;
-        }
+        if (!(expandedSet instanceof Set)) continue;
 
         const updated = new Set();
 
         for (const path of expandedSet) {
 
-            // 当前展开节点就是被重命名的分类
             if (path === oldPath) {
-                updated.add(newPath);
-                continue;
-            }
 
-            // 当前展开节点是被重命名分类的后代
-            if (path.startsWith(oldPath + "/")) {
+                updated.add(newPath);
+
+            } else if (path.startsWith(oldPath + "/")) {
+
                 updated.add(
                     newPath + path.slice(oldPath.length)
                 );
-                continue;
-            }
 
-            // 不属于被重命名分类的路径，保持不变
-            updated.add(path);
+            } else {
+
+                updated.add(path);
+            }
         }
 
-        // 替换原来的 Set 内容
         expandedSet.clear();
 
         for (const path of updated) {
             expandedSet.add(path);
         }
-    };
-
-    // 分别迁移资源管理器、保存区、移动选择器的展开状态
-    updateSet(CategoryStore.expandedPaths.explorer);
-    updateSet(CategoryStore.expandedPaths.picker);
-    updateSet(CategoryStore.expandedPaths.movePicker);
+    }
 }
 
+  
   function getChildren(path) {
     return CategoryStore.byParent[path] || [];
   }
@@ -580,7 +813,9 @@ const pickerBtn = document.getElementById("categoryPickerBtn");
     setTimeout(() => input.focus(), 50);
   }
 
+
 async function submitCategoryEdit() {
+
     if (!editContext) return;
 
     const input = document.getElementById("categoryEditInput");
@@ -597,39 +832,68 @@ async function submitCategoryEdit() {
     }
 
     const confirmBtn = document.getElementById("categoryEditConfirm");
+
     confirmBtn.disabled = true;
 
     try {
+
+        // 确保本地分类缓存已经初始化
+        await loadCategoryTree();
+
         if (editContext.mode === "create") {
 
             // =========================
             // 新建分类
             // =========================
+
+            const parentPath = editContext.parentPath;
+
             const createResult = await apiJson("/api/categories/create", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json"
+                },
                 body: JSON.stringify({
-                    parent_path: editContext.parentPath,
+                    parent_path: parentPath,
                     name
-                }),
+                })
             });
-          if (!createResult?.success || !createResult?.path) {
-            throw new Error("创建分类接口没有返回有效的创建结果");}
+
+            if (!createResult?.success || !createResult?.path) {
+                throw new Error("创建分类接口没有返回有效的创建结果");
+            }
+
+            // 只向本地缓存增加新分类
+            addCategoryToCache({
+                path: createResult.path,
+                name,
+                parent_path: parentPath,
+                is_system: false
+            });
+
+            // 如果父分类原本处于折叠状态，展开它
+            CategoryStore.expandedPaths.explorer.add(parentPath);
+
+            // 如果父分类在保存区选择树中，保留原来的展开状态
+            // 不强制修改其他树的展开状态
 
         } else {
 
             // =========================
             // 重命名分类
             // =========================
+
             const oldPath = editContext.node.path;
 
             const renameResult = await apiJson("/api/categories/rename", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json"
+                },
                 body: JSON.stringify({
                     old_path: oldPath,
                     new_name: name
-                }),
+                })
             });
 
             const newPath = renameResult?.new_path;
@@ -638,80 +902,70 @@ async function submitCategoryEdit() {
                 throw new Error("重命名接口没有返回有效的新路径");
             }
 
-            // 将路径及其所有后代路径同步更新
-            const updatePath = (currentPath) => {
-                if (!currentPath) return currentPath;
+            // 只更新本地缓存中对应分类及其后代
+            updateCategoryPathInCache(
+                oldPath,
+                newPath,
+                name
+            );
 
-                if (currentPath === oldPath) {
-                    return newPath;
-                }
+            // 更新资源管理器当前路径
+            if (
+                CategoryStore.currentPath === oldPath ||
+                CategoryStore.currentPath.startsWith(oldPath + "/")
+            ) {
+                CategoryStore.currentPath =
+                    newPath + CategoryStore.currentPath.slice(oldPath.length);
+            }
 
-                if (currentPath.startsWith(oldPath + "/")) {
-                    return newPath + currentPath.slice(oldPath.length);
-                }
+            // 更新保存区选中的分类
+            if (
+                CategoryStore.pickerPath === oldPath ||
+                CategoryStore.pickerPath.startsWith(oldPath + "/")
+            ) {
+                CategoryStore.pickerPath =
+                    newPath + CategoryStore.pickerPath.slice(oldPath.length);
+            }
 
-                return currentPath;
-            };
+            // 更新移动书签选择器选中的分类
+            if (
+                CategoryStore.movePickerPath === oldPath ||
+                CategoryStore.movePickerPath?.startsWith(oldPath + "/")
+            ) {
+                CategoryStore.movePickerPath =
+                    newPath + CategoryStore.movePickerPath.slice(oldPath.length);
+            }
 
-// 更新资源管理器当前路径
-CategoryStore.currentPath = updatePath(
-    CategoryStore.currentPath
-);
+            // 同步所有分类树的展开状态
+            renameExpandedPaths(oldPath, newPath);
 
-// 更新保存区当前选择路径
-CategoryStore.pickerPath = updatePath(
-    CategoryStore.pickerPath
-);
+            // 通知 index.html 同步 AppState.category
+            if (typeof window.onCategoryRenamed === "function") {
 
-// 更新移动分类选择器当前路径
-CategoryStore.movePickerPath = updatePath(
-    CategoryStore.movePickerPath
-);
-
-// 同步所有分类树的展开状态
-// 必须在 invalidateTree() 之前执行
-renameExpandedPaths(oldPath, newPath);
-
-// 通知 index 同步 AppState.category
-if (typeof window.onCategoryRenamed === "function") {
-    window.onCategoryRenamed({
-        old_path: oldPath,
-        new_path: newPath
-    });
-}
+                window.onCategoryRenamed({
+                    old_path: oldPath,
+                    new_path: newPath
+                });
+            }
         }
 
-        // 刷新分类树
-        invalidateTree();
-
-        await loadCategoryTree(true);
-
-        renderExplorerTree();
-        renderPickerTree();
-
-// 如果移动分类弹窗正打开，同步刷新移动树
-const moveTree = document.getElementById("moveCategoryPickerTree");
-
-if (moveTree) {
-    renderTreeInto(moveTree, "movePicker");
-}
-
-        // 刷新保存区的分类徽标
-        const pickerNode = CategoryStore.treeCache.find(
-            node => node.path === CategoryStore.pickerPath
-        );
-
-        updatePickerBadge(pickerNode);
+        // 使用当前缓存重新渲染所有分类树
+        renderAllCategoryTrees();
 
         closeCategoryEdit();
 
     } catch (e) {
+
         console.error("分类操作失败：", e);
+
         alert(e.message || "操作失败");
+
     } finally {
+
         confirmBtn.disabled = false;
     }
 }
+
 
   function closeCategoryEdit() {
     document.getElementById("categoryEditModal").classList.add("hidden");
@@ -728,99 +982,116 @@ if (moveTree) {
     modal.classList.remove("hidden");
   }
 
+
 async function submitCategoryDelete() {
+
     if (!deleteContext) return;
 
     const confirmBtn = document.getElementById("categoryDeleteConfirm");
+
     const deletedPath = deleteContext.path;
 
     confirmBtn.disabled = true;
 
     try {
+
+        // 确保本地分类缓存已经初始化
+        await loadCategoryTree();
+
         const r = await apiJson("/api/categories/delete", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ path: deletedPath }),
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                path: deletedPath
+            })
         });
 
-        // 确认接口确实删除成功，并且返回的是本次删除路径
+        // 确认接口确实删除成功
         if (!r?.success || r.path !== deletedPath) {
             throw new Error("删除接口没有返回有效的删除结果");
         }
 
-        // 删除成功后，清理失效路径和展开状态
+        // 清理失效路径和展开状态
         cleanupDeletedCategoryState(deletedPath);
 
-        // 刷新分类树
-        invalidateTree();
-        await loadCategoryTree(true);
+        // 只从本地缓存删除对应分类及其后代
+        removeCategoryFromCache(deletedPath);
 
-        renderExplorerTree();
-        renderPickerTree();
-
-        // 如果移动分类弹窗正打开，也同步刷新它
-        const moveTree = document.getElementById("moveCategoryPickerTree");
-        if (moveTree) {
-            renderTreeInto(moveTree, "movePicker");
-        }
-
-        // 更新保存区分类徽标
-        const pickerNode = CategoryStore.treeCache.find(
-            node => node.path === CategoryStore.pickerPath
-        );
-
-        updatePickerBadge(pickerNode);
+        // 使用更新后的缓存重新渲染分类树
+        renderAllCategoryTrees();
 
         closeCategoryDelete();
 
-        // 通知 index 更新 AppState.category
+        // 通知 index.html 更新 AppState.category
         if (typeof window.onCategoryDeleted === "function") {
+
             window.onCategoryDeleted(r);
         }
 
     } catch (e) {
+
         console.error("删除分类失败：", e);
+
         alert(e.message || "删除失败");
+
     } finally {
+
         confirmBtn.disabled = false;
     }
 }
 
 
-// 删除分类后，清理所有指向已删除分类及其后代的状态
+
+
+// ============================================================
+// 删除分类后，清理所有失效路径和展开状态
+// ============================================================
+
 function cleanupDeletedCategoryState(deletedPath) {
 
     const isInsideDeletedTree = (currentPath) => {
+
+        if (!currentPath) return false;
+
         return currentPath === deletedPath ||
             currentPath.startsWith(deletedPath + "/");
     };
 
-    // 清理资源管理器当前路径
+    // 资源管理器当前路径
     if (isInsideDeletedTree(CategoryStore.currentPath)) {
+
         CategoryStore.currentPath = "/default";
     }
 
-    // 清理保存区选择路径
+    // 保存区选中路径
     if (isInsideDeletedTree(CategoryStore.pickerPath)) {
+
         CategoryStore.pickerPath = "/default";
     }
 
-    // 清理移动选择器路径
+    // 移动书签选择器路径
     if (isInsideDeletedTree(CategoryStore.movePickerPath)) {
+
         CategoryStore.movePickerPath = "/default";
     }
 
-    // 清理三棵树的展开状态
+    // 清理所有分类树的展开状态
     for (const expandedSet of Object.values(CategoryStore.expandedPaths)) {
+
         if (!(expandedSet instanceof Set)) continue;
 
         for (const expandedPath of expandedSet) {
+
             if (isInsideDeletedTree(expandedPath)) {
+
                 expandedSet.delete(expandedPath);
             }
         }
     }
 }
+
 
 
   
