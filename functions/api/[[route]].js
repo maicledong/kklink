@@ -245,7 +245,7 @@ const storeResult = await env.DB.prepare(`
     (url, title, description, image_url, img_file_id, category_path, karakeep_id, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 `).bind(
-    url,
+    originalUrl,
     title,
     description,
     imageUrl,
