@@ -12,6 +12,120 @@ export async function onRequest(context) {
 
   if (request.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
+
+// ============================================================
+// 批量检查 D1 中已经存在的书签
+// POST /api/bookmarks/check-duplicates
+// body: { urls: [...] }
+// ============================================================
+if (
+    path === '/api/bookmarks/check-duplicates' &&
+    request.method === 'POST'
+) {
+    try {
+        const body = await request.json();
+
+        const urls = Array.isArray(body.urls)
+            ? [...new Set(
+                body.urls.filter(
+                    item => typeof item === 'string' && item.trim()
+                )
+            )]
+            : [];
+
+        if (urls.length === 0) {
+            return new Response(
+                JSON.stringify({
+                    success: true,
+                    duplicates: []
+                }),
+                {
+                    headers: {
+                        ...corsHeaders,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+        }
+
+        // 防止一次提交过多数据
+        if (urls.length > 500) {
+            return new Response(
+                JSON.stringify({
+                    success: false,
+                    error: '单次最多检查 500 个链接'
+                }),
+                {
+                    status: 400,
+                    headers: {
+                        ...corsHeaders,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+        }
+
+        const duplicates = [];
+
+        // 每 80 个 URL 执行一次 SQL，避免参数数量过多
+        for (let i = 0; i < urls.length; i += 80) {
+
+            const chunk = urls.slice(i, i + 80);
+
+            const placeholders = chunk.map(() => '?').join(',');
+
+            const result = await env.DB.prepare(`
+                SELECT url
+                FROM bookmarks
+                WHERE url IN (${placeholders})
+            `).bind(...chunk).all();
+
+            const rows = result.results || [];
+
+            for (const row of rows) {
+                duplicates.push(row.url);
+            }
+        }
+
+        return new Response(
+            JSON.stringify({
+                success: true,
+                duplicates
+            }),
+            {
+                headers: {
+                    ...corsHeaders,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+    } catch (e) {
+
+        console.error('批量检查重复链接失败：', e);
+
+        return new Response(
+            JSON.stringify({
+                success: false,
+                error: e.message || '批量检查失败'
+            }),
+            {
+                status: 500,
+                headers: {
+                    ...corsHeaders,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+    }
+}
+
+
+
+
+
+  
+
   // 1. 触发抓取
   if (path === '/api/save' && request.method === 'POST') {
     try {
@@ -124,10 +238,38 @@ if (path === '/api/store' && request.method === 'POST') {
       });
     }
 
-    await env.DB.prepare(
-      `INSERT OR REPLACE INTO bookmarks (url, title, description, image_url, img_file_id, category_path, karakeep_id, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
-    ).bind(originalUrl, title, description, imageUrl, imgFileId, finalCategory, karakeepId).run();
-    return new Response(JSON.stringify({success: true, status: 'success', category_path: finalCategory }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+// 使用 INSERT OR IGNORE，避免重复 URL 覆盖已有书签
+const storeResult = await env.DB.prepare(`
+    INSERT OR IGNORE INTO bookmarks
+    (url, title, description, image_url, img_file_id, category_path, karakeep_id, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+`).bind(
+    url,
+    title,
+    description,
+    imageUrl,
+    imgFileId,
+    finalCategory,
+    karakeepId
+).run();
+
+// 判断是否真正写入数据库
+const inserted = Number(storeResult.meta?.changes || 0) > 0;
+
+return new Response(
+    JSON.stringify({
+        success: true,
+        duplicate: !inserted
+    }),
+    {
+        headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+        }
+    }
+);
+
   } catch (e) {
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
   }
