@@ -3155,7 +3155,7 @@ async function processOne(targetUrl, categoryPath) {
         }
 
 
-        const workerCount = Math.min(5, pendingUrls.length);
+        const workerCount = Math.min(3, pendingUrls.length);
 
         const workers = Array.from(
             { length: workerCount },
