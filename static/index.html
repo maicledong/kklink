@@ -514,13 +514,21 @@
         flex-shrink: 0 !important;
     }
 
-    /* 右侧输入框和保存按钮共用的灰色背景框 */
-    #inputWrapper > div:last-child {
-        flex: 1 1 0% !important;
-        min-width: 0 !important;
-        margin-right: 0 !important;
-        box-sizing: border-box !important;
-    }
+/* 中间输入框独立占据剩余空间 */
+#inputWrapper > div:nth-child(2) {
+    flex: 1 1 0% !important;
+    min-width: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+}
+
+/* 保存按钮独立固定高度，不跟随输入框拉伸 */
+#inputWrapper > #saveBtn {
+    height: 40px !important;
+    min-height: 40px !important;
+    align-self: center !important;
+    flex-shrink: 0 !important;
+}
 
     /* 保存按钮：蓝色背景右侧留出约5px空间 */
     #saveBtn {
@@ -784,24 +792,27 @@ button[title="搜索"] + div {
                     </div>
                     
 
-<!-- 右侧：多行输入框 + 保存按钮 -->
-<div class="flex items-stretch bg-slate-700/50 rounded-lg flex-1 overflow-hidden p-1 min-w-0 border border-transparent transition-all focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20">
+<!-- 独立输入框 + 独立保存按钮 -->
+
+<!-- 多行输入框 -->
+<div class="flex flex-1 min-w-0 bg-slate-700/50 rounded-lg p-1 border border-transparent transition-all focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20">
 
     <textarea
         id="urlInput"
         rows="3"
         placeholder="粘贴网页或视频链接，每行一个..."
-        class="flex-1 min-w-0 min-h-[72px] max-h-40 bg-transparent px-4 py-2 text-white placeholder-slate-400 focus:outline-none text-sm resize-y leading-5"
+        class="flex-1 w-full min-w-0 min-h-[72px] max-h-40 bg-transparent px-4 py-2 text-white placeholder-slate-400 focus:outline-none text-sm resize-y leading-5"
     ></textarea>
 
-    <button
-        id="saveBtn"
-        class="self-stretch flex items-center justify-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-md transition-all flex-shrink-0 shadow-lg shadow-blue-500/30 text-sm"
-    >
-        保存
-    </button>
-
 </div>
+
+<!-- 独立保存按钮 -->
+<button
+    id="saveBtn"
+    class="self-center h-10 flex items-center justify-center px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-md transition-all flex-shrink-0 shadow-lg shadow-blue-500/30 text-sm"
+>
+    保存
+</button>
 
 
 
