@@ -242,9 +242,10 @@ if (path === '/api/store' && request.method === 'POST') {
 
 // 使用 INSERT OR IGNORE，避免重复 URL 覆盖已有书签
 const storeResult = await env.DB.prepare(`
-    INSERT OR IGNORE INTO bookmarks
+    INSERT INTO bookmarks
     (url, title, description, image_url, img_file_id, category_path, karakeep_id, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(url) DO NOTHING
 `).bind(
     originalUrl,
     title,
