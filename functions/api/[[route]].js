@@ -405,7 +405,7 @@ if (path === '/api/categories/rename' && request.method === 'POST') {
         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-    if (target.is_system === 1) {
+    if (Number(target.is_system) === 1) {
       return new Response(JSON.stringify({ error: '系统分类不可重命名' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -476,6 +476,326 @@ if (path === '/api/categories/rename' && request.method === 'POST') {
   }
 }
 
+
+
+// ========== 分类：移动（连带移动所有子分类和书签）==========
+// POST /api/categories/move
+// body: { path: "/旧分类", new_parent_path: "/目标父分类" }
+// new_parent_path 为 "/" 时表示移动到根目录
+
+if (path === '/api/categories/move' && request.method === 'POST') {
+
+  try {
+
+    const body = await request.json();
+
+    const sourcePath = typeof body.path === 'string'
+      ? body.path.trim()
+      : '';
+
+    const targetParentPath = typeof body.new_parent_path === 'string'
+      ? body.new_parent_path.trim()
+      : '';
+
+    // 统一响应格式
+    const jsonResponse = (data, status = 200) => {
+      return new Response(JSON.stringify(data), {
+        status,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    };
+
+    // 1. 检查路径参数
+    if (
+      !sourcePath ||
+      sourcePath === '/' ||
+      !sourcePath.startsWith('/') ||
+      sourcePath.endsWith('/') ||
+      sourcePath.includes('//') ||
+      !targetParentPath ||
+      !targetParentPath.startsWith('/') ||
+      (targetParentPath !== '/' &&
+        (targetParentPath.endsWith('/') ||
+         targetParentPath.includes('//')))
+    ) {
+      return jsonResponse({
+        success: false,
+        error: '无效的分类路径'
+      }, 400);
+    }
+
+    // 2. 查询全部分类，后续用于检查和生成子树路径映射
+    const categoryResult = await env.DB.prepare(`
+      SELECT path, name, parent_path, is_system
+      FROM categories
+    `).all();
+
+    const categories = categoryResult.results || [];
+
+    const categoryMap = new Map(
+      categories.map(item => [item.path, item])
+    );
+
+    // 3. 检查源分类是否存在
+    const source = categoryMap.get(sourcePath);
+
+    if (!source) {
+      return jsonResponse({
+        success: false,
+        error: '源分类不存在'
+      }, 404);
+    }
+
+    // 4. 禁止移动系统分类
+    if (Number(source.is_system) === 1) {
+      return jsonResponse({
+        success: false,
+        error: '系统分类不可移动'
+      }, 403);
+    }
+
+    // 5. 检查目标父分类是否存在
+    // "/" 表示根目录，不需要在 categories 表中查找
+    if (
+      targetParentPath !== '/' &&
+      !categoryMap.has(targetParentPath)
+    ) {
+      return jsonResponse({
+        success: false,
+        error: '目标父分类不存在'
+      }, 404);
+    }
+
+    // 6. 禁止移动到自身或自己的后代
+    if (
+      targetParentPath === sourcePath ||
+      targetParentPath.startsWith(sourcePath + '/')
+    ) {
+      return jsonResponse({
+        success: false,
+        error: '不能将分类移动到自身或其子分类中'
+      }, 400);
+    }
+
+    // 7. 如果目标父分类就是原来的父分类，无需移动
+    const oldParentPath = source.parent_path || '/';
+
+    if (targetParentPath === oldParentPath) {
+      return jsonResponse({
+        success: true,
+        old_path: sourcePath,
+        new_path: sourcePath,
+        new_parent_path: targetParentPath,
+        message: '分类已经位于目标位置'
+      });
+    }
+
+    // 8. 计算移动后的源分类路径
+    const newPath = targetParentPath === '/'
+      ? `/${source.name}`
+      : `${targetParentPath}/${source.name}`;
+
+    // 9. 找出源分类及其所有后代
+    // 使用 startsWith 判断，避免 SQL LIKE 中 % 和 _ 的特殊含义
+    const subtree = categories.filter(item => {
+      return item.path === sourcePath ||
+        item.path.startsWith(sourcePath + '/');
+    });
+
+    // 10. 建立旧路径集合
+    const oldPathSet = new Set(
+      subtree.map(item => item.path)
+    );
+
+    // 11. 为整个子树生成新路径映射
+    const pathMap = new Map();
+
+    for (const item of subtree) {
+
+      const updatedPath = item.path === sourcePath
+        ? newPath
+        : newPath + item.path.slice(sourcePath.length);
+
+      pathMap.set(item.path, updatedPath);
+    }
+
+    // 12. 检查所有新路径是否与现有分类冲突
+    // 不仅检查源分类，还要检查所有后代分类
+    const newPathSet = new Set();
+
+    for (const updatedPath of pathMap.values()) {
+
+      // 防止新路径之间发生冲突
+      if (newPathSet.has(updatedPath)) {
+        return jsonResponse({
+          success: false,
+          error: '移动后存在重复的分类路径'
+        }, 409);
+      }
+
+      newPathSet.add(updatedPath);
+
+      // 检查目标路径是否被子树以外的分类占用
+      if (
+        categoryMap.has(updatedPath) &&
+        !oldPathSet.has(updatedPath)
+      ) {
+        return jsonResponse({
+          success: false,
+          error: `目标位置已经存在同名分类：${updatedPath}`
+        }, 409);
+      }
+    }
+
+    // 13. 为所有旧路径生成临时路径
+const temporaryPathMap = new Map();
+const existingPaths = new Set(
+  categories.map(item => item.path)
+);
+
+const temporaryPrefix = `/__category_move_tmp_${crypto.randomUUID()}`;
+
+for (let i = 0; i < subtree.length; i++) {
+  let temporaryPath = `${temporaryPrefix}/${i}`;
+
+  while (existingPaths.has(temporaryPath)) {
+    temporaryPath += '_';
+  }
+
+  existingPaths.add(temporaryPath);
+
+  temporaryPathMap.set(
+    subtree[i].path,
+    temporaryPath
+  );
+}
+
+    // 14. 构建 D1 批量更新语句
+    const statements = [];
+
+    // 第一阶段：先将整个子树的 path 改成临时路径
+    for (const item of subtree) {
+
+      const temporaryPath = temporaryPathMap.get(item.path);
+
+      statements.push(
+        env.DB.prepare(`
+          UPDATE categories
+          SET path = ?
+          WHERE path = ?
+        `).bind(
+          temporaryPath,
+          item.path
+        )
+      );
+    }
+
+    // 第二阶段：将临时路径更新为最终路径，同时更新 parent_path
+    for (const item of subtree) {
+
+      const temporaryPath = temporaryPathMap.get(item.path);
+      const updatedPath = pathMap.get(item.path);
+
+      // 源分类的新父路径就是用户选择的目标父分类
+      // 后代分类的新父路径则从路径映射中取得
+      const updatedParentPath = item.path === sourcePath
+        ? targetParentPath
+        : pathMap.get(item.parent_path);
+
+      if (!updatedParentPath) {
+        throw new Error(
+          `无法确定分类的新父路径：${item.path}`
+        );
+      }
+
+      statements.push(
+        env.DB.prepare(`
+          UPDATE categories
+          SET path = ?, parent_path = ?
+          WHERE path = ?
+        `).bind(
+          updatedPath,
+          updatedParentPath,
+          temporaryPath
+        )
+      );
+    }
+
+    // 第三阶段：同步更新所有相关书签的 category_path
+    for (const item of subtree) {
+
+      const oldCategoryPath = item.path;
+      const updatedCategoryPath = pathMap.get(item.path);
+
+      statements.push(
+        env.DB.prepare(`
+          UPDATE bookmarks
+          SET category_path = ?
+          WHERE category_path = ?
+        `).bind(
+          updatedCategoryPath,
+          oldCategoryPath
+        )
+      );
+    }
+
+    // 15. 使用 D1 batch 原子执行全部更新
+    // 任意一条 SQL 失败，整个批次都会回滚
+    await env.DB.batch(statements);
+
+    // 16. 返回移动结果
+    return jsonResponse({
+      success: true,
+      old_path: sourcePath,
+      new_path: newPath,
+      new_parent_path: targetParentPath,
+      moved_categories: subtree.length,
+      message: '分类移动成功'
+    });
+
+  } catch (e) {
+
+    console.error('移动分类失败：', e);
+
+    // 如果发生唯一约束冲突，返回明确的业务错误
+    if (
+      e.message &&
+      (
+        e.message.toLowerCase().includes('unique') ||
+        e.message.toLowerCase().includes('constraint')
+      )
+    ) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: '移动失败，目标位置存在分类路径冲突'
+      }), {
+        status: 409,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+
+    return new Response(JSON.stringify({
+      success: false,
+      error: e.message || '移动分类失败'
+    }), {
+      status: 500,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
+    });
+  }
+}
+
+
+  
+
 // ========== 分类：删除（连带子分类 + 链接）==========
 if (path === '/api/categories/delete' && request.method === 'POST') {
   try {
@@ -496,7 +816,7 @@ if (path === '/api/categories/delete' && request.method === 'POST') {
         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-    if (target.is_system === 1) {
+    if (Number(target.is_system) === 1) {
       return new Response(JSON.stringify({ error: '系统分类不可删除' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
