@@ -33,6 +33,9 @@ const CategoryStore = {
     // 分类树加载状态
     loading: false,
 
+  // 当前分类树加载请求的 Promise
+  loadPromise: null,
+
     // 各个分类树独立维护展开状态
     expandedPaths: {
         explorer: new Set(),
@@ -96,25 +99,15 @@ async function loadCategoryTree(force = false) {
         return CategoryStore.treeCache;
     }
 
-    // 防止同一时间重复请求
-    if (CategoryStore.loading) {
-
-        while (CategoryStore.loading) {
-            await new Promise(resolve => setTimeout(resolve, 20));
-        }
-
-        if (
-            !force &&
-            CategoryStore.loaded &&
-            Array.isArray(CategoryStore.treeCache)
-        ) {
-            return CategoryStore.treeCache;
-        }
+    // 如果已经有加载请求，直接共用当前 Promise
+    if (CategoryStore.loadPromise) {
+        return CategoryStore.loadPromise;
     }
 
     CategoryStore.loading = true;
 
-    try {
+    // 创建唯一的加载请求
+    const request = (async () => {
 
         const data = await apiJson("/api/categories/tree");
 
@@ -133,7 +126,20 @@ async function loadCategoryTree(force = false) {
 
         return CategoryStore.treeCache;
 
+    })();
+
+    CategoryStore.loadPromise = request;
+
+    try {
+
+        return await request;
+
     } finally {
+
+        // 只清理当前请求，避免误清理其他请求
+        if (CategoryStore.loadPromise === request) {
+            CategoryStore.loadPromise = null;
+        }
 
         CategoryStore.loading = false;
     }
@@ -392,7 +398,8 @@ if (
     row.classList.add("bg-blue-600/20", "text-blue-300");
 }
 
-    const hasChildren = node.has_children || (node.child_count || 0) > 0;
+// 根据当前缓存索引判断是否存在子分类
+const hasChildren = getChildren(node.path).length > 0;
 const toggle = document.createElement("span");
 toggle.className = "cat-toggle w-4 flex items-center justify-center text-slate-400 select-none";
 
