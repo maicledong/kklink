@@ -40,11 +40,17 @@ const CategoryStore = {
     expandedPaths: {
         explorer: new Set(),
         picker: new Set(),
-        movePicker: new Set()
+        movePicker: new Set(),
+        categoryMovePicker: new Set()
     },
 
     // 移动书签时选中的目标分类
-    movePickerPath: "/default"
+    movePickerPath: null,
+  // 当前准备移动的分类路径
+categoryMoveSourcePath: null,
+
+// 移动分类时选中的目标父分类
+categoryMovePickerPath: null
 };
 
   // ---------- 工具 ----------
@@ -295,6 +301,18 @@ function renderAllCategoryTrees() {
         renderTreeInto(moveTree, "movePicker");
     }
 
+    // 移动分类选择树
+    const categoryMoveTree = document.getElementById(
+        "categoryMovePickerTree"
+    );
+
+    if (categoryMoveTree) {
+        renderTreeInto(
+            categoryMoveTree,
+            "categoryMovePicker"
+        );
+    }
+
     // 更新保存区分类徽标
     const pickerNode = CategoryStore.treeCache?.find(
         node => node.path === CategoryStore.pickerPath
@@ -398,8 +416,34 @@ if (
     row.classList.add("bg-blue-600/20", "text-blue-300");
 }
 
+// 移动分类选择器的选中状态
+if (
+    mode === "categoryMovePicker" &&
+    CategoryStore.categoryMovePickerPath === node.path
+) {
+    row.classList.add("bg-blue-600/20", "text-blue-300");
+}
+
+
 // 根据当前缓存索引判断是否存在子分类
 const hasChildren = getChildren(node.path).length > 0;
+
+// 移动分类时，禁止选择自身及其后代作为目标父分类
+const sourcePath = CategoryStore.categoryMoveSourcePath;
+
+const isInvalidCategoryMoveTarget =
+    mode === "categoryMovePicker" &&
+    !!sourcePath &&
+    (
+        node.path === sourcePath ||
+        node.path.startsWith(sourcePath + "/")
+    );
+
+// 无效目标分类显示为不可选择
+if (isInvalidCategoryMoveTarget) {
+    row.classList.add("opacity-40", "cursor-not-allowed");
+}
+    
 const toggle = document.createElement("span");
 toggle.className = "cat-toggle w-4 flex items-center justify-center text-slate-400 select-none";
 
@@ -479,6 +523,16 @@ if (expandedSet && expandedSet.has(node.path)) {
         openMoreMenu(e.target.closest("[data-more]"), node, mode);
         return;
       }
+
+// 移动分类选择器：禁止选择自身及后代
+if (
+    mode === "categoryMovePicker" &&
+    isInvalidCategoryMoveTarget
+) {
+    e.stopPropagation();
+    return;
+}
+      
 // 点击行
 if (mode === "picker") {
 
@@ -506,6 +560,22 @@ if (mode === "picker") {
 
     // 更新左下角显示的分类路径
     updateMoveCategoryPath();
+
+} else if (mode === "categoryMovePicker") {
+
+    // 更新移动分类的目标父分类
+    CategoryStore.categoryMovePickerPath = node.path;
+
+    // 刷新选中状态
+    renderTreeInto(
+        document.getElementById("categoryMovePickerTree"),
+        "categoryMovePicker"
+    );
+
+    // 更新弹窗底部路径
+    updateCategoryMovePath();
+
+  
 
 } else {
 
@@ -603,6 +673,12 @@ menu.innerHTML = `
         <span class="w-5 shrink-0 inline-flex items-center justify-start">✏️</span>
         <span>重命名</span>
     </button>
+
+    <button data-act="move"
+    class="w-full flex items-center text-left px-2.5 py-1.5 text-[13px] rounded hover:bg-slate-700 text-slate-200">
+    <span class="w-5 shrink-0 inline-flex items-center justify-start">📂</span>
+    <span>移动</span>
+</button>
 
     <button data-act="delete"
         class="w-full flex items-center text-left px-2.5 py-1.5 text-[13px] rounded hover:bg-red-600/20 text-red-400">
@@ -709,19 +785,29 @@ menu.innerHTML = `
 
         closeMoreMenu();
 
-        if (act === "add") {
-            openCategoryEdit({
-                mode: "create",
-                parentPath: node.path
-            });
-        } else if (act === "rename") {
-            openCategoryEdit({
-                mode: "rename",
-                node
-            });
-        } else if (act === "delete") {
-            openCategoryDelete(node);
-        }
+if (act === "add") {
+
+    openCategoryEdit({
+        mode: "create",
+        parentPath: node.path
+    });
+
+} else if (act === "rename") {
+
+    openCategoryEdit({
+        mode: "rename",
+        node
+    });
+
+} else if (act === "move") {
+
+    // 打开移动分类选择器
+    chooseCategoryMoveTarget(node);
+
+} else if (act === "delete") {
+
+    openCategoryDelete(node);
+}
     });
 }
 
@@ -1081,8 +1167,21 @@ function cleanupDeletedCategoryState(deletedPath) {
     // 移动书签选择器路径
     if (isInsideDeletedTree(CategoryStore.movePickerPath)) {
 
-        CategoryStore.movePickerPath = "/default";
+        CategoryStore.movePickerPath = null;
     }
+
+  // 移动分类选择器路径
+if (isInsideDeletedTree(CategoryStore.categoryMovePickerPath)) {
+
+    CategoryStore.categoryMovePickerPath = null;
+}
+
+// 移动分类的源分类路径
+if (isInsideDeletedTree(CategoryStore.categoryMoveSourcePath)) {
+
+    CategoryStore.categoryMoveSourcePath = null;
+}
+  
 
     // 清理所有分类树的展开状态
     for (const expandedSet of Object.values(CategoryStore.expandedPaths)) {
@@ -1164,6 +1263,396 @@ function openPickerDropdown() {
   function closePickerDropdown() {
     document.getElementById("categoryPickerDropdown")?.classList.add("hidden");
   }
+
+
+
+// ============================================================
+// 移动分类专用选择器
+// ============================================================
+
+let categoryMoveResolve = null;
+
+
+// ---------- 打开移动分类选择器 ----------
+function openCategoryMovePicker(sourceNode) {
+
+    const modal = document.createElement("div");
+
+    modal.id = "categoryMovePickerModal";
+
+    modal.className = `
+        fixed inset-0 z-[100002]
+        flex items-center justify-center
+        bg-black/60 p-4
+    `;
+
+    modal.innerHTML = `
+        <div class="
+            w-full max-w-md
+            max-h-[85vh]
+            flex flex-col
+            rounded-xl border border-slate-700
+            bg-slate-900 shadow-2xl
+        ">
+
+            <div class="
+                flex items-center justify-between
+                px-4 py-3 border-b border-slate-700
+            ">
+                <div class="text-white font-semibold">
+                    移动分类
+                </div>
+
+                <button
+                    type="button"
+                    data-category-move-close
+                    class="text-slate-400 hover:text-white text-xl"
+                >×</button>
+            </div>
+
+            <div class="px-4 py-2 text-xs text-slate-400">
+                选择要移动到的目标父分类。
+                不能选择当前分类及其子分类。
+            </div>
+
+            <!-- 根目录选项 -->
+            <button
+                type="button"
+                id="categoryMoveRootBtn"
+                class="mx-3 mb-2 px-3 py-2 text-left text-sm
+                       rounded-lg border border-slate-700
+                       text-slate-300 hover:bg-slate-800"
+            >
+                📁 根目录
+            </button>
+
+            <!-- 分类树 -->
+            <div
+                id="categoryMovePickerTree"
+                class="overflow-y-auto flex-1 min-h-0 px-3 py-2"
+            ></div>
+
+            <div class="
+                px-4 py-3 border-t border-slate-700
+                flex items-center justify-between gap-3
+            ">
+
+                <div
+                    id="categoryMoveSelectedPath"
+                    class="text-xs text-slate-400 truncate flex-1 min-w-0"
+                >
+                    尚未选择目标分类
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+
+                    <button
+                        type="button"
+                        data-category-move-close
+                        class="px-4 py-2 rounded-lg bg-slate-700
+                               hover:bg-slate-600 text-white text-sm"
+                    >取消</button>
+
+                    <button
+                        type="button"
+                        id="categoryMovePickerConfirm"
+                        class="px-4 py-2 rounded-lg bg-blue-600
+                               hover:bg-blue-500 text-white text-sm"
+                    >确定</button>
+
+                </div>
+            </div>
+
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // 记录当前准备移动的分类
+    CategoryStore.categoryMoveSourcePath = sourceNode.path;
+
+    // 初始不选择目标父分类
+    CategoryStore.categoryMovePickerPath = null;
+
+    // 渲染分类树
+    renderTreeInto(
+        document.getElementById("categoryMovePickerTree"),
+        "categoryMovePicker"
+    );
+
+    updateCategoryMovePath();
+
+    // 根目录按钮
+    modal.querySelector("#categoryMoveRootBtn")
+        ?.addEventListener("click", () => {
+
+            CategoryStore.categoryMovePickerPath = "/";
+
+            updateCategoryMovePath();
+        });
+
+    // 取消按钮
+    modal.querySelectorAll("[data-category-move-close]")
+        .forEach(btn => {
+
+            btn.addEventListener("click", () => {
+                closeCategoryMovePicker(null);
+            });
+
+        });
+
+    // 点击遮罩层取消
+    modal.addEventListener("click", (e) => {
+
+        if (e.target === modal) {
+            closeCategoryMovePicker(null);
+        }
+
+    });
+
+    // 确认移动目标
+    modal.querySelector("#categoryMovePickerConfirm")
+        ?.addEventListener("click", () => {
+
+            const targetPath = CategoryStore.categoryMovePickerPath;
+
+            if (!targetPath) {
+                alert("请先选择目标父分类");
+                return;
+            }
+
+            const sourcePath = CategoryStore.categoryMoveSourcePath;
+
+            // 再次检查，防止移动到自身或后代
+            if (
+                targetPath === sourcePath ||
+                targetPath.startsWith(sourcePath + "/")
+            ) {
+                alert("不能将分类移动到自身或其子分类中");
+                return;
+            }
+
+            closeCategoryMovePicker(targetPath);
+
+        });
+
+    // ESC 取消
+    modal._escHandler = (e) => {
+
+        if (e.key === "Escape") {
+            closeCategoryMovePicker(null);
+        }
+
+    };
+
+    document.addEventListener("keydown", modal._escHandler);
+}
+
+
+// ---------- 更新移动分类选择器路径 ----------
+function updateCategoryMovePath() {
+
+    const pathEl = document.getElementById(
+        "categoryMoveSelectedPath"
+    );
+
+    if (!pathEl) return;
+
+    const path = CategoryStore.categoryMovePickerPath;
+
+    if (!path) {
+
+        pathEl.textContent = "尚未选择目标分类";
+        pathEl.title = "尚未选择目标分类";
+
+        return;
+    }
+
+    pathEl.textContent = `移动到：${path === "/" ? "根目录" : path}`;
+    pathEl.title = path;
+}
+
+
+// ---------- 关闭移动分类选择器 ----------
+function closeCategoryMovePicker(result = null) {
+
+    const modal = document.getElementById(
+        "categoryMovePickerModal"
+    );
+
+    if (modal) {
+
+        if (modal._escHandler) {
+            document.removeEventListener(
+                "keydown",
+                modal._escHandler
+            );
+        }
+
+        modal.remove();
+    }
+
+    const resolve = categoryMoveResolve;
+
+    categoryMoveResolve = null;
+
+    CategoryStore.categoryMoveSourcePath = null;
+    CategoryStore.categoryMovePickerPath = null;
+
+    if (resolve) {
+        resolve(result);
+    }
+}
+
+
+// ---------- 等待用户选择目标父分类 ----------
+async function chooseCategoryMoveTarget(sourceNode) {
+
+    try {
+
+        // 确保分类缓存已经加载
+        await loadCategoryTree();
+
+        // 从最新缓存中重新获取源分类
+        const sourcePath = sourceNode.path;
+
+        const latestSourceNode = CategoryStore.treeCache.find(
+            node => node.path === sourcePath
+        );
+
+        if (!latestSourceNode) {
+            throw new Error("源分类不存在或已经被删除，请刷新分类树");
+        }
+
+        // 关闭可能存在的旧弹窗
+        closeCategoryMovePicker(null);
+
+        const targetPath = await new Promise((resolve) => {
+
+            categoryMoveResolve = resolve;
+
+            openCategoryMovePicker(latestSourceNode);
+
+        });
+
+        // 用户取消
+        if (!targetPath) return;
+
+        // 执行分类移动
+        await submitCategoryMove(
+            latestSourceNode.path,
+            targetPath
+        );
+
+    } catch (e) {
+
+        console.error("打开移动分类选择器失败：", e);
+
+        alert(e.message || "无法打开移动分类选择器");
+    }
+}
+
+
+// ============================================================
+// 执行分类移动
+// ============================================================
+
+async function submitCategoryMove(sourcePath, targetParentPath) {
+
+    try {
+
+        // 再次检查目标是否合法
+        if (
+            targetParentPath === sourcePath ||
+            targetParentPath.startsWith(sourcePath + "/")
+        ) {
+            throw new Error("不能将分类移动到自身或其子分类中");
+        }
+
+        // 请求后端移动分类接口
+        const result = await apiJson("/api/categories/move", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                path: sourcePath,
+                new_parent_path: targetParentPath
+            })
+        });
+
+        if (!result?.success || !result?.new_path) {
+            throw new Error(
+                result?.error || "移动分类接口没有返回有效的新路径"
+            );
+        }
+
+        const newPath = result.new_path;
+
+        // 如果路径没有变化，则无需更新缓存
+        if (newPath !== sourcePath) {
+
+            // 更新分类自身及所有后代的缓存路径
+            updateCategoryPathInCache(
+                sourcePath,
+                newPath
+            );
+
+            // 同步资源管理器当前路径
+            if (
+                CategoryStore.currentPath === sourcePath ||
+                CategoryStore.currentPath.startsWith(sourcePath + "/")
+            ) {
+                CategoryStore.currentPath =
+                    newPath + CategoryStore.currentPath.slice(sourcePath.length);
+            }
+
+            // 同步保存区选中路径
+            if (
+                CategoryStore.pickerPath === sourcePath ||
+                CategoryStore.pickerPath.startsWith(sourcePath + "/")
+            ) {
+                CategoryStore.pickerPath =
+                    newPath + CategoryStore.pickerPath.slice(sourcePath.length);
+            }
+
+            // 同步移动书签选择器选中路径
+            if (
+                CategoryStore.movePickerPath === sourcePath ||
+                CategoryStore.movePickerPath?.startsWith(sourcePath + "/")
+            ) {
+                CategoryStore.movePickerPath =
+                    newPath + CategoryStore.movePickerPath.slice(sourcePath.length);
+            }
+
+            // 同步所有分类树的展开状态
+            renameExpandedPaths(sourcePath, newPath);
+        }
+
+        // 使用最新缓存重新渲染所有分类树
+        renderAllCategoryTrees();
+
+        // 通知 index.html 同步外部分类状态
+        if (typeof window.onCategoryMoved === "function") {
+
+            window.onCategoryMoved({
+                old_path: sourcePath,
+                new_path: newPath,
+                new_parent_path: targetParentPath
+            });
+        }
+
+        alert("分类移动成功");
+
+    } catch (e) {
+
+        console.error("移动分类失败：", e);
+
+        alert(e.message || "移动分类失败");
+    }
+}
+
+  
 
 // ============================================================
 // 移动链接专用分类选择器
@@ -1556,6 +2045,11 @@ window.CategoryExplorer = {
     openMoveCategoryPicker,
     closeMoveCategoryPicker,
     chooseMoveCategory,
+    // 移动分类
+openCategoryMovePicker,
+closeCategoryMovePicker,
+chooseCategoryMoveTarget,
+  
 
     getCurrentPath: () => CategoryStore.currentPath,
     getPickerPath: () => CategoryStore.pickerPath,
