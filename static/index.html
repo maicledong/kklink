@@ -783,13 +783,29 @@ button[title="搜索"] + div {
                         </div>
                     </div>
                     
-                    <!-- 右侧：输入框 + 保存按钮 -->
-                    <div class="flex items-center bg-slate-700/50 rounded-lg flex-1 overflow-hidden p-1 min-w-0 border border-transparent transition-all focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20">
-                        <input type="text" id="urlInput" placeholder="粘贴网页或视频链接..." class="flex-1 min-w-0 bg-transparent px-4 py-2 text-white placeholder-slate-400 focus:outline-none text-sm">
-                        <button id="saveBtn" class="flex items-center justify-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-md transition-all flex-shrink-0 shadow-lg shadow-blue-500/30 text-sm">
-                           保存
-                        </button>
-                    </div>
+
+<!-- 右侧：多行输入框 + 保存按钮 -->
+<div class="flex items-stretch bg-slate-700/50 rounded-lg flex-1 overflow-hidden p-1 min-w-0 border border-transparent transition-all focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20">
+
+    <textarea
+        id="urlInput"
+        rows="3"
+        placeholder="粘贴网页或视频链接，每行一个..."
+        class="flex-1 min-w-0 min-h-[72px] max-h-40 bg-transparent px-4 py-2 text-white placeholder-slate-400 focus:outline-none text-sm resize-y leading-5"
+    ></textarea>
+
+    <button
+        id="saveBtn"
+        class="self-stretch flex items-center justify-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-md transition-all flex-shrink-0 shadow-lg shadow-blue-500/30 text-sm"
+    >
+        保存
+    </button>
+
+</div>
+
+
+
+					
                 </div>
 
 <!-- 右侧：分类资源管理器 -->
@@ -2453,141 +2469,485 @@ window.onCategoryDeleted = (result) => {
     }
 };
 
-        /* ============================================================
-         * 保存链接 (修改 category_path 逻辑)
-         * ============================================================ */
-        saveBtn.onclick = async () => {
-            const url = urlInput.value.trim();
-            if (!url) return alert('请输入链接');
 
-            saveBtn.disabled = true;
-            saveBtn.classList.add('opacity-50');
-            statusText.classList.remove('hidden');
-            statusText.innerText = '正在抓取中... 请等待 40 秒';
+/* ============================================================
+ * 批量保存链接
+ * 1. 批量检查 D1 重复链接
+ * 2. 最多 5 个链接同时提交 Karakeep
+ * 3. 最多 5 个链接同时检查抓取状态
+ * 4. Oracle 图片转存最多 3 个并发
+ * 5. 每个链接完成后立即写入 D1
+ * 6. 全部完成后只刷新一次列表
+ * ============================================================ */
+
+
+// ---------- 并发限制工具 ----------
+function createSemaphore(limit) {
+
+    let active = 0;
+    const waiting = [];
+
+    return async function run(task) {
+
+        if (active >= limit) {
+            await new Promise(resolve => waiting.push(resolve));
+        }
+
+        active++;
+
+        try {
+            return await task();
+
+        } finally {
+
+            active--;
+
+            const next = waiting.shift();
+
+            if (next) next();
+        }
+    };
+}
+
+
+// Oracle 图片转存最多 3 个并发
+const withOracleImageLimit = createSemaphore(3);
+
+
+// ---------- 保存按钮 ----------
+saveBtn.onclick = async () => {
+
+    // 按行读取链接
+    const rawLines = urlInput.value
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean);
+
+    if (rawLines.length === 0) {
+        return alert('请输入链接，每行一个');
+    }
+
+
+    // ---------- 检查 URL 格式 ----------
+    const validUrls = [];
+    let invalidCount = 0;
+
+    for (const item of rawLines) {
+
+        try {
+
+            const parsed = new URL(item);
+
+            if (
+                parsed.protocol !== 'http:' &&
+                parsed.protocol !== 'https:'
+            ) {
+                throw new Error('无效协议');
+            }
+
+            validUrls.push(item);
+
+        } catch (e) {
+
+            invalidCount++;
+        }
+    }
+
+    if (validUrls.length === 0) {
+        return alert('没有有效的链接，请检查输入内容');
+    }
+
+
+    // ---------- 去除本次输入中的重复链接 ----------
+    const uniqueUrls = [...new Set(validUrls)];
+
+    const inputDuplicateCount =
+        validUrls.length - uniqueUrls.length;
+
+
+    if (uniqueUrls.length > 500) {
+        return alert('单次最多保存 500 个链接');
+    }
+
+
+    // ---------- 保存状态 ----------
+    saveBtn.disabled = true;
+    saveBtn.classList.add('opacity-50');
+
+    statusText.classList.remove('hidden');
+    statusText.innerText = '正在检查数据库中的重复链接...';
+
+
+    let successCount = 0;
+    let duplicateCount = 0;
+    let failedCount = 0;
+    let completedCount = 0;
+
+    let shouldClearInput = false;
+
+
+    // 更新进度
+    function updateProgress(total) {
+
+        statusText.innerText =
+            `正在处理 ${completedCount}/${total} 个链接` +
+            `（成功 ${successCount}，重复 ${duplicateCount}，失败 ${failedCount}）`;
+    }
+
+
+    // ---------- 单个链接处理 ----------
+    async function processOne(targetUrl, categoryPath) {
+
+        try {
+
+            // 1. 提交 Karakeep
+            const saveRes = await fetch('/api/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    url: targetUrl
+                })
+            });
+
+            let saveData = {};
 
             try {
-const saveRes = await fetch('/api/save', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ url })
-});
-
-let saveData = {};
-
-try {
-    saveData = await saveRes.json();
-} catch (e) {
-    throw new Error('保存接口返回的数据格式错误');
-}
-
-if (!saveRes.ok || !saveData.success || !saveData.bookmarkId) {
-    throw new Error(
-        saveData.error ||
-        `提交链接失败，HTTP ${saveRes.status}`
-    );
-}
-
-const bookmarkId = saveData.bookmarkId;
-
-                await sleep(40000);
-                
-let checkRes = await fetch(
-    `/api/check-status?id=${encodeURIComponent(bookmarkId)}`
-);
-
-if (!checkRes.ok) {
-    throw new Error(`检查抓取状态失败，HTTP ${checkRes.status}`);
-}
-
-let checkData = await checkRes.json();
-
-                if (checkData.status !== 'success') {
-                    statusText.innerText = '抓取较慢，再等 15 秒...';
-                    await sleep(15000);
-checkRes = await fetch(
-    `/api/check-status?id=${encodeURIComponent(bookmarkId)}`
-);
-
-if (!checkRes.ok) {
-    throw new Error(`再次检查抓取状态失败，HTTP ${checkRes.status}`);
-}
-
-checkData = await checkRes.json();
-                }
-
-                if (checkData.status === 'success') {
-                    statusText.innerText = '正在将封面图转存至 Telegram...';
-                    const { url: targetUrl, title, description, imageUrl, karakeepLocalImage, karakeepId } = checkData.data;
-                    let imgFileId = "";
-
-                    if (karakeepLocalImage) {
-                        try {
-                            const proxyRes = await fetch(`${ORACLE_DOMAIN}/proxy-image?url=${encodeURIComponent(karakeepLocalImage)}`);
-                            if (proxyRes.ok) {
-                                const proxyData = await proxyRes.json();
-                                if (proxyData.success) imgFileId = proxyData.file_id;
-                            }
-                        } catch (e) { console.error(e); }
-                    }
-
-                    statusText.innerText = '正在写入数据库...';
-                    
-                    // 获取当前选中的分类
-                    const targetCategory = window.CategoryExplorer ? window.CategoryExplorer.getPickerPath() : '/default';
-
-const storeRes = await fetch('/api/store', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-        url: targetUrl,
-        title,
-        description,
-        imageUrl,
-        imgFileId,
-		karakeepId,
-        category_path: targetCategory
-    })
-});
-
-let storeData = {};
-
-try {
-    storeData = await storeRes.json();
-} catch (e) {
-    throw new Error('数据库写入接口返回的数据格式错误');
-}
-
-if (!storeRes.ok || !storeData.success) {
-    throw new Error(
-        storeData.error ||
-        `写入数据库失败，HTTP ${storeRes.status}`
-    );
-}
-
-// 只有数据库确认写入成功，才刷新列表
-statusText.innerText = '保存成功，正在刷新列表...';
-
-await loadCards();
-
-					
-                } else {
-                    alert("抓取超时，请稍后刷新查看");
-                }
-
+                saveData = await saveRes.json();
             } catch (e) {
-                console.error('保存过程出现异常：', e);
-                alert(e.message || '保存过程出现异常');
-            } finally {
-                statusText.classList.add('hidden');
-                urlInput.value = '';
-                saveBtn.disabled = false;
-                saveBtn.classList.remove('opacity-50');
+                throw new Error('保存接口返回的数据格式错误');
             }
-        };
+
+            if (
+                !saveRes.ok ||
+                !saveData.success ||
+                !saveData.bookmarkId
+            ) {
+                throw new Error(
+                    saveData.error ||
+                    `提交链接失败，HTTP ${saveRes.status}`
+                );
+            }
+
+
+            const bookmarkId = saveData.bookmarkId;
+
+
+
+// 2. 先固定等待 40 秒，再开始检查抓取状态
+let checkData = null;
+
+// 第一次检查前等待 40 秒
+await sleep(40000);
+
+// 最多检查 3 次
+// 第一次在第 40 秒，之后每隔 10 秒检查一次
+for (let i = 0; i < 3; i++) {
+
+    const checkRes = await fetch(
+        `/api/check-status?id=${encodeURIComponent(bookmarkId)}`
+    );
+
+    if (!checkRes.ok) {
+        throw new Error(
+            `检查抓取状态失败，HTTP ${checkRes.status}`
+        );
+    }
+
+    try {
+        checkData = await checkRes.json();
+    } catch (e) {
+        throw new Error('抓取状态接口返回的数据格式错误');
+    }
+
+    // 抓取完成，立即进入后续处理
+    if (checkData.status === 'success') {
+        break;
+    }
+
+    // 尚未完成，等待 10 秒后再次检查
+    if (i < 2) {
+        await sleep(10000);
+    }
+}
+
+// 3 次检查后仍未完成
+if (!checkData || checkData.status !== 'success') {
+    throw new Error('抓取超时，请稍后刷新查看');
+}
+
+
+
+            // 3. 获取抓取结果
+            const {
+                url: finalUrl,
+                title,
+                description,
+                imageUrl,
+                karakeepLocalImage,
+                karakeepId
+            } = checkData.data;
+
+
+            let imgFileId = '';
+
+
+            // 4. Oracle 图片转存，最多 3 个并发
+            if (karakeepLocalImage) {
+
+                try {
+
+                    await withOracleImageLimit(async () => {
+
+                        const proxyRes = await fetch(
+                            `${ORACLE_DOMAIN}/proxy-image?url=${encodeURIComponent(karakeepLocalImage)}`
+                        );
+
+                        if (!proxyRes.ok) {
+                            return;
+                        }
+
+                        const proxyData = await proxyRes.json();
+
+                        if (proxyData.success) {
+                            imgFileId = proxyData.file_id || '';
+                        }
+                    });
+
+                } catch (e) {
+
+                    // 图片转存失败不影响书签保存
+                    console.error(
+                        '封面图转存失败：',
+                        finalUrl,
+                        e
+                    );
+                }
+            }
+
+
+            // 5. 写入 D1
+            const storeRes = await fetch('/api/store', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    url: finalUrl,
+                    title,
+                    description,
+                    imageUrl,
+                    imgFileId,
+                    karakeepId,
+                    category_path: categoryPath
+                })
+            });
+
+            let storeData = {};
+
+            try {
+                storeData = await storeRes.json();
+            } catch (e) {
+                throw new Error('数据库写入接口返回的数据格式错误');
+            }
+
+            if (!storeRes.ok || !storeData.success) {
+                throw new Error(
+                    storeData.error ||
+                    `写入数据库失败，HTTP ${storeRes.status}`
+                );
+            }
+
+
+            // 6. 统计写入结果
+            if (storeData.duplicate) {
+
+                duplicateCount++;
+
+            } else {
+
+                successCount++;
+            }
+
+
+        } catch (e) {
+
+            failedCount++;
+
+            console.error(
+                '单个链接保存失败：',
+                targetUrl,
+                e
+            );
+
+        } finally {
+
+            completedCount++;
+
+        }
+    }
+
+
+    try {
+
+        // ---------- 先统一检查 D1 重复链接 ----------
+        const duplicateRes = await fetch(
+            '/api/bookmarks/check-duplicates',
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    urls: uniqueUrls
+                })
+            }
+        );
+
+        let duplicateData = {};
+
+        try {
+            duplicateData = await duplicateRes.json();
+        } catch (e) {
+            throw new Error('批量查重接口返回的数据格式错误');
+        }
+
+        if (!duplicateRes.ok || !duplicateData.success) {
+            throw new Error(
+                duplicateData.error ||
+                `批量查重失败，HTTP ${duplicateRes.status}`
+            );
+        }
+
+
+        // 已经存在于 D1 的链接
+        const duplicateSet = new Set(
+            duplicateData.duplicates || []
+        );
+
+        duplicateCount = duplicateSet.size;
+
+
+        // 过滤掉已经保存过的链接
+        const pendingUrls = uniqueUrls.filter(
+            item => !duplicateSet.has(item)
+        );
+
+
+        // ---------- 获取本次保存使用的分类 ----------
+        // 在批量任务开始前读取一次，保证整批链接使用同一个分类
+        const targetCategory = window.CategoryExplorer
+            ? window.CategoryExplorer.getPickerPath()
+            : '/default';
+
+
+        // 如果全部链接都已经存在，不再提交 Karakeep
+        if (pendingUrls.length === 0) {
+
+            shouldClearInput = true;
+
+            const message =
+                `处理完成：\n` +
+                `保存成功：${successCount} 个\n` +
+                `数据库已存在：${duplicateCount} 个\n` +
+                `本次输入重复：${inputDuplicateCount} 个\n` +
+                `无效链接：${invalidCount} 个\n` +
+                `处理失败：${failedCount} 个`;
+
+            alert(message);
+
+            return;
+        }
+
+
+        // ---------- 最多 5 个链接同时处理 ----------
+        statusText.innerText =
+            `查重完成，准备处理 ${pendingUrls.length} 个链接...`;
+
+
+        let nextIndex = 0;
+
+
+        async function worker() {
+
+            while (true) {
+
+                const currentIndex = nextIndex++;
+
+                if (currentIndex >= pendingUrls.length) {
+                    return;
+                }
+
+                const targetUrl = pendingUrls[currentIndex];
+
+                await processOne(
+                    targetUrl,
+                    targetCategory
+                );
+
+                updateProgress(pendingUrls.length);
+            }
+        }
+
+
+        const workerCount = Math.min(5, pendingUrls.length);
+
+        const workers = Array.from(
+            { length: workerCount },
+            () => worker()
+        );
+
+
+        await Promise.all(workers);
+
+
+        // ---------- 所有链接处理完成 ----------
+        shouldClearInput = true;
+
+
+        // 只有真正新增了书签，才需要刷新列表
+        if (successCount > 0) {
+
+            statusText.innerText =
+                '全部处理完成，正在刷新书签列表...';
+
+            // 整批只刷新一次
+            await loadCards();
+        }
+
+
+        // ---------- 最终统计 ----------
+        const message =
+            `批量处理完成：\n\n` +
+            `保存成功：${successCount} 个\n` +
+            `数据库已存在：${duplicateCount} 个\n` +
+            `本次输入重复：${inputDuplicateCount} 个\n` +
+            `无效链接：${invalidCount} 个\n` +
+            `处理失败：${failedCount} 个`;
+
+        alert(message);
+
+
+    } catch (e) {
+
+        console.error('批量保存过程出现异常：', e);
+
+        alert(e.message || '批量保存过程出现异常');
+
+    } finally {
+
+        statusText.classList.add('hidden');
+
+        if (shouldClearInput) {
+            urlInput.value = '';
+        }
+
+        saveBtn.disabled = false;
+        saveBtn.classList.remove('opacity-50');
+    }
+};
+
 
         // 页面加载完成后初始化主页列表
         document.addEventListener('DOMContentLoaded', () => {
