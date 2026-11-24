@@ -1519,13 +1519,26 @@ async function chooseMoveCategory() {
     });
   }
 
-  // ---------- 对外 API ----------
+// ---------- 对外 API ----------
 window.CategoryExplorer = {
+
     CategoryStore,
+
     loadCategoryTree,
     invalidateTree,
+
+    // 缓存管理
+    rebuildCategoryIndex,
+    addCategoryToCache,
+    updateCategoryPathInCache,
+    removeCategoryFromCache,
+
+    // 统一渲染
+    renderAllCategoryTrees,
+
     renderExplorerTree,
     renderPickerTree,
+
     setScope,
     selectCategory,
     toggleSaveZone,
@@ -1555,9 +1568,8 @@ window.CategoryExplorer = {
         );
 
         updatePickerBadge(node);
-    },
+    }
 };
-
   // ---------- 初始化 ----------
   document.addEventListener("DOMContentLoaded", () => {
     bindEvents();
