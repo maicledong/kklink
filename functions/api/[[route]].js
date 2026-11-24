@@ -434,38 +434,126 @@ if (path === '/api/categories/rename' && request.method === 'POST') {
 
     // 事务：更新自身 + 子分类 path/parent_path + bookmarks.category_path
     // D1 用 batch 保证原子性
-    const oldPrefix = oldPath + '/';
-    const newPrefix = newPath + '/';
+// ---------- 获取全部分类 ----------
+const { results: categories } = await env.DB.prepare(`
+    SELECT path, name, parent_path, is_system
+    FROM categories
+`).all();
 
-    // 1) 更新自身
-    const stmts = [
-      env.DB.prepare(
-        `UPDATE categories SET path = ?, name = ? WHERE path = ?`
-      ).bind(newPath, rawName, oldPath),
-      // 2) 更新直接子分类的 parent_path
-      env.DB.prepare(
-        `UPDATE categories SET parent_path = ? WHERE parent_path = ?`
-      ).bind(newPath, oldPath),
-      // 3) 更新所有后代分类的 path（把 oldPath/ 前缀替换为 newPath/）
-      env.DB.prepare(
-        `UPDATE categories SET path = ? || substr(path, ?) WHERE path LIKE ?`
-      ).bind(newPath, oldPath.length + 1, oldPrefix + '%'),
-      // 4) 更新后代分类的 parent_path（同上）
-      env.DB.prepare(
-        `UPDATE categories SET parent_path = ? || substr(parent_path, ?) WHERE parent_path LIKE ?`
-      ).bind(newPath, oldPath.length + 1, oldPrefix + '%'),
-      // 5) 更新 bookmarks 中属于该分类的
-      env.DB.prepare(
-        `UPDATE bookmarks SET category_path = ? WHERE category_path = ?`
-      ).bind(newPath, oldPath),
-      // 6) 更新 bookmarks 中属于后代的
-      env.DB.prepare(
-        `UPDATE bookmarks SET category_path = ? || substr(category_path, ?) WHERE category_path LIKE ?`
-      ).bind(newPath, oldPath.length + 1, oldPrefix + '%'),
-    ];
+// ---------- 找出当前分类及所有后代 ----------
+const oldPrefix = oldPath + '/';
 
-    await env.DB.batch(stmts);
+const subtree = categories.filter(item => {
+    return item.path === oldPath ||
+           item.path.startsWith(oldPrefix);
+});
 
+// ---------- 建立旧路径与新路径映射 ----------
+const pathMap = new Map();
+
+for (const item of subtree) {
+    const newItemPath = newPath + item.path.slice(oldPath.length);
+
+    pathMap.set(item.path, newItemPath);
+}
+
+// ---------- 生成唯一临时路径 ----------
+const existingPaths = new Set(
+    categories.map(item => item.path)
+);
+
+const temporaryPathMap = new Map();
+
+const temporaryPrefix =
+    `/__category_rename_tmp_${crypto.randomUUID()}`;
+
+for (let i = 0; i < subtree.length; i++) {
+    let temporaryPath = `${temporaryPrefix}/${i}`;
+
+    while (existingPaths.has(temporaryPath)) {
+        temporaryPath += '_';
+    }
+
+    existingPaths.add(temporaryPath);
+
+    temporaryPathMap.set(
+        subtree[i].path,
+        temporaryPath
+    );
+}
+
+// ---------- 生成 SQL ----------
+const statements = [];
+
+// 第一阶段：将所有受影响分类修改为临时路径
+for (const item of subtree) {
+    statements.push(
+        env.DB.prepare(`
+            UPDATE categories
+            SET path = ?
+            WHERE path = ?
+        `).bind(
+            temporaryPathMap.get(item.path),
+            item.path
+        )
+    );
+}
+
+// 第二阶段：临时路径修改为最终路径
+for (const item of subtree) {
+    const updatedPath = pathMap.get(item.path);
+
+    // 当前分类的父路径不变
+    // 后代分类的父路径同步更新
+    const updatedParentPath = item.path === oldPath
+        ? item.parent_path
+        : pathMap.get(item.parent_path);
+
+    if (item.path === oldPath) {
+        // 当前分类更新 path 和 name
+        statements.push(
+            env.DB.prepare(`
+                UPDATE categories
+                SET path = ?, name = ?
+                WHERE path = ?
+            `).bind(
+                updatedPath,
+                rawName,
+                temporaryPathMap.get(item.path)
+            )
+        );
+    } else {
+        // 后代分类更新 path 和 parent_path
+        statements.push(
+            env.DB.prepare(`
+                UPDATE categories
+                SET path = ?, parent_path = ?
+                WHERE path = ?
+            `).bind(
+                updatedPath,
+                updatedParentPath,
+                temporaryPathMap.get(item.path)
+            )
+        );
+    }
+}
+
+// 第三阶段：同步更新书签所属分类路径
+for (const item of subtree) {
+    statements.push(
+        env.DB.prepare(`
+            UPDATE bookmarks
+            SET category_path = ?
+            WHERE category_path = ?
+        `).bind(
+            pathMap.get(item.path),
+            item.path
+        )
+    );
+}
+
+// ---------- 批量执行 ----------
+await env.DB.batch(statements);
     return new Response(JSON.stringify({ success: true, old_path: oldPath, new_path: newPath, name: rawName }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
@@ -822,28 +910,76 @@ if (path === '/api/categories/delete' && request.method === 'POST') {
       });
     }
 
-    const prefix = delPath + '/';
+// ---------- 获取全部分类 ----------
+const { results: categories } = await env.DB.prepare(`
+    SELECT path
+    FROM categories
+`).all();
 
-    // 先统计要删多少（给前端提示用）
-    const catCountRow = await env.DB.prepare(
-      `SELECT COUNT(*) AS c FROM categories WHERE path = ? OR path LIKE ?`
-    ).bind(delPath, prefix + '%').first();
-    const bmCountRow = await env.DB.prepare(
-      `SELECT COUNT(*) AS c FROM bookmarks WHERE category_path = ? OR category_path LIKE ?`
-    ).bind(delPath, prefix + '%').first();
+// ---------- 找出当前分类及所有后代 ----------
+const prefix = delPath + '/';
 
-    const deletedCategories = catCountRow?.c || 0;
-    const deletedBookmarks = bmCountRow?.c || 0;
+const subtree = (categories || []).filter(item => {
+    return item.path === delPath ||
+           item.path.startsWith(prefix);
+});
 
-    // 事务删除
-    await env.DB.batch([
-      env.DB.prepare(
-        `DELETE FROM bookmarks WHERE category_path = ? OR category_path LIKE ?`
-      ).bind(delPath, prefix + '%'),
-      env.DB.prepare(
-        `DELETE FROM categories WHERE path = ? OR path LIKE ?`
-      ).bind(delPath, prefix + '%'),
-    ]);
+// 提取需要删除的分类路径
+const categoryPaths = subtree.map(item => item.path);
+
+// ---------- 统计需要删除的书签数量 ----------
+let deletedBookmarks = 0;
+
+// 每批最多处理 80 个分类路径，避免 SQL 参数过多
+for (let i = 0; i < categoryPaths.length; i += 80) {
+    const chunk = categoryPaths.slice(i, i + 80);
+    const placeholders = chunk.map(() => '?').join(',');
+
+    const row = await env.DB.prepare(`
+        SELECT COUNT(*) AS c
+        FROM bookmarks
+        WHERE category_path IN (${placeholders})
+    `).bind(...chunk).first();
+
+    deletedBookmarks += Number(row?.c || 0);
+}
+
+// 当前分类及其所有后代分类数量
+const deletedCategories = categoryPaths.length;
+
+// ---------- 生成删除 SQL ----------
+const statements = [];
+
+// 第一阶段：删除所有关联书签
+for (let i = 0; i < categoryPaths.length; i += 80) {
+    const chunk = categoryPaths.slice(i, i + 80);
+    const placeholders = chunk.map(() => '?').join(',');
+
+    statements.push(
+        env.DB.prepare(`
+            DELETE FROM bookmarks
+            WHERE category_path IN (${placeholders})
+        `).bind(...chunk)
+    );
+}
+
+// 第二阶段：删除所有分类
+for (let i = 0; i < categoryPaths.length; i += 80) {
+    const chunk = categoryPaths.slice(i, i + 80);
+    const placeholders = chunk.map(() => '?').join(',');
+
+    statements.push(
+        env.DB.prepare(`
+            DELETE FROM categories
+            WHERE path IN (${placeholders})
+        `).bind(...chunk)
+    );
+}
+
+// ---------- 批量执行 ----------
+if (statements.length > 0) {
+    await env.DB.batch(statements);
+}
 
     return new Response(JSON.stringify({
       success: true,
