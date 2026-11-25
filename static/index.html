@@ -1317,7 +1317,95 @@ function invalidateCategoryPaths(paths) {
         pathSet.has(entry.category)
     );
 }
-	
+
+
+
+// ---------- 删除书签：精准失效相关缓存 ----------
+function invalidateDeletedBookmark(ids) {
+
+    // 兼容单条 ID 和批量 ID
+    const idList = (Array.isArray(ids) ? ids : [ids]).filter(id => id !== null && id !== undefined && id !== '');
+
+    const affectedScopes = new Set();
+    const affectedCategories = new Set();
+
+    let hasMissingRecord = false;
+
+    // ---------- 1. 收集删除前的书签信息 ----------
+    for (const id of idList) {
+
+        const key = String(id);
+
+        const record =
+            records.get(key) ||
+            AppState.listData.find(
+                item => String(item.id) === key
+            );
+
+        if (!record) {
+            hasMissingRecord = true;
+            continue;
+        }
+
+        // ---------- 2. 判断主页和归档页 ----------
+        if (record.status === 'active') {
+            affectedScopes.add('home');
+        } else if (record.status === 'archived') {
+            affectedScopes.add('archive');
+        } else {
+            hasMissingRecord = true;
+        }
+
+        // ---------- 3. 判断收藏页 ----------
+        if (Number(record.is_favorite) === 1) {
+            affectedScopes.add('fav');
+        }
+
+        // ---------- 4. 收集原所属分类 ----------
+        if (record.category_path) {
+            affectedCategories.add(record.category_path);
+        }
+    }
+
+    // ---------- 5. 精准失效相关分页缓存 ----------
+    if (hasMissingRecord) {
+
+        // 无法确定影响范围，保守失效所有分页
+        invalidateAllPages();
+
+    } else {
+
+        // 一次遍历分页缓存，统一处理所有受影响的页面
+        invalidatePages(entry => {
+
+            // 所有关键词搜索缓存失效
+            if (entry.keyword) {
+                return true;
+            }
+
+            // 主页、收藏页、归档页
+            if (affectedScopes.has(entry.scope)) {
+                return true;
+            }
+
+            // 原所属分类
+            if (
+                entry.scope === 'category' &&
+                affectedCategories.has(entry.category)
+            ) {
+                return true;
+            }
+
+            return false;
+        });
+    }
+
+    // ---------- 6. 从共享记录中删除书签 ----------
+    for (const id of idList) {
+        records.delete(String(id));
+    }
+}
+
 
     // 让指定列表的第二页及以后缓存失效
     function invalidatePagesAfterFirst(state) {
@@ -1572,6 +1660,7 @@ return {
     invalidateScopes,
     invalidateCategoryPages,
     invalidateCategoryPaths,
+	invalidateDeletedBookmark,
     invalidatePagesAfterFirst,
     invalidateOtherPageSizes,
     prependToFirstPage,
@@ -2640,16 +2729,16 @@ window.batchAction = async function(action, payloadVal) {
                 }
             }
 
-            // ---------- 删除书签 ----------
-            else if (action === 'delete') {
-                // 删除操作暂时采用保守策略
-                // 后续单独设计精细化删除缓存
-                BookmarkCache.invalidateAllPages();
+// ---------- 删除书签 ----------
+else if (action === 'delete') {
 
-                for (const id of ids) {
-                    BookmarkCache.records.delete(String(id));
-                }
-            }
+    // 根据删除前的书签信息，精准失效相关缓存
+    // 批量删除只统一处理一次
+    BookmarkCache.invalidateDeletedBookmark(ids);
+}
+
+
+				
 
             // ---------- 其他操作 ----------
             else {
@@ -3103,6 +3192,13 @@ else if (action === 'move') {
         // 无法确定源分类时，采用保守处理
         BookmarkCache.invalidateCategoryPages();
     }
+}
+
+	// ---------- 删除书签 ----------
+else if (action === 'delete') {
+
+    // 精准失效该书签所属范围的缓存
+    BookmarkCache.invalidateDeletedBookmark(id);
 }
 
             // 其他操作暂时采用保守处理
