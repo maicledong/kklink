@@ -2786,14 +2786,35 @@ async function saveBookmarkEdit() {
 
         const result = await res.json();
 
-        if (!res.ok || !result.success) {
-            throw new Error(result.error || '编辑失败');
-        }
+if (!res.ok || !result.success) {
+    throw new Error(result.error || '编辑失败');
+}
 
-        closeBookmarkEdit();
+// ---------- 更新书签共享缓存 ----------
+if (result.data) {
 
-        // 刷新当前列表，显示最新内容
-        await loadCards();
+    // 使用后端返回的完整记录更新共享缓存
+    BookmarkCache.mergeRecords([result.data]);
+
+    // 编辑字段可能影响关键词搜索结果，
+    // 因此让所有关键词搜索分页缓存失效
+    BookmarkCache.invalidatePages(entry => {
+        return Boolean(entry.keyword);
+    });
+
+} else {
+
+    // 兼容后端未返回完整记录的情况
+    BookmarkCache.invalidateAllPages();
+}
+
+closeBookmarkEdit();
+
+// 刷新当前列表，优先读取有效缓存
+await loadCards();
+
+
+		
 
     } catch (e) {
 
@@ -2848,7 +2869,7 @@ document.addEventListener('keydown', (e) => {
         e.key === 'Escape' &&
         !bookmarkEditModal.classList.contains('hidden')
     ) {
-        closeBookmarkEdit();
+        confirmCloseBookmarkEdit();
     }
 
 });
