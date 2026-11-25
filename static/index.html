@@ -2868,7 +2868,7 @@ window.onCategoryMoved = function (data) {
 		
 
 		
-// 如果当前分类或当前选中的保存分类被删除，修正对应状态
+// 分类删除成功后的统一处理
 window.onCategoryDeleted = (result) => {
     const deletedPath = result?.path;
 
@@ -2879,33 +2879,68 @@ window.onCategoryDeleted = (result) => {
 
     // 判断某个路径是否属于被删除分类或其子分类
     const isInsideDeletedTree = (currentPath) => {
+        if (!currentPath) return false;
+
         return currentPath === deletedPath ||
             currentPath.startsWith(deletedPath + '/');
     };
 
-    // 当前正在浏览的分类被删除
-    if (
+    // 1. 清理共享书签缓存
+    // 删除该分类及其所有子分类下的书签记录
+    const deletedIds = BookmarkCache.removeCategoryTree(deletedPath);
+
+    // 2. 同步清理当前页面的数据
+    AppState.listData = AppState.listData.filter(
+        item => !deletedIds.has(String(item.id))
+    );
+
+    // 3. 从当前页面 DOM 中移除对应卡片
+    cardsContainer.querySelectorAll('.card[data-id]').forEach(card => {
+        if (deletedIds.has(String(card.dataset.id))) {
+            card.remove();
+        }
+    });
+
+    // 4. 判断当前浏览的分类是否被删除
+    const currentCategoryDeleted =
         AppState.scope === 'category' &&
-        isInsideDeletedTree(AppState.category)
-    ) {
-        window.CategoryExplorer.setScope('home');
+        isInsideDeletedTree(AppState.category);
+
+    if (currentCategoryDeleted) {
+
+        // 静默切换到主页，避免触发 onScopeChanged
+        window.CategoryExplorer.setScope('home', {
+            silent: true
+        });
+
+        AppState.scope = 'home';
+        AppState.category = '';
+        AppState.page = 1;
     }
 
-    // 保存区选中的分类被删除
+    // 5. 保存区选中的分类被删除，重置为默认分类
     const pickerPath = window.CategoryExplorer?.getPickerPath();
 
     if (pickerPath && isInsideDeletedTree(pickerPath)) {
         window.CategoryExplorer.setPickerPath('/default');
     }
 
-    // 分类资源管理器自身的当前路径也需要修正
+    // 6. 分类资源管理器自身的当前路径被删除，重置为默认分类
     const currentPath = window.CategoryExplorer?.getCurrentPath();
 
     if (currentPath && isInsideDeletedTree(currentPath)) {
         window.CategoryExplorer.setCurrentPath('/default');
     }
-};
 
+    // 7. 判断是否需要重新加载当前列表
+    const deletedBookmarks = Number(result?.deleted_bookmarks) || 0;
+
+    if (currentCategoryDeleted || deletedBookmarks > 0) {
+        // 删除书签会影响列表数量和分页，
+        // 重新请求当前视图一次，确保显示的数据准确
+        loadCards();
+    }
+};
 
 /* ============================================================
  * 批量保存链接
