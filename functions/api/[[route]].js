@@ -240,12 +240,22 @@ if (path === '/api/store' && request.method === 'POST') {
     }
 
 
-// 使用 INSERT OR IGNORE，避免重复 URL 覆盖已有书签
-const storeResult = await env.DB.prepare(`
+// 插入书签，并在新增成功时返回完整记录
+const record = await env.DB.prepare(`
     INSERT INTO bookmarks
-    (url, title, description, image_url, img_file_id, category_path, karakeep_id, updated_at)
+    (
+        url,
+        title,
+        description,
+        image_url,
+        img_file_id,
+        category_path,
+        karakeep_id,
+        updated_at
+    )
     VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(url) DO NOTHING
+    RETURNING *
 `).bind(
     originalUrl,
     title,
@@ -254,15 +264,15 @@ const storeResult = await env.DB.prepare(`
     imgFileId,
     finalCategory,
     karakeepId
-).run();
+).first();
 
-// 判断是否真正写入数据库
-const inserted = Number(storeResult.meta?.changes || 0) > 0;
+const inserted = !!record;
 
 return new Response(
     JSON.stringify({
         success: true,
-        duplicate: !inserted
+        duplicate: !inserted,
+        record: record || null
     }),
     {
         headers: {
