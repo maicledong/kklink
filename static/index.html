@@ -3575,6 +3575,10 @@ renderTimeoutTasks();
 function cacheNewBookmark(record) {
 
     if (!record || !record.id) return;
+    // ---------- 0. 让所有关键词搜索缓存失效 ----------
+    BookmarkCache.invalidatePages(entry => {
+        return Boolean(entry.keyword);
+    });	
 
     const pageSize = Number(AppState.pageSize) || 20;
 
