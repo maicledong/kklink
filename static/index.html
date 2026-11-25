@@ -1330,6 +1330,20 @@ function invalidateCategoryPaths(paths) {
         );
     }
 
+// 让其他分页数量对应的缓存全部失效
+function invalidateOtherPageSizes(state) {
+
+    const currentPageSize =
+        Number(state.pageSize) || 20;
+
+    invalidatePages(entry =>
+        entry.scope === state.scope &&
+        entry.category === (state.category || '') &&
+        entry.keyword === (state.keyword || '') &&
+        entry.pageSize !== currentPageSize
+    );
+}	
+
 
     // ---------- 新书签插入第一页 ----------
 
@@ -1548,33 +1562,24 @@ function prependToFirstPage(state, items) {
 
     // ---------- 对外公开的方法 ----------
 
-    return {
-        records,
-        pages,
-
-        makePageKey,
-        mergeRecords,
-        savePage,
-        getPage,
-
-        updateBookmarkFields,
-        updateBookmarkFavorite,
-        updateBookmarkStatus,
-        updateBookmarkCategory,
-
-        invalidateScopes,
-        invalidateCategoryPages,
-		invalidateCategoryPaths,
-        invalidatePagesAfterFirst,
-
-        prependToFirstPage,
-
-        updateCategoryTree,
-        removeCategoryTree,
-
-        invalidateAllPages,
-        clear
-    };
+return {
+    records, pages,
+    makePageKey, mergeRecords, savePage, getPage,
+    updateBookmarkFields,
+    updateBookmarkFavorite,
+    updateBookmarkStatus,
+    updateBookmarkCategory,
+    invalidateScopes,
+    invalidateCategoryPages,
+    invalidateCategoryPaths,
+    invalidatePagesAfterFirst,
+    invalidateOtherPageSizes,
+    prependToFirstPage,
+    updateCategoryTree,
+    removeCategoryTree,
+    invalidateAllPages,
+    clear
+};
 })();
 
 
@@ -3573,6 +3578,9 @@ function cacheNewBookmark(record) {
         if (!homeResult.updated) {
             BookmarkCache.invalidatePagesAfterFirst(homeState);
         }
+
+		// 其他分页数量的主页缓存全部失效
+        BookmarkCache.invalidateOtherPageSizes(homeState);
     }
 
 
@@ -3599,6 +3607,9 @@ function cacheNewBookmark(record) {
         if (!categoryResult.updated) {
             BookmarkCache.invalidatePagesAfterFirst(categoryState);
         }
+
+		// 其他分页数量的目标分类缓存全部失效
+        BookmarkCache.invalidateOtherPageSizes(categoryState);
     }
 }
 
