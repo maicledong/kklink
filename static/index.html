@@ -3506,6 +3506,69 @@ renderTimeoutTasks();
 // 初次保存和手动重新检查共用
 // ============================================================
 
+// ============================================================
+// 新增书签后：更新主页和目标分类的第一页缓存
+// ============================================================
+
+function cacheNewBookmark(record) {
+
+    if (!record || !record.id) return;
+
+    const pageSize = Number(AppState.pageSize) || 20;
+
+    // ---------- 1. 更新主页第一页缓存 ----------
+    if (record.status !== 'archived') {
+
+        const homeState = {
+            scope: 'home',
+            category: '',
+            keyword: '',
+            page: 1,
+            pageSize
+        };
+
+        const homeResult = BookmarkCache.prependToFirstPage(
+            homeState,
+            [record]
+        );
+
+        // 如果主页第一页没有可用缓存，
+        // 也要让第二页及以后的缓存失效
+        if (!homeResult.updated) {
+            BookmarkCache.invalidatePagesAfterFirst(homeState);
+        }
+    }
+
+
+    // ---------- 2. 更新目标分类第一页缓存 ----------
+    const categoryPath = record.category_path;
+
+    if (categoryPath) {
+
+        const categoryState = {
+            scope: 'category',
+            category: categoryPath,
+            keyword: '',
+            page: 1,
+            pageSize
+        };
+
+        const categoryResult = BookmarkCache.prependToFirstPage(
+            categoryState,
+            [record]
+        );
+
+        // 如果目标分类第一页没有可用缓存，
+        // 也要让第二页及以后的缓存失效
+        if (!categoryResult.updated) {
+            BookmarkCache.invalidatePagesAfterFirst(categoryState);
+        }
+    }
+}
+
+
+		
+
 async function saveCrawledBookmark(checkData, categoryPath) {
 
     const {
@@ -3582,6 +3645,19 @@ async function saveCrawledBookmark(checkData, categoryPath) {
             storeData.error ||
             `写入数据库失败，HTTP ${storeRes.status}`
         );
+    }
+
+    // ---------- 新增书签后更新缓存 ----------
+    if (!storeData.duplicate && storeData.record) {
+
+        cacheNewBookmark(storeData.record);
+
+    } else if (!storeData.duplicate && !storeData.record) {
+
+        // 兼容后端尚未返回完整记录的情况：
+        // 无法精确插入缓存时，失效相关缓存，避免读取旧数据
+        BookmarkCache.invalidateScopes(['home']);
+        BookmarkCache.invalidateCategoryPaths([categoryPath]);
     }
 
     return storeData;
