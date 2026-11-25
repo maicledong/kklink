@@ -3376,8 +3376,8 @@ window.onCategoryDeleted = (result) => {
 /* ============================================================
  * 批量保存链接
  * 1. 批量检查 D1 重复链接
- * 2. 最多 5 个链接同时提交 Karakeep
- * 3. 最多 5 个链接同时检查抓取状态
+ * 2. 最多 3 个链接同时提交 Karakeep
+ * 3. 最多 3 个链接同时检查抓取状态
  * 4. Oracle 图片转存最多 3 个并发
  * 5. 每个链接完成后立即写入 D1
  * 6. 全部完成后只刷新一次列表
@@ -3572,13 +3572,16 @@ renderTimeoutTasks();
 // 新增书签后：更新主页和目标分类的第一页缓存
 // ============================================================
 
-function cacheNewBookmark(record) {
+function cacheNewBookmark(record, invalidateKeywordCache = true) {
 
     if (!record || !record.id) return;
-    // ---------- 0. 让所有关键词搜索缓存失效 ----------
-    BookmarkCache.invalidatePages(entry => {
-        return Boolean(entry.keyword);
-    });	
+
+    // ---------- 0. 按需让关键词搜索缓存失效 ----------
+    if (invalidateKeywordCache) {
+        BookmarkCache.invalidatePages(entry => {
+            return Boolean(entry.keyword);
+        });
+    }
 
     const pageSize = Number(AppState.pageSize) || 20;
 
@@ -3640,8 +3643,7 @@ function cacheNewBookmark(record) {
 
 
 		
-
-async function saveCrawledBookmark(checkData, categoryPath) {
+async function saveCrawledBookmark(checkData, categoryPath, invalidateKeywordCache = true) {	
 
     const {
         url: finalUrl,
@@ -3719,18 +3721,28 @@ async function saveCrawledBookmark(checkData, categoryPath) {
         );
     }
 
-    // ---------- 新增书签后更新缓存 ----------
-    if (!storeData.duplicate && storeData.record) {
+// ---------- 新增书签后更新缓存 ----------
+if (!storeData.duplicate && storeData.record) {
 
-        cacheNewBookmark(storeData.record);
+    cacheNewBookmark(
+        storeData.record,
+        invalidateKeywordCache
+    );
 
-    } else if (!storeData.duplicate && !storeData.record) {
+} else if (!storeData.duplicate && !storeData.record) {
 
-        // 兼容后端尚未返回完整记录的情况：
-        // 无法精确插入缓存时，失效相关缓存，避免读取旧数据
-        BookmarkCache.invalidateScopes(['home']);
-        BookmarkCache.invalidateCategoryPaths([categoryPath]);
+    // 兼容后端尚未返回完整记录的情况：
+    // 无法精确插入缓存时，失效相关缓存，避免读取旧数据
+    BookmarkCache.invalidateScopes(['home']);
+    BookmarkCache.invalidateCategoryPaths([categoryPath]);
+
+    // 按需失效关键词搜索缓存
+    if (invalidateKeywordCache) {
+        BookmarkCache.invalidatePages(entry => {
+            return Boolean(entry.keyword);
+        });
     }
+}
 
     return storeData;
 }
@@ -4008,9 +4020,11 @@ async function processOne(targetUrl, categoryPath) {
 
 
         // 4. 抓取成功，转存图片并写入 D1
+		// 批量保存期间暂不扫描关键词缓存，留到整批结束后统一处理
         const storeData = await saveCrawledBookmark(
             checkData,
-            categoryPath
+            categoryPath,
+			false
         );
 
 
@@ -4161,6 +4175,8 @@ async function processOne(targetUrl, categoryPath) {
 
         // 只有真正新增了书签，才需要刷新列表
         if (successCount > 0) {
+			// 整批只扫描一次关键词搜索缓存
+			BookmarkCache.invalidatePages(entry => {return Boolean(entry.keyword);});
 
             statusText.innerText =
                 '全部处理完成，正在刷新书签列表...';
