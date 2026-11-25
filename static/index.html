@@ -1682,47 +1682,129 @@ title._scrollAnimation = title.animate(
 		
 		
 
-        /* ============================================================
-         * 渲染列表
-         * ============================================================ */
-        async function loadCards() {
-            // 显示加载中
-            cardsContainer.innerHTML = '<p class="text-slate-500 col-span-full text-center py-12 animate-pulse">⏳ 加载中...</p>';
-            paginationBar.classList.add('hidden');
-            
-            // 同步前端状态到 URL 参数
-            let fetchUrl = `/api/list?scope=${AppState.scope}&page=${AppState.page}&pageSize=${AppState.pageSize}`;
-            if (AppState.scope === 'category' && AppState.category) {
-                fetchUrl += `&category=${encodeURIComponent(AppState.category)}`;
+
+async function loadCards() {
+
+    // 显示加载中
+    cardsContainer.innerHTML = '<p class="text-slate-500 col-span-full text-center py-12 animate-pulse">⏳ 加载中...</p>';
+    paginationBar.classList.add('hidden');
+
+
+    // 保存本次请求对应的状态快照
+    // 防止请求过程中用户切换了视图，旧请求又覆盖新视图
+    const requestState = {
+        scope: AppState.scope,
+        category: AppState.category,
+        keyword: AppState.keyword,
+        page: AppState.page,
+        pageSize: AppState.pageSize
+    };
+
+    const requestKey = BookmarkCache.makePageKey(requestState);
+
+
+    try {
+
+        let result = null;
+
+
+        // ====================================================
+        // 1. 优先读取本地书签缓存
+        // ====================================================
+
+        const cachedPage = BookmarkCache.getPage(requestState);
+
+        if (cachedPage) {
+
+            // 命中缓存，不请求 /api/list
+            result = {
+                success: true,
+                data: cachedPage.data,
+                total: cachedPage.total,
+                totalPages: cachedPage.totalPages
+            };
+
+        } else {
+
+            // ====================================================
+            // 2. 缓存不存在或已经失效，才请求后端
+            // ====================================================
+
+            let fetchUrl =
+                `/api/list?scope=${requestState.scope}` +
+                `&page=${requestState.page}` +
+                `&pageSize=${requestState.pageSize}`;
+
+            if (
+                requestState.scope === 'category' &&
+                requestState.category
+            ) {
+                fetchUrl +=
+                    `&category=${encodeURIComponent(requestState.category)}`;
             }
-            if (AppState.keyword) {
-                fetchUrl += `&keyword=${encodeURIComponent(AppState.keyword)}`;
+
+            if (requestState.keyword) {
+                fetchUrl +=
+                    `&keyword=${encodeURIComponent(requestState.keyword)}`;
             }
 
-            try {
-                const res = await fetch(fetchUrl);
-                const result = await res.json();
-                
-                if (!result.success) {
-                    throw new Error(result.error || '获取列表失败');
-                }
 
-                AppState.listData = result.data || [];
-                const totalPages = result.totalPages || 0;
+            const res = await fetch(fetchUrl);
+            result = await res.json();
 
-                // 清空全选状态
-                AppState.isSelectAll = false;
-                AppState.selectedIds.clear();
-                updateBatchToolbar();
 
-                if (AppState.listData.length === 0) {
-                    cardsContainer.innerHTML = '<p class="text-slate-500 col-span-full text-center py-12">还没有收藏任何链接</p>';
-                    renderPagination(0, 0);
-                    return;
-                }
+            if (!result.success) {
+                throw new Error(result.error || '获取列表失败');
+            }
 
-                // 渲染卡片
-                cardsContainer.innerHTML = AppState.listData.map(item => {
+
+            // 将后端数据写入共享书签缓存
+            // 返回值是合并后的共享书签对象
+            result.data = BookmarkCache.savePage(
+                requestState,
+                result.data || [],
+                result.total,
+                result.totalPages
+            );
+        }
+
+
+        // 如果请求过程中用户切换了视图或分页，
+        // 就不再使用这次旧请求的结果更新页面
+        if (BookmarkCache.makePageKey(AppState) !== requestKey) {
+            return;
+        }
+
+
+        // ====================================================
+        // 3. 使用缓存或后端返回的数据
+        // ====================================================
+
+        AppState.listData = result.data || [];
+
+        const totalPages = Number(result.totalPages) || 0;
+
+
+        // 清空全选状态
+        AppState.isSelectAll = false;
+        AppState.selectedIds.clear();
+        updateBatchToolbar();
+
+
+if (AppState.listData.length === 0) {
+    cardsContainer.innerHTML = '<p class="text-slate-500 col-span-full text-center py-12">还没有收藏任何链接</p>';
+    renderPagination(AppState.page, totalPages);
+    return;
+}
+
+
+        // ====================================================
+        // 4. 从这里开始保留你原来的卡片渲染代码
+        // ====================================================
+
+        // 渲染卡片
+        cardsContainer.innerHTML = AppState.listData.map(item => {
+
                     const isAudio = (item.file_type || '').startsWith('audio/');
                     // 收藏与归档状态
                     const isFav = item.is_favorite === 1;
@@ -1795,7 +1877,9 @@ try {
 <div class="card-category relative flex items-center gap-1 mb-1 pr-8">
 
     <!-- 当前所属分类 -->
-    <span class="text-xs text-sky-300 bg-sky-900/40 px-2 py-0 rounded">
+    <span 
+	data-role="category-path"
+	class="text-xs text-sky-300 bg-sky-900/40 px-2 py-0 rounded">
         ${(item.category_path || '/default')
             .split('/')
             .filter(Boolean)
@@ -1914,11 +1998,19 @@ try {
                 // 绑定卡片上的单条操作事件
                 bindCardEvents();
 
-            } catch (e) {
-                console.error("加载列表失败", e);
-                cardsContainer.innerHTML = `<p class="text-red-400 col-span-full text-center py-8">加载失败：${e.message}</p>`;
-            }
+    } catch (e) {
+
+        // 如果已经切换了视图，不显示旧请求的错误
+        if (BookmarkCache.makePageKey(AppState) !== requestKey) {
+            return;
         }
+
+        console.error("加载列表失败", e);
+
+        cardsContainer.innerHTML =
+            `<p class="text-red-400 col-span-full text-center py-8">加载失败：${e.message}</p>`;
+    }
+}
 
         /* ============================================================
          * 分页渲染
@@ -2671,52 +2763,108 @@ searchInput.addEventListener('keydown', (e) => {
             loadCards();
         };
 
-// 分类重命名后，同步卡片列表当前分类路径
+
+
+
+// ============================================================
+// 更新当前页面中所有卡片的分类文字
+// 不重新生成卡片 DOM，只修改分类标签的文字
+// ============================================================
+
+function updateVisibleCategoryLabels() {
+
+    cardsContainer.querySelectorAll(
+        '.card[data-id]'
+    ).forEach(card => {
+
+        const id = String(card.dataset.id);
+
+        // 从共享书签缓存中取得最新数据
+        const item = BookmarkCache.records.get(id);
+
+        // 找到当前卡片的分类文字
+        const label = card.querySelector(
+            '[data-role="category-path"]'
+        );
+
+        if (!item || !label) return;
+
+        const path = item.category_path || '/default';
+
+        label.textContent =
+            path.split('/')
+                .filter(Boolean)
+                .join('/') || '未分类';
+    });
+}
+
+
+// ============================================================
+// 统一处理分类重命名和移动后的书签路径变化
+// ============================================================
+
+function handleCategoryPathChanged(oldPath, newPath) {
+
+    if (!oldPath || !newPath) return;
+
+    // 1. 更新共享书签缓存及分类分页缓存
+    BookmarkCache.updateCategoryTree(
+        oldPath,
+        newPath
+    );
+
+
+    // 2. 如果当前正在浏览被修改的分类或其后代，
+    //    同步更新当前分类路径
+    if (
+        AppState.scope === 'category' &&
+        (
+            AppState.category === oldPath ||
+            AppState.category.startsWith(oldPath + '/')
+        )
+    ) {
+
+        AppState.category =
+            newPath + AppState.category.slice(oldPath.length);
+    }
+
+
+    // 3. 直接更新当前页面卡片的分类文字
+    updateVisibleCategoryLabels();
+}
+
+		
+
+// 分类重命名成功回调
 window.onCategoryRenamed = (result) => {
+
     const oldPath = result?.old_path;
     const newPath = result?.new_path;
 
     if (!oldPath || !newPath) return;
 
-    if (AppState.category === oldPath) {
-        AppState.category = newPath;
-    } else if (AppState.category.startsWith(oldPath + '/')) {
-        AppState.category =
-            newPath + AppState.category.slice(oldPath.length);
-    }
-
-    // 如果正在查看分类，刷新卡片列表
-    if (AppState.scope === 'category') {
-        AppState.page = 1;
-        loadCards();
-    }
+    // 统一处理书签缓存和当前页面
+    handleCategoryPathChanged(
+        oldPath,
+        newPath
+    );
 };
 
 
 // 分类移动成功回调
 window.onCategoryMoved = function (data) {
+
     const oldPath = data?.old_path;
     const newPath = data?.new_path;
 
     if (!oldPath || !newPath) return;
 
-    // 判断当前分类是否属于被移动的分类或其子分类
-    const isInsideMovedTree =
-        AppState.category === oldPath ||
-        AppState.category.startsWith(oldPath + '/');
-
-    // 只有当前正在浏览受影响的分类时，才更新路径
-    if (
-        AppState.scope === 'category' &&
-        isInsideMovedTree
-    ) {
-        AppState.category =
-            newPath + AppState.category.slice(oldPath.length);
-
-        AppState.page = 1;
-        loadCards();
-    }
-};		
+    // 统一处理书签缓存和当前页面
+    handleCategoryPathChanged(
+        oldPath,
+        newPath
+    );
+};	
 		
 
 		
