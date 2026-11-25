@@ -1333,97 +1333,133 @@ function invalidateCategoryPaths(paths) {
 
     // ---------- 新书签插入第一页 ----------
 
-    function prependToFirstPage(state, items) {
-        const firstPageState = {
-            ...state,
-            page: 1
-        };
+function prependToFirstPage(state, items) {
 
-        // 暂时不向关键词搜索结果中插入新书签，
-        // 避免新书签不符合关键词却被错误显示
-        if (firstPageState.keyword) {
-            return {
-                updated: false,
-                reason: 'keyword',
-                added: 0
-            };
-        }
+    const firstPageState = {
+        ...state,
+        page: 1
+    };
 
-        const entry = pages.get(makePageKey(firstPageState));
-
-        // 第一页缓存不存在或已经失效时，不主动创建缓存
-        if (!entry || entry.dirty) {
-            return {
-                updated: false,
-                reason: 'cache-miss',
-                added: 0
-            };
-        }
-
-        // 合并书签数据，确保所有分页共用同一份记录
-        const sharedItems = mergeRecords(items);
-
-        const existingIds = new Set(entry.ids);
-        const newIds = [];
-
-        for (const item of sharedItems) {
-            const id = String(item.id);
-
-            // 避免重复插入
-            if (existingIds.has(id)) continue;
-
-            existingIds.add(id);
-            newIds.push(id);
-        }
-
-        // 没有新增记录，不需要修改分页数据
-        if (newIds.length === 0) {
-            return {
-                updated: false,
-                reason: 'no-new-records',
-                added: 0
-            };
-        }
-
-        // 新书签放在第一页最前面
-        entry.ids = [
-            ...newIds,
-            ...entry.ids
-        ];
-
-        // 更新总记录数
-        entry.total += newIds.length;
-
-        // 计算第一页溢出数量
-        entry.overflowCount = Math.max(
-            0,
-            entry.ids.length - entry.pageSize
-        );
-
-        // 第一页可能溢出，因此总页数需要重新计算
-        if (entry.total > 0) {
-            const remainingCount = Math.max(
-                0,
-                entry.total - entry.ids.length
-            );
-
-            entry.totalPages =
-                1 + Math.ceil(remainingCount / entry.pageSize);
-        } else {
-            entry.totalPages = 0;
-        }
-
-        // 第一页发生变化后，第二页及以后需要重新获取
-        invalidatePagesAfterFirst(firstPageState);
-
+    // 暂不把新书签插入 keyword 结果，避免不匹配关键词
+    if (firstPageState.keyword) {
         return {
-            updated: true,
-            added: newIds.length,
-            overflowCount: entry.overflowCount,
-            total: entry.total,
-            totalPages: entry.totalPages
+            updated: false,
+            reason: 'keyword',
+            added: 0
         };
     }
+
+    const entry = pages.get(makePageKey(firstPageState));
+
+    if (!entry || entry.dirty) {
+        return {
+            updated: false,
+            reason: 'cache-miss',
+            added: 0
+        };
+    }
+
+    // 合并新增记录，确保 records 中有完整书签数据
+    const sharedItems = mergeRecords(items);
+
+    const existingIds = new Set(entry.ids);
+    const newIds = [];
+
+    // 找出真正不在第一页缓存中的新增记录
+    for (const item of sharedItems) {
+
+        const id = String(item.id);
+
+        if (existingIds.has(id)) continue;
+
+        existingIds.add(id);
+        newIds.push(id);
+    }
+
+    if (newIds.length === 0) {
+        return {
+            updated: false,
+            reason: 'no-new-records',
+            added: 0
+        };
+    }
+
+    // 合并原有记录和新增记录
+    entry.ids = [...newIds, ...entry.ids];
+
+
+    // =====================================================
+    // 按照数据库排序规则重新排列第一页缓存
+    // ORDER BY created_at DESC, id DESC
+    // =====================================================
+
+    entry.ids.sort((idA, idB) => {
+
+        const itemA = records.get(idA);
+        const itemB = records.get(idB);
+
+        // 缺少记录的 ID 放在最后
+        if (!itemA) return itemB ? 1 : 0;
+        if (!itemB) return -1;
+
+        // 1. created_at 降序
+        const timeA = String(itemA.created_at || '');
+        const timeB = String(itemB.created_at || '');
+
+        if (timeA !== timeB) {
+            return timeA < timeB ? 1 : -1;
+        }
+
+        // 2. created_at 相同时，id 降序
+        const numericIdA = Number(itemA.id);
+        const numericIdB = Number(itemB.id);
+
+        return numericIdB - numericIdA;
+    });
+
+
+    // 累计总记录数
+    entry.total += newIds.length;
+
+
+    // 根据第一页实际缓存数量计算溢出数量
+    entry.overflowCount = Math.max(
+        0,
+        entry.ids.length - entry.pageSize
+    );
+
+
+    // 重新计算总页数
+    if (entry.total > 0) {
+
+        const remainingCount = Math.max(
+            0,
+            entry.total - entry.ids.length
+        );
+
+        entry.totalPages =
+            1 + Math.ceil(
+                remainingCount / entry.pageSize
+            );
+
+    } else {
+
+        entry.totalPages = 0;
+    }
+
+
+    // 第一页发生变化，第二页及以后必须重新获取
+    invalidatePagesAfterFirst(firstPageState);
+
+
+    return {
+        updated: true,
+        added: newIds.length,
+        overflowCount: entry.overflowCount,
+        total: entry.total,
+        totalPages: entry.totalPages
+    };
+}
 
 
     // ---------- 分类树操作 ----------
