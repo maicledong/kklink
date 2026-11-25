@@ -991,67 +991,114 @@ if (path === '/api/list' && request.method === 'GET') {
     const keyword = (url.searchParams.get('keyword') || '').trim();
     const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
     const pageSize = Math.min(100, Math.max(1, parseInt(url.searchParams.get('pageSize') || '20', 10) || 20));
-    const offset = (page - 1) * pageSize;
+    // 第一页溢出数量
+    // 只有请求第二页及以后时，才使用这个参数
+    const requestedOverflow = parseInt(url.searchParams.get('overflowCount') || '0',10);
+    const overflowCount = page > 1 && Number.isSafeInteger(requestedOverflow)
+        ? Math.max(0, requestedOverflow)
+        : 0;
+    // 计算实际 OFFSET
+    const offset = (page - 1) * pageSize + overflowCount;
 
+    // ---------- 查询条件 ----------
     const where = [];
     const binds = [];
 
     if (scope === 'home') {
       where.push(`status != 'archived'`);
+
     } else if (scope === 'fav') {
       where.push(`is_favorite = 1`);
+
     } else if (scope === 'archive') {
       where.push(`status = 'archived'`);
+
     } else if (scope === 'category') {
+
       if (!category) {
-        return new Response(JSON.stringify({ success: true, data: [], total: 0, totalPages: 0, page }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        return new Response(JSON.stringify({
+          success: true,
+          data: [],
+          total: 0,
+          totalPages: 0,
+          page,
+          pageSize,
+          overflowCount: 0
+        }), {
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
         });
       }
+
       where.push(`category_path = ?`);
       binds.push(category);
+
     } else {
-      return new Response(JSON.stringify({ error: '无效的 scope' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      return new Response(JSON.stringify({
+        error: '无效的 scope'
+      }), {
+        status: 400,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
       });
     }
 
-// 搜索范围：标题、描述、URL、标签、备注、摘要
-if (keyword) {
-  where.push(`(
-    title LIKE ?
-    OR description LIKE ?
-    OR url LIKE ?
-    OR tags LIKE ?
-    OR notes LIKE ?
-    OR summary LIKE ?
-  )`);
+    // 关键词搜索
+    if (keyword) {
+      where.push(
+        `(title LIKE ? OR description LIKE ? OR url LIKE ?)`
+      );
 
-  const like = `%${keyword}%`;
+      const like = `%${keyword}%`;
+      binds.push(like, like, like);
+    }
 
-  binds.push(
-    like, // title
-    like, // description
-    like, // url
-    like, // tags
-    like, // notes
-    like  // summary
-  );
-}
+    const whereSql = where.length
+      ? `WHERE ${where.join(' AND ')}`
+      : '';
 
-    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
-    // 总数
+    // ---------- 查询总数 ----------
     const countRow = await env.DB.prepare(
-      `SELECT COUNT(*) AS c FROM bookmarks ${whereSql}`
+      `SELECT COUNT(*) AS c
+       FROM bookmarks
+       ${whereSql}`
     ).bind(...binds).first();
-    const total = countRow?.c || 0;
-    const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
 
-    // 当前页
+    const total = Number(countRow?.c || 0);
+
+
+    // ---------- 计算总页数 ----------
+    // 第一页实际容量 = pageSize + overflowCount
+    const firstPageCount = Math.min(
+      total,
+      pageSize + overflowCount
+    );
+
+    const totalPages = total === 0
+      ? 0
+      : 1 + Math.ceil(
+          Math.max(0, total - firstPageCount) / pageSize
+        );
+
+
+    // ---------- 查询当前页 ----------
     const { results } = await env.DB.prepare(
-      `SELECT * FROM bookmarks ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`
-    ).bind(...binds, pageSize, offset).all();
+      `SELECT *
+       FROM bookmarks
+       ${whereSql}
+       ORDER BY created_at DESC, id DESC
+       LIMIT ? OFFSET ?`
+    ).bind(
+      ...binds,
+      pageSize,
+      offset
+    ).all();
+
 
     return new Response(JSON.stringify({
       success: true,
@@ -1060,15 +1107,26 @@ if (keyword) {
       totalPages,
       page,
       pageSize,
+      overflowCount,
       scope,
       category: scope === 'category' ? category : null,
       keyword
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }), {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
+    });
+
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+    return new Response(JSON.stringify({
+      error: e.message
+    }), {
+      status: 500,
+      headers: corsHeaders
+    });
   }
 }
-
 // ========== 卡片：批量操作 ==========
 if (path === '/api/bookmark/batch' && request.method === 'POST') {
   try {
