@@ -1916,15 +1916,40 @@ async function loadCards() {
                     `&category=${encodeURIComponent(requestState.category)}`;
             }
 
-            if (requestState.keyword) {
-                fetchUrl +=
-                    `&keyword=${encodeURIComponent(requestState.keyword)}`;
-            }
+if (requestState.keyword) {
+    fetchUrl +=
+        `&keyword=${encodeURIComponent(requestState.keyword)}`;
+}
 
 
-            const res = await fetch(fetchUrl);
-            result = await res.json();
+// ====================================================
+// 第一页发生溢出时，修正第二页及以后的 OFFSET
+// ====================================================
 
+if (requestState.page > 1) {
+
+    // 获取当前列表对应的第一页状态
+    const firstPageState = {
+        ...requestState,
+        page: 1
+    };
+
+    // 读取第一页缓存中的溢出数量
+    const firstPageCache =
+        BookmarkCache.getPage(firstPageState);
+
+    const overflowCount =
+        firstPageCache?.overflowCount || 0;
+
+    // 只有第一页存在溢出时，才向后端传递参数
+    if (overflowCount > 0) {
+        fetchUrl += `&overflowCount=${overflowCount}`;
+    }
+}
+
+
+const res = await fetch(fetchUrl);
+result = await res.json();
 
             if (!result.success) {
                 throw new Error(result.error || '获取列表失败');
