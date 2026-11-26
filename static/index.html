@@ -1305,6 +1305,24 @@ function pruneCategoryPathChanges() {
 
         return items;
     }
+
+// ============================================================
+// 判断分类请求期间，请求对应的分类路径是否发生过变化
+// ============================================================
+
+function hasCategoryPathChangedSince(path, requestVersion) {
+
+    if (!path) return false;
+
+    // 检查请求发出后发生的路径变化
+    return categoryPathChanges.some(change => {
+
+        return change.version > requestVersion &&
+            isInsideTree(path, change.oldPath);
+
+    });
+}
+
 	
 
     // 生成分页缓存键
@@ -1927,6 +1945,7 @@ return {
     beginCategoryPathRequest,
     endCategoryPathRequest,
     rebaseCategoryPaths,
+	hasCategoryPathChangedSince,
 
     removeCategoryTree,
     invalidateAllPages,
@@ -2372,18 +2391,41 @@ try {
         categoryPathRequest.version
     );
 
+// ====================================================
+// 判断本次分类请求期间，分类路径是否发生过变化
+// ====================================================
 
-    // ====================================================
-    // 再将修正后的数据写入共享书签缓存
-    // ====================================================
+const categoryPathChanged =
+    requestState.scope === 'category' &&
+    BookmarkCache.hasCategoryPathChangedSince(
+        requestState.category,
+        categoryPathRequest.version
+    );
 
-    // 返回值是合并后的共享书签对象
+
+// ====================================================
+// 保存请求结果
+// ====================================================
+
+if (categoryPathChanged) {
+
+    // 分类路径已经变化：
+    // 只合并共享书签记录，不再创建旧路径分页缓存
+    result.data = BookmarkCache.mergeRecords(
+        result.data || []
+    );
+
+} else {
+
+    // 分类路径没有变化：
+    // 正常保存分页缓存
     result.data = BookmarkCache.savePage(
         requestState,
-        result.data,
+        result.data || [],
         result.total,
         result.totalPages
     );
+}
 
 } finally {
 
