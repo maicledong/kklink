@@ -467,6 +467,11 @@ if (rawName.includes('/')) {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 }
+
+  }
+
+
+  
 // ========== 分类：重命名 ==========
 if (path === '/api/categories/rename' && request.method === 'POST') {
   try {
