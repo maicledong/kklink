@@ -932,7 +932,6 @@ const results = await env.DB.batch([
     // 1. 统计即将删除的书签所属范围
     env.DB.prepare(`
         SELECT
-            COUNT(*) AS total,
 
             SUM(
                 CASE
