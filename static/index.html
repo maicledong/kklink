@@ -3476,9 +3476,8 @@ window.onCategoryDeleted = (result) => {
             currentPath.startsWith(deletedPath + '/');
     };
 
-    // 1. 清理共享书签缓存
-    // 删除该分类及其所有子分类下的书签记录
-    const deletedIds = BookmarkCache.removeCategoryTree(deletedPath);
+    // 1. 清理共享书签缓存，并根据后端统计结果精准失效分页
+	const deletedIds = BookmarkCache.removeCategoryTree(deletedPath, result);
 
     // 2. 同步清理当前页面的数据
     AppState.listData = AppState.listData.filter(
@@ -3523,14 +3522,38 @@ window.onCategoryDeleted = (result) => {
         window.CategoryExplorer.setCurrentPath('/default');
     }
 
-    // 7. 判断是否需要重新加载当前列表
-    const deletedBookmarks = Number(result?.deleted_bookmarks) || 0;
+// 7. 根据当前浏览范围，判断是否需要重新加载列表
 
-    if (currentCategoryDeleted || deletedBookmarks > 0) {
-        // 删除书签会影响列表数量和分页，
-        // 重新请求当前视图一次，确保显示的数据准确
-        loadCards();
-    }
+const deletedHome = Number(result?.deleted_home) || 0;
+const deletedArchive = Number(result?.deleted_archive) || 0;
+const deletedFavorites = Number(result?.deleted_favorites) || 0;
+
+// 当前列表是否受到删除操作影响
+let currentListAffected = false;
+
+if (AppState.scope === 'home') {
+
+    currentListAffected = deletedHome > 0;
+
+} else if (AppState.scope === 'fav') {
+
+    currentListAffected = deletedFavorites > 0;
+
+} else if (AppState.scope === 'archive') {
+
+    currentListAffected = deletedArchive > 0;
+
+} else if (AppState.scope === 'category') {
+
+    // 当前分类不在被删除的分类树中时，不受影响
+    currentListAffected = currentCategoryDeleted;
+}
+
+// 当前分类被删除，需要切换到主页并重新加载
+// 其他情况下，只有当前浏览范围确实受到影响才重新加载
+if (currentCategoryDeleted || currentListAffected) {
+    loadCards();
+}
 };
 
 /* ============================================================
