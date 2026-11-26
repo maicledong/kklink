@@ -393,30 +393,90 @@ if (/[\/%_]/.test(rawName)) {
 // ========== 分类：重命名 ==========
 if (path === '/api/categories/rename' && request.method === 'POST') {
   try {
-    const { old_path, new_name } = await request.json();
-    const oldPath = (old_path || '').trim();
-    const rawName = (new_name || '').trim();
+    const data = await request.json();
 
-    if (!oldPath || oldPath === '/') {
-      return new Response(JSON.stringify({ error: '无效的分类路径' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-    if (!rawName) {
-      return new Response(JSON.stringify({ error: '新名称不能为空' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-// 分类名称禁止包含路径分隔符和 SQL LIKE 通配符
-if (/[\/%_]/.test(rawName)) {
-    return new Response(JSON.stringify({
+    const { old_path, new_name } = data || {};
+
+    // 1. 检查参数类型
+    if (
+      typeof old_path !== 'string' ||
+      typeof new_name !== 'string'
+    ) {
+      return new Response(JSON.stringify({
         success: false,
-        error: '分类名称不能包含 /、% 和 _'
-    }), {
+        error: '参数格式不正确'
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-}
+      });
+    }
+
+    const oldPath = old_path.trim();
+    const rawName = new_name.trim();
+
+    // 2. 检查原分类路径
+    if (!oldPath || oldPath === '/') {
+      return new Response(JSON.stringify({
+        success: false,
+        error: '无效的分类路径'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 必须以 / 开头，不能以 / 结尾，不能包含连续的 //
+    if (
+      !oldPath.startsWith('/') ||
+      oldPath.endsWith('/') ||
+      oldPath.includes('//') ||
+      oldPath.split('/').slice(1).some(segment =>
+        !segment ||
+        segment === '.' ||
+        segment === '..'
+      )
+    ) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: '分类路径格式不正确'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 3. 检查新分类名称
+    if (!rawName) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: '新名称不能为空'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 限制名称最多 100 个 Unicode 字符
+    if (Array.from(rawName).length > 100) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: '分类名称不能超过 100 个字符'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 分类名称不能包含路径分隔符
+    if (rawName.includes('/')) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: '分类名称不能包含 /'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     // 系统分类禁止重命名
     const target = await env.DB.prepare(
@@ -545,12 +605,39 @@ await env.DB.batch(stmts);
     return new Response(JSON.stringify({ success: true, old_path: oldPath, new_path: newPath, name: rawName }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
+
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    console.error('分类重命名失败:', e);
+
+    const errorMessage = String(
+      e?.message || e || ''
+    );
+
+    // 判断是否为分类路径主键或唯一约束冲突
+    const isPathConflict =
+      /categories\.path/i.test(errorMessage) &&
+      /(unique|primary key|constraint)/i.test(errorMessage);
+
+    if (isPathConflict) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: '目标分类路径已存在，请更换分类名称'
+      }), {
+        status: 409,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    return new Response(JSON.stringify({
+      success: false,
+      error: '分类重命名失败'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 }
+
 
 
 
