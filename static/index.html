@@ -1607,30 +1607,94 @@ function prependToFirstPage(state, items) {
         return updatedCount;
     }
 
-    // 删除整个分类树对应的缓存记录
-    function removeCategoryTree(deletedPath) {
-        const deletedIds = new Set();
+function removeCategoryTree(deletedPath, result = {}) {
+    const deletedIds = new Set();
 
-        for (const [id, item] of records) {
+    // ---------- 1. 获取后端统计结果 ----------
+
+    const deletedBookmarks = Number(result.deleted_bookmarks) || 0;
+    const deletedHome = Number(result.deleted_home) || 0;
+    const deletedArchive = Number(result.deleted_archive) || 0;
+    const deletedFavorites = Number(result.deleted_favorites) || 0;
+
+    // ---------- 2. 收集并删除本地缓存中的书签记录 ----------
+
+    for (const [id, item] of records) {
+        const categoryPath = item.category_path || '';
+
+        if (isInsideTree(categoryPath, deletedPath)) {
+            deletedIds.add(String(id));
+            records.delete(id);
+        }
+    }
+
+    // 同时检查当前页面数据，避免共享 records 中没有对应记录
+    // 但 AppState.listData 中仍然存在该书签的情况
+    if (Array.isArray(AppState.listData)) {
+        for (const item of AppState.listData) {
             const categoryPath = item.category_path || '';
 
             if (isInsideTree(categoryPath, deletedPath)) {
-                deletedIds.add(id);
-                records.delete(id);
+                deletedIds.add(String(item.id));
             }
         }
-
-        for (const entry of pages.values()) {
-            entry.ids = entry.ids.filter(
-                id => !deletedIds.has(id)
-            );
-
-            entry.dirty = true;
-        }
-
-        return deletedIds;
     }
 
+    // ---------- 3. 精准处理分页缓存 ----------
+
+    for (const entry of pages.values()) {
+
+        // 从分页 ID 中移除已经删除的书签
+        entry.ids = entry.ids.filter(
+            id => !deletedIds.has(String(id))
+        );
+
+        // 3.1 关键词搜索缓存
+        // 只要确实删除了书签，关键词缓存就失效
+        if (deletedBookmarks > 0 && entry.keyword) {
+            entry.dirty = true;
+            continue;
+        }
+
+        // 3.2 主页缓存
+        if (
+            entry.scope === 'home' &&
+            deletedHome > 0
+        ) {
+            entry.dirty = true;
+            continue;
+        }
+
+        // 3.3 收藏缓存
+        if (
+            entry.scope === 'fav' &&
+            deletedFavorites > 0
+        ) {
+            entry.dirty = true;
+            continue;
+        }
+
+        // 3.4 归档缓存
+        if (
+            entry.scope === 'archive' &&
+            deletedArchive > 0
+        ) {
+            entry.dirty = true;
+            continue;
+        }
+
+        // 3.5 被删除分类及其子分类的分页缓存
+        if (
+            entry.scope === 'category' &&
+            isInsideTree(entry.category, deletedPath)
+        ) {
+            entry.dirty = true;
+            continue;
+        }
+    }
+
+    return deletedIds;
+}
 
     // ---------- 全部缓存管理 ----------
 
