@@ -925,49 +925,85 @@ if (path === '/api/categories/delete' && request.method === 'POST') {
             });
         }
 
-        const prefix = delPath + '/';
+const prefix = delPath + '/';
 
-        // 一次性删除书签和分类
-        const results = await env.DB.batch([
+const results = await env.DB.batch([
 
-            // 1. 删除当前分类及其所有后代分类中的书签
-env.DB.prepare(`
-    DELETE FROM bookmarks
-    WHERE category_path = ?
-       OR substr(category_path, 1, length(?)) = ?
-`).bind(
-    delPath,
-    prefix,
-    prefix
-),
+    // 1. 统计即将删除的书签所属范围
+    env.DB.prepare(`
+        SELECT
+            COUNT(*) AS total,
 
-            // 2. 删除当前分类及其所有后代分类
-env.DB.prepare(`
-    DELETE FROM categories
-    WHERE path = ?
-       OR substr(path, 1, length(?)) = ?
-`).bind(
-    delPath,
-    prefix,
-    prefix
-)
+            SUM(
+                CASE
+                    WHEN status != 'archived' THEN 1
+                    ELSE 0
+                END
+            ) AS home_count,
 
-        ]);
+            SUM(
+                CASE
+                    WHEN status = 'archived' THEN 1
+                    ELSE 0
+                END
+            ) AS archive_count,
 
-        // 从实际删除结果获取数量
-        const deletedBookmarks = Number(
-            results[0]?.meta?.changes || 0
-        );
+            SUM(
+                CASE
+                    WHEN is_favorite = 1 THEN 1
+                    ELSE 0
+                END
+            ) AS favorite_count
 
-        const deletedCategories = Number(
-            results[1]?.meta?.changes || 0
-        );
+        FROM bookmarks
+
+        WHERE category_path = ?
+           OR substr(category_path, 1, length(?)) = ?
+    `).bind(delPath, prefix, prefix),
+
+    // 2. 删除当前分类及其所有后代分类中的书签
+    env.DB.prepare(`
+        DELETE FROM bookmarks
+        WHERE category_path = ?
+           OR substr(category_path, 1, length(?)) = ?
+    `).bind(delPath, prefix, prefix),
+
+    // 3. 删除当前分类及其所有后代分类
+    env.DB.prepare(`
+        DELETE FROM categories
+        WHERE path = ?
+           OR substr(path, 1, length(?)) = ?
+    `).bind(delPath, prefix, prefix)
+
+]);
+
+// ---------- 读取统计结果 ----------
+
+// 第一条 SQL 是 SELECT，读取 results
+const stats = results[0]?.results?.[0] || {};
+
+const deletedBookmarks = Number(results[1]?.meta?.changes || 0);
+const deletedCategories = Number(results[2]?.meta?.changes || 0);
+
+// ---------- 整理三个范围的删除数量 ----------
+
+const deletedHome = Number(stats.home_count || 0);
+const deletedArchive = Number(stats.archive_count || 0);
+const deletedFavorites = Number(stats.favorite_count || 0);
+
+
 
         return new Response(JSON.stringify({
             success: true,
             path: delPath,
             deleted_categories: deletedCategories,
-            deleted_bookmarks: deletedBookmarks
+            deleted_bookmarks: deletedBookmarks,
+
+    // 三个范围实际删除的书签数量
+    deleted_home: deletedHome,
+    deleted_archive: deletedArchive,
+    deleted_favorites: deletedFavorites
+        
         }), {
             headers: {
                 ...corsHeaders,
