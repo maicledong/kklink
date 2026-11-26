@@ -664,7 +664,20 @@ function openMoreMenu(btn, node, mode) {
 menu.innerHTML = `
     <button data-act="add"
         class="w-full flex items-center text-left px-2.5 py-1.5 text-[13px] rounded hover:bg-slate-700 text-slate-200">
-        <span class="w-5 shrink-0 inline-flex items-center justify-start">➕</span>
+        <span class="w-5 shrink-0 inline-flex items-center justify-start">
+            <svg xmlns="http://www.w3.org/2000/svg"
+                 width="18" height="18"
+                 viewBox="0 0 24 24"
+                 fill="none"
+                 stroke="currentColor"
+                 stroke-width="1.7"
+                 stroke-linecap="round"
+                 stroke-linejoin="round">
+                <path d="M3 6.5a1.5 1.5 0 0 1 1.5-1.5H10l2 2h7.5A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 17.5z"/>
+                <path d="M16.5 13v5"/>
+                <path d="M14 15.5h5"/>
+            </svg>
+        </span>
         <span>子列表</span>
     </button>
 
@@ -676,7 +689,20 @@ menu.innerHTML = `
 
     <button data-act="move"
     class="w-full flex items-center text-left px-2.5 py-1.5 text-[13px] rounded hover:bg-slate-700 text-slate-200">
-    <span class="w-5 shrink-0 inline-flex items-center justify-start">📂</span>
+    <span class="w-5 shrink-0 inline-flex items-center justify-start">
+        <svg xmlns="http://www.w3.org/2000/svg"
+             width="18" height="18"
+             viewBox="0 0 24 24"
+             fill="none"
+             stroke="currentColor"
+             stroke-width="1.7"
+             stroke-linecap="round"
+             stroke-linejoin="round">
+            <path d="M3 6.5a1.5 1.5 0 0 1 1.5-1.5H10l2 2h7.5A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5H4.5A1.5 1.5 0 0 1 3 17.5z"/>
+            <path d="M7 14h7"/>
+            <path d="m11 11 3 3-3 3"/>
+        </svg>
+    </span>
     <span>移动</span>
 </button>
 
