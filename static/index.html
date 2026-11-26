@@ -3685,7 +3685,7 @@ function updateVisibleCategoryLabels() {
 
 function handleCategoryPathChanged(oldPath, newPath) {
 
-    if (!oldPath || !newPath) return;
+	if (!oldPath || !newPath || oldPath === newPath) return;
 
     // 1. 更新共享书签缓存及分类分页缓存
     BookmarkCache.updateCategoryTree(
