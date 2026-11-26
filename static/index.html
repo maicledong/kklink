@@ -1471,6 +1471,12 @@ function hasCategoryPathChangedSince(path, requestVersion) {
         }
     }
 
+// 清理所有关键词分页缓存
+function invalidateKeywordPages() {
+    invalidatePages(entry => Boolean(entry.keyword));
+}
+	
+
     // 让指定 scope 的所有分页缓存失效
     function invalidateScopes(scopes) {
         const scopeSet = new Set(
@@ -1952,6 +1958,7 @@ return {
 	hasCategoryPathChangedSince,
 
     removeCategoryTree,
+	invalidateKeywordPages,
     invalidateAllPages,
     clear
 };
@@ -3235,9 +3242,7 @@ if (result.data) {
 
     // 编辑字段可能影响关键词搜索结果，
     // 因此让所有关键词搜索分页缓存失效
-    BookmarkCache.invalidatePages(entry => {
-        return Boolean(entry.keyword);
-    });
+    BookmarkCache.invalidateKeywordPages();
 
 } else {
 
@@ -4045,9 +4050,7 @@ function cacheNewBookmark(record, invalidateKeywordCache = true) {
 
     // ---------- 0. 按需让关键词搜索缓存失效 ----------
     if (invalidateKeywordCache) {
-        BookmarkCache.invalidatePages(entry => {
-            return Boolean(entry.keyword);
-        });
+        BookmarkCache.invalidateKeywordPages();
     }
 
     const pageSize = Number(AppState.pageSize) || 20;
@@ -4205,9 +4208,7 @@ if (!storeData.duplicate && storeData.record) {
 
     // 按需失效关键词搜索缓存
     if (invalidateKeywordCache) {
-        BookmarkCache.invalidatePages(entry => {
-            return Boolean(entry.keyword);
-        });
+        BookmarkCache.invalidateKeywordPages();
     }
 }
 
@@ -4595,7 +4596,7 @@ async function processOne(targetUrl, categoryPath) {
         }
 
 
-        // ---------- 最多 5 个链接同时处理 ----------
+        // ---------- 最多 3 个链接同时处理 ----------
         statusText.innerText =
             `查重完成，准备处理 ${pendingUrls.length} 个链接...`;
 
@@ -4643,7 +4644,7 @@ async function processOne(targetUrl, categoryPath) {
         // 只有真正新增了书签，才需要刷新列表
         if (successCount > 0) {
 			// 整批只扫描一次关键词搜索缓存
-			BookmarkCache.invalidatePages(entry => {return Boolean(entry.keyword);});
+            BookmarkCache.invalidateKeywordPages();
 
             statusText.innerText =
                 '全部处理完成，正在刷新书签列表...';
