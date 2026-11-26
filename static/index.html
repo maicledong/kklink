@@ -1143,12 +1143,24 @@ const BookmarkCache = (() => {
     // 用于防止旧 /api/list 响应覆盖分类移动或重命名后的路径
     // ============================================================
 
-    // 当前分类路径变更版本
-    let categoryPathVersion = 0;
+// 当前分类路径变更版本
+let categoryPathVersion = 0;
 
-    // 记录每次分类路径变化
-    // 旧请求返回时，根据请求发出时的版本，补上之后发生的路径变化
-    const categoryPathChanges = [];
+// 记录每次分类路径变化
+// 旧请求返回时，根据请求发出时的版本，补上之后发生的路径变化
+const categoryPathChanges = [];
+
+// ============================================================
+// 正在执行的 /api/list 请求登记
+// ============================================================
+
+// 请求 ID 递增计数器
+let nextCategoryPathRequestId = 0;
+
+// 正在执行的请求
+// key：请求 ID
+// value：请求开始时的分类路径版本
+const activeCategoryPathRequests = new Map();
 
 
     // ---------- 基础辅助方法 ----------
@@ -1166,6 +1178,83 @@ const BookmarkCache = (() => {
     function getCategoryPathVersion() {
         return categoryPathVersion;
     }
+
+// ============================================================
+// 登记一个分类路径请求
+// ============================================================
+
+function beginCategoryPathRequest() {
+
+    const requestId = ++nextCategoryPathRequestId;
+
+    // 记录请求开始时的版本
+    const requestVersion = categoryPathVersion;
+
+    activeCategoryPathRequests.set(
+        requestId,
+        requestVersion
+    );
+
+    return {
+        id: requestId,
+        version: requestVersion
+    };
+}
+
+
+// ============================================================
+// 请求结束后释放登记
+// ============================================================
+
+function endCategoryPathRequest(requestToken) {
+
+    if (!requestToken) return;
+
+    // 删除已经结束的请求
+    activeCategoryPathRequests.delete(requestToken.id);
+
+    // 清理不再需要的历史记录
+    pruneCategoryPathChanges();
+}
+
+
+// ============================================================
+// 安全清理不再需要的分类路径变更记录
+// ============================================================
+
+function pruneCategoryPathChanges() {
+
+    // 没有正在执行的列表请求
+    // 所有历史记录都已经没有用途
+    if (activeCategoryPathRequests.size === 0) {
+
+        categoryPathChanges.length = 0;
+
+        return;
+    }
+
+    // 找出所有正在执行请求中最旧的版本
+    let oldestRequestVersion = Infinity;
+
+    for (const version of activeCategoryPathRequests.values()) {
+
+        if (version < oldestRequestVersion) {
+            oldestRequestVersion = version;
+        }
+    }
+
+    // 删除最旧请求也不再需要的历史记录
+    //
+    // 请求版本为 V 的请求，只需要 version > V 的变化记录
+    // 因此 version <= 最旧请求版本的记录可以安全删除
+    while (
+        categoryPathChanges.length > 0 &&
+        categoryPathChanges[0].version <= oldestRequestVersion
+    ) {
+
+        categoryPathChanges.shift();
+    }
+}	
 
 
     // ============================================================
@@ -1703,6 +1792,8 @@ function updateCategoryTree(oldPath, newPath) {
         newPath
     });
 
+	// 立即清理当前没有任何请求需要的历史记录
+    pruneCategoryPathChanges();
 
     return updatedCount;
 }
@@ -1825,13 +1916,18 @@ return {
     invalidateScopes,
     invalidateCategoryPages,
     invalidateCategoryPaths,
-	invalidateDeletedBookmark,
+    invalidateDeletedBookmark,
     invalidatePagesAfterFirst,
     invalidateOtherPageSizes,
     prependToFirstPage,
     updateCategoryTree,
-	getCategoryPathVersion,
-	rebaseCategoryPaths,
+
+    // 分类路径版本管理
+    getCategoryPathVersion,
+    beginCategoryPathRequest,
+    endCategoryPathRequest,
+    rebaseCategoryPaths,
+
     removeCategoryTree,
     invalidateAllPages,
     clear
@@ -2246,47 +2342,60 @@ if (requestState.page > 1) {
 
 
 // ====================================================
-// 记录请求发出时的分类路径版本
+// 登记本次分类路径请求
 // ====================================================
 
-const requestCategoryPathVersion =
-    BookmarkCache.getCategoryPathVersion();
+const categoryPathRequest =
+    BookmarkCache.beginCategoryPathRequest();
+
+try {
+
+    // ====================================================
+    // 请求后端列表
+    // ====================================================
+
+    const res = await fetch(fetchUrl);
+
+    result = await res.json();
+
+    if (!result.success) {
+        throw new Error(result.error || '获取列表失败');
+    }
 
 
-// ====================================================
-// 请求后端列表
-// ====================================================
+    // ====================================================
+    // 先修正旧请求返回的分类路径
+    // ====================================================
 
-const res = await fetch(fetchUrl);
+    result.data = BookmarkCache.rebaseCategoryPaths(
+        result.data || [],
+        categoryPathRequest.version
+    );
 
-result = await res.json();
 
-if (!result.success) {
-    throw new Error(result.error || '获取列表失败');
+    // ====================================================
+    // 再将修正后的数据写入共享书签缓存
+    // ====================================================
+
+    // 返回值是合并后的共享书签对象
+    result.data = BookmarkCache.savePage(
+        requestState,
+        result.data,
+        result.total,
+        result.totalPages
+    );
+
+} finally {
+
+    // ====================================================
+    // 请求结束后释放登记
+    // 无论请求成功、失败还是 JSON 解析异常，都会执行
+    // ====================================================
+
+    BookmarkCache.endCategoryPathRequest(
+        categoryPathRequest
+    );
 }
-
-
-// ====================================================
-// 先修正旧请求返回的分类路径
-// ====================================================
-
-result.data = BookmarkCache.rebaseCategoryPaths(
-    result.data || [],
-    requestCategoryPathVersion
-);
-
-
-// ====================================================
-// 再将修正后的数据写入共享书签缓存
-// ====================================================
-
-// 返回值是合并后的共享书签对象
-result.data = BookmarkCache.savePage(
-    requestState,
-    result.data,
-    result.total,
-    result.totalPages
-);
         }
 
 
