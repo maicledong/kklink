@@ -1210,7 +1210,11 @@ function endCategoryPathRequest(requestToken) {
 
     if (!requestToken) return;
 
-    // 删除已经结束的请求
+    // 只有确实登记过的请求，才执行释放
+    if (!activeCategoryPathRequests.has(requestToken.id)) {
+        return;
+    }
+
     activeCategoryPathRequests.delete(requestToken.id);
 
     // 清理不再需要的历史记录
