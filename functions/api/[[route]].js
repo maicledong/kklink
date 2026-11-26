@@ -323,20 +323,79 @@ if (path === '/api/categories/tree' && request.method === 'GET') {
 // ========== 分类：新建 ==========
 if (path === '/api/categories/create' && request.method === 'POST') {
   try {
-    const { parent_path, name } = await request.json();
-    const parentPath = (parent_path || '/').trim();
-    const rawName = (name || '').trim();
+const data = await request.json();
+const { parent_path, name } = data || {};
 
-    if (!rawName) {
-      return new Response(JSON.stringify({ error: '分类名称不能为空' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-// 分类名称禁止包含路径分隔符和 SQL LIKE 通配符
-if (/[\/%_]/.test(rawName)) {
+// 1. 检查参数类型
+// 允许省略 parent_path，默认创建在根目录
+if (
+    (parent_path !== undefined &&
+     parent_path !== null &&
+     typeof parent_path !== 'string') ||
+    typeof name !== 'string'
+) {
     return new Response(JSON.stringify({
         success: false,
-        error: '分类名称不能包含 /、% 和 _'
+        error: '参数格式不正确'
+    }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+}
+
+const parentPath = (
+    parent_path == null ? '/' : parent_path
+).trim();
+
+const rawName = name.trim();
+
+// 2. 检查父分类路径格式
+if (
+    !parentPath.startsWith('/') ||
+    (parentPath.length > 1 && parentPath.endsWith('/')) ||
+    parentPath.includes('//') ||
+    parentPath.split('/').slice(1).some(segment =>
+        !segment ||
+        segment === '.' ||
+        segment === '..'
+    )
+) {
+    return new Response(JSON.stringify({
+        success: false,
+        error: '父分类路径格式不正确'
+    }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+}
+
+// 3. 检查分类名称
+if (!rawName) {
+    return new Response(JSON.stringify({
+        success: false,
+        error: '分类名称不能为空'
+    }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+}
+
+// 4. 限制名称长度
+if (Array.from(rawName).length > 100) {
+    return new Response(JSON.stringify({
+        success: false,
+        error: '分类名称不能超过 100 个字符'
+    }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+}
+
+// 5. 分类名称不能包含路径分隔符
+if (rawName.includes('/')) {
+    return new Response(JSON.stringify({
+        success: false,
+        error: '分类名称不能包含 /'
     }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -384,12 +443,35 @@ if (/[\/%_]/.test(rawName)) {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
-}
+    console.error('分类创建失败:', e);
 
+    const errorMessage = String(
+        e?.message || e || ''
+    );
+
+    // 判断分类路径主键或唯一约束冲突
+    const isPathConflict =
+        /categories\.path/i.test(errorMessage) &&
+        /(unique|primary key|constraint)/i.test(errorMessage);
+
+    if (isPathConflict) {
+        return new Response(JSON.stringify({
+            success: false,
+            error: '同名分类已存在'
+        }), {
+            status: 409,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+    }
+
+    return new Response(JSON.stringify({
+        success: false,
+        error: '分类创建失败'
+    }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+}
 // ========== 分类：重命名 ==========
 if (path === '/api/categories/rename' && request.method === 'POST') {
   try {
