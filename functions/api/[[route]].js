@@ -402,12 +402,7 @@ if (rawName.includes('/')) {
     });
 }
 
-    // 规范化父路径
-    let normalizedParent = parentPath;
-    if (!normalizedParent.startsWith('/')) normalizedParent = '/' + normalizedParent;
-    if (normalizedParent.length > 1 && normalizedParent.endsWith('/')) {
-      normalizedParent = normalizedParent.slice(0, -1);
-    }
+    const normalizedParent = parentPath;
 
     // 校验父分类存在
     if (normalizedParent !== '/') {
