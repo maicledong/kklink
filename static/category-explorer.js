@@ -683,7 +683,19 @@ menu.innerHTML = `
 
     <button data-act="rename"
         class="w-full flex items-center text-left px-2.5 py-1 text-[13px] rounded hover:bg-slate-700 text-slate-200">
-        <span class="w-5 shrink-0 inline-flex items-center justify-start">✏️</span>
+        <span class="w-5 shrink-0 inline-flex items-center justify-start">
+    <svg xmlns="http://www.w3.org/2000/svg"
+         width="18" height="18"
+         viewBox="0 0 24 24"
+         fill="none"
+         stroke="currentColor"
+         stroke-width="1.7"
+         stroke-linecap="round"
+         stroke-linejoin="round">
+        <path d="m16 5 3 3"/>
+        <path d="M4 20l4.5-1 11-11a2.12 2.12 0 0 0-3-3l-11 11L4 20z"/>
+    </svg>
+</span>
         <span>重命名</span>
     </button>
 
