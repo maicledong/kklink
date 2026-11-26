@@ -1462,6 +1462,17 @@ function hasCategoryPathChangedSince(path, requestVersion) {
         };
     }
 
+// 只让指定分页缓存失效
+function invalidatePage(state) {
+    const entry = pages.get(makePageKey(state));
+
+    if (entry) {
+        entry.dirty = true;
+    }
+}
+
+	
+
     // 让指定范围内的分页缓存失效
     function invalidatePages(predicate) {
         for (const entry of pages.values()) {
@@ -1937,6 +1948,7 @@ function removeCategoryTree(deletedPath, result = {}) {
 return {
     records, pages,
     makePageKey, mergeRecords, savePage, getPage,
+	invalidatePage,
     updateBookmarkFields,
     updateBookmarkFavorite,
     updateBookmarkStatus,
