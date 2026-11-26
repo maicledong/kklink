@@ -1996,23 +1996,19 @@ async function chooseMoveCategory() {
       toggleSaveZone();
     });
 
-    // 编辑弹窗
-    document.getElementById("categoryEditConfirm")?.addEventListener("click", submitCategoryEdit);
-    document.getElementById("categoryEditCancel")?.addEventListener("click", closeCategoryEdit);
-    document.getElementById("categoryEditModal")?.addEventListener("click", (e) => {
-      if (e.target === e.currentTarget) closeCategoryEdit();
-    });
-    document.getElementById("categoryEditInput")?.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") submitCategoryEdit();
-      if (e.key === "Escape") closeCategoryEdit();
-    });
+// 编辑弹窗
+document.getElementById("categoryEditConfirm")?.addEventListener("click", submitCategoryEdit);
+document.getElementById("categoryEditCancel")?.addEventListener("click", closeCategoryEdit);
 
-    // 删除弹窗
-    document.getElementById("categoryDeleteConfirm")?.addEventListener("click", submitCategoryDelete);
-    document.getElementById("categoryDeleteCancel")?.addEventListener("click", closeCategoryDelete);
-    document.getElementById("categoryDeleteModal")?.addEventListener("click", (e) => {
-      if (e.target === e.currentTarget) closeCategoryDelete();
-    });
+// 输入框快捷键
+document.getElementById("categoryEditInput")?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submitCategoryEdit();
+    if (e.key === "Escape") closeCategoryEdit();
+});
+
+// 删除弹窗
+document.getElementById("categoryDeleteConfirm")?.addEventListener("click", submitCategoryDelete);
+document.getElementById("categoryDeleteCancel")?.addEventListener("click", closeCategoryDelete);
   }
 
 // ---------- 对外 API ----------
