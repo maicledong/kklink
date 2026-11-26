@@ -2289,10 +2289,8 @@ title._scrollAnimation = title.animate(
 
 		
 		
-
-
-async function loadCards() {
-
+async function loadCards(options = {}) {
+    const forceRefresh = options.forceRefresh === true;
     // 显示加载中
     cardsContainer.innerHTML = '<p class="text-slate-500 col-span-full text-center py-12 animate-pulse">⏳ 加载中...</p>';
     paginationBar.classList.add('hidden');
@@ -2310,6 +2308,8 @@ async function loadCards() {
 
     const requestKey = BookmarkCache.makePageKey(requestState);
 
+	// 强制刷新时，让当前页原有缓存失效
+	if (forceRefresh) {BookmarkCache.invalidatePage(requestState);}
 
     try {
 
@@ -2319,8 +2319,10 @@ async function loadCards() {
         // ====================================================
         // 1. 优先读取本地书签缓存
         // ====================================================
-
-        const cachedPage = BookmarkCache.getPage(requestState);
+        // 强制刷新时，不读取当前页的旧缓存
+		const cachedPage = forceRefresh
+			? null
+            : BookmarkCache.getPage(requestState);
 
         if (cachedPage) {
 
@@ -2448,6 +2450,11 @@ if (categoryPathChanged) {
         result.total,
         result.totalPages
     );
+
+// 如果强制刷新的是第一页，
+// 让同一列表的第二页及以后缓存失效
+if (forceRefresh && requestState.page === 1) {BookmarkCache.invalidatePagesAfterFirst(requestState);}
+	
 }
 
 } finally {
@@ -3616,6 +3623,14 @@ searchInput.addEventListener('keydown', (e) => {
                 loadCards();
             };
         }
+
+		// ============================================================
+        // 刷新当前分页
+        // ============================================================
+			document.getElementById('refreshCurrentPageBtn')
+				?.addEventListener('click', () => {
+					loadCards({ forceRefresh: true });
+				});
 
         /* ============================================================
          * 联动 CategoryExplorer (第 3 批的组件)
