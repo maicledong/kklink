@@ -960,7 +960,7 @@ async function submitCategoryEdit() {
             addCategoryToCache({
                 path: createResult.path,
                 name,
-                parent_path: parentPath,
+                parent_path: createResult.parent_path,
                 is_system: false
             });
 
