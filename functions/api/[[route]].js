@@ -726,101 +726,150 @@ if (path === '/api/categories/move' && request.method === 'POST') {
       }
     }
 
-    // 13. 为所有旧路径生成临时路径
-const temporaryPathMap = new Map();
+
+// ============================================================
+// 13. 为整个分类子树生成唯一的临时根路径
+// ============================================================
+
+// 收集现有分类路径
 const existingPaths = new Set(
-  categories.map(item => item.path)
+    categories.map(item => item.path)
 );
 
-const temporaryPrefix = `/__category_move_tmp_${crypto.randomUUID()}`;
+// 使用一个统一的临时根路径
+let temporaryRootPath;
 
-for (let i = 0; i < subtree.length; i++) {
-  let temporaryPath = `${temporaryPrefix}/${i}`;
+// 防止临时根路径与现有分类路径冲突
+do {
 
-  while (existingPaths.has(temporaryPath)) {
-    temporaryPath += '_';
-  }
+    temporaryRootPath =
+        `/__category_move_tmp_${crypto.randomUUID()}`;
 
-  existingPaths.add(temporaryPath);
+} while (
+    existingPaths.has(temporaryRootPath) ||
+    categories.some(item =>
+        item.path.startsWith(temporaryRootPath + '/')
+    )
+);
 
-  temporaryPathMap.set(
-    subtree[i].path,
-    temporaryPath
-  );
-}
 
-    // 14. 构建 D1 批量更新语句
-    const statements = [];
+// ============================================================
+// 14. 构建固定数量的 D1 更新语句
+// ============================================================
 
-    // 第一阶段：先将整个子树的 path 改成临时路径
-    for (const item of subtree) {
+const statements = [];
 
-      const temporaryPath = temporaryPathMap.get(item.path);
 
-      statements.push(
-        env.DB.prepare(`
-          UPDATE categories
-          SET path = ?
-          WHERE path = ?
-        `).bind(
-          temporaryPath,
-          item.path
-        )
-      );
-    }
+// ------------------------------------------------------------
+// 第一阶段：将整个分类子树移动到统一临时根路径
+// ------------------------------------------------------------
 
-    // 第二阶段：将临时路径更新为最终路径，同时更新 parent_path
-    for (const item of subtree) {
+const oldPrefix = sourcePath + '/';
 
-      const temporaryPath = temporaryPathMap.get(item.path);
-      const updatedPath = pathMap.get(item.path);
+statements.push(
 
-      // 源分类的新父路径就是用户选择的目标父分类
-      // 后代分类的新父路径则从路径映射中取得
-      const updatedParentPath = item.path === sourcePath
-        ? targetParentPath
-        : pathMap.get(item.parent_path);
+    env.DB.prepare(`
+        UPDATE categories
+        SET path =
+            ? || substr(path, length(?) + 1)
+        WHERE
+            path = ?
+            OR substr(path, 1, length(?)) = ?
+    `).bind(
+        temporaryRootPath,
+        sourcePath,
+        sourcePath,
+        oldPrefix,
+        oldPrefix
+    )
 
-      if (!updatedParentPath) {
-        throw new Error(
-          `无法确定分类的新父路径：${item.path}`
-        );
-      }
+);
 
-      statements.push(
-        env.DB.prepare(`
-          UPDATE categories
-          SET path = ?, parent_path = ?
-          WHERE path = ?
-        `).bind(
-          updatedPath,
-          updatedParentPath,
-          temporaryPath
-        )
-      );
-    }
 
-    // 第三阶段：同步更新所有相关书签的 category_path
-    for (const item of subtree) {
+// ------------------------------------------------------------
+// 第二阶段：将整个分类子树更新为最终路径
+// 同时更新所有后代分类的 parent_path
+// ------------------------------------------------------------
 
-      const oldCategoryPath = item.path;
-      const updatedCategoryPath = pathMap.get(item.path);
+statements.push(
 
-      statements.push(
-        env.DB.prepare(`
-          UPDATE bookmarks
-          SET category_path = ?
-          WHERE category_path = ?
-        `).bind(
-          updatedCategoryPath,
-          oldCategoryPath
-        )
-      );
-    }
+    env.DB.prepare(`
+        UPDATE categories
+        SET
+            path =
+                ? || substr(path, length(?) + 1),
 
-    // 15. 使用 D1 batch 原子执行全部更新
-    // 任意一条 SQL 失败，整个批次都会回滚
-    await env.DB.batch(statements);
+            parent_path =
+                CASE
+                    WHEN path = ?
+                    THEN ?
+
+                    ELSE
+                        ? || substr(
+                            parent_path,
+                            length(?) + 1
+                        )
+                END
+
+        WHERE
+            path = ?
+            OR substr(path, 1, length(?)) = ?
+    `).bind(
+        newPath,
+        temporaryRootPath,
+
+        temporaryRootPath,
+        targetParentPath,
+
+        newPath,
+        sourcePath,
+
+        temporaryRootPath,
+        temporaryRootPath + '/',
+        temporaryRootPath + '/'
+    )
+
+);
+
+
+// ------------------------------------------------------------
+// 第三阶段：一次性更新整个分类子树中的所有书签
+// ------------------------------------------------------------
+
+statements.push(
+
+    env.DB.prepare(`
+        UPDATE bookmarks
+        SET category_path =
+            ? || substr(
+                category_path,
+                length(?) + 1
+            )
+        WHERE
+            category_path = ?
+            OR substr(
+                category_path,
+                1,
+                length(?)
+            ) = ?
+    `).bind(
+        newPath,
+        sourcePath,
+        sourcePath,
+        oldPrefix,
+        oldPrefix
+    )
+
+);
+
+// ============================================================
+// 15. 使用 D1 batch 原子执行全部更新
+// ============================================================
+
+// 现在只有 3 条 UPDATE SQL
+// 任意一条 SQL 失败，整个批次都会回滚
+
+await env.DB.batch(statements);
 
     // 16. 返回移动结果
     return jsonResponse({
