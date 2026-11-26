@@ -3624,13 +3624,38 @@ searchInput.addEventListener('keydown', (e) => {
             };
         }
 
-		// ============================================================
-        // 刷新当前分页
-        // ============================================================
-			document.getElementById('refreshCurrentPageBtn')
-				?.addEventListener('click', () => {
-					loadCards({ forceRefresh: true });
-				});
+// 刷新当前页：请求完成前禁止重复点击
+const refreshCurrentPageBtn =
+    document.getElementById('refreshCurrentPageBtn');
+
+if (refreshCurrentPageBtn) {
+    let isRefreshing = false;
+
+    refreshCurrentPageBtn.addEventListener('click', async () => {
+
+        // 正在刷新时，直接阻止重复请求
+        if (isRefreshing) return;
+
+        isRefreshing = true;
+
+        // 禁用按钮，防止再次点击
+        refreshCurrentPageBtn.disabled = true;
+        refreshCurrentPageBtn.style.opacity = '0.4';
+        refreshCurrentPageBtn.style.cursor = 'not-allowed';
+
+        try {
+            await loadCards({ forceRefresh: true });
+
+        } finally {
+            // 无论成功还是失败，都恢复按钮
+            isRefreshing = false;
+
+            refreshCurrentPageBtn.disabled = false;
+            refreshCurrentPageBtn.style.opacity = '';
+            refreshCurrentPageBtn.style.cursor = '';
+        }
+    });
+}
 
         /* ============================================================
          * 联动 CategoryExplorer (第 3 批的组件)
