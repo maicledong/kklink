@@ -1401,14 +1401,6 @@ function openCategoryMovePicker(sourceNode) {
 
         });
 
-    // 点击遮罩层取消
-    modal.addEventListener("click", (e) => {
-
-        if (e.target === modal) {
-            closeCategoryMovePicker(null);
-        }
-
-    });
 
     // 确认移动目标
     modal.querySelector("#categoryMovePickerConfirm")
@@ -1765,12 +1757,6 @@ function openMoveCategoryPicker() {
         });
     });
 
-    // 点击遮罩层取消
-    modal.addEventListener("click", (e) => {
-        if (e.target === modal) {
-            closeMoveCategoryPicker(null);
-        }
-    });
 
 // 确定按钮：正式返回选中的分类路径
 modal.querySelector("#moveCategoryPickerConfirm")
