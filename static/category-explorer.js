@@ -709,7 +709,7 @@ menu.innerHTML = `
     <button data-act="delete"
         class="w-full flex items-center text-left px-2.5 py-1 text-[13px] rounded hover:bg-red-600/20 text-red-400">
         <span class="w-5 shrink-0 inline-flex items-center justify-start">
-            <span class="inline-flex origin-left translate-x-px">${window.TRASH_SVG}</span>
+            <span class="inline-flex origin-left translate-x-[2px]">${window.TRASH_SVG}</span>
         </span>
         <span>删除</span>
     </button>
