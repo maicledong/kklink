@@ -1138,6 +1138,19 @@ const BookmarkCache = (() => {
     const pages = new Map();
 
 
+	// ============================================================
+    // 分类路径变更版本管理
+    // 用于防止旧 /api/list 响应覆盖分类移动或重命名后的路径
+    // ============================================================
+
+    // 当前分类路径变更版本
+    let categoryPathVersion = 0;
+
+    // 记录每次分类路径变化
+    // 旧请求返回时，根据请求发出时的版本，补上之后发生的路径变化
+    const categoryPathChanges = [];
+
+
     // ---------- 基础辅助方法 ----------
 
     // 判断某个分类路径是否属于指定分类树
@@ -1145,6 +1158,65 @@ const BookmarkCache = (() => {
         return path === rootPath ||
             path.startsWith(rootPath + '/');
     }
+
+    // ============================================================
+    // 获取当前分类路径版本
+    // ============================================================
+
+    function getCategoryPathVersion() {
+        return categoryPathVersion;
+    }
+
+
+    // ============================================================
+    // 修正旧请求返回的书签分类路径
+    // ============================================================
+
+    function rebaseCategoryPaths(items, requestVersion) {
+
+        if (!Array.isArray(items) || items.length === 0) {
+            return items || [];
+        }
+
+        // 请求发出后，分类路径没有发生变化
+        if (requestVersion === categoryPathVersion) {
+            return items;
+        }
+
+        // 找出请求发出之后发生的所有分类路径变化
+        const changes = categoryPathChanges.filter(
+            change => change.version > requestVersion
+        );
+
+        if (changes.length === 0) {
+            return items;
+        }
+
+        // 逐条修正书签路径
+        for (const item of items) {
+
+            let currentPath = item.category_path || '';
+
+            if (!currentPath) continue;
+
+            // 按照发生顺序依次应用路径变更
+            for (const change of changes) {
+
+                if (!isInsideTree(currentPath, change.oldPath)) {
+                    continue;
+                }
+
+                currentPath =
+                    change.newPath +
+                    currentPath.slice(change.oldPath.length);
+            }
+
+            item.category_path = currentPath;
+        }
+
+        return items;
+    }
+	
 
     // 生成分页缓存键
     function makePageKey(state) {
@@ -1564,48 +1636,77 @@ function prependToFirstPage(state, items) {
 }
 
 
-    // ---------- 分类树操作 ----------
 
-    // 分类树重命名或移动时，同步更新缓存中的书签分类路径
-    function updateCategoryTree(oldPath, newPath) {
-        let updatedCount = 0;
+// ---------- 分类树操作 ----------
 
-        for (const item of records.values()) {
-            const oldCategoryPath = item.category_path || '';
+// 分类树重命名或移动时，同步更新缓存中的书签分类路径
+function updateCategoryTree(oldPath, newPath) {
 
-            if (!isInsideTree(oldCategoryPath, oldPath)) {
-                continue;
-            }
+    let updatedCount = 0;
 
-            item.category_path =
-                newPath + oldCategoryPath.slice(oldPath.length);
+    // ============================================================
+    // 1. 更新共享书签记录中的分类路径
+    // ============================================================
 
-            updatedCount++;
+    for (const item of records.values()) {
+
+        const oldCategoryPath = item.category_path || '';
+
+        if (!isInsideTree(oldCategoryPath, oldPath)) {
+            continue;
         }
 
-        // 分类分页缓存的 category 路径也需要同步修改
-        const updatedPages = new Map();
+        item.category_path =
+            newPath + oldCategoryPath.slice(oldPath.length);
 
-        for (const entry of pages.values()) {
-            if (
-                entry.scope === 'category' &&
-                isInsideTree(entry.category, oldPath)
-            ) {
-                entry.category =
-                    newPath + entry.category.slice(oldPath.length);
-            }
-
-            updatedPages.set(makePageKey(entry), entry);
-        }
-
-        pages.clear();
-
-        for (const [key, entry] of updatedPages) {
-            pages.set(key, entry);
-        }
-
-        return updatedCount;
+        updatedCount++;
     }
+
+
+    // ============================================================
+    // 2. 更新分类分页缓存的分类路径
+    // ============================================================
+
+    const updatedPages = new Map();
+
+    for (const entry of pages.values()) {
+
+        if (
+            entry.scope === 'category' &&
+            isInsideTree(entry.category, oldPath)
+        ) {
+
+            entry.category =
+                newPath + entry.category.slice(oldPath.length);
+        }
+
+        updatedPages.set(makePageKey(entry), entry);
+    }
+
+    // 重建分页缓存 Map
+    pages.clear();
+
+    for (const [key, entry] of updatedPages) {
+        pages.set(key, entry);
+    }
+
+
+    // ============================================================
+    // 3. 记录本次分类路径变化
+    // ============================================================
+
+    categoryPathVersion++;
+
+    categoryPathChanges.push({
+        version: categoryPathVersion,
+        oldPath,
+        newPath
+    });
+
+
+    return updatedCount;
+}
+
 
 function removeCategoryTree(deletedPath, result = {}) {
     const deletedIds = new Set();
@@ -1729,6 +1830,8 @@ return {
     invalidateOtherPageSizes,
     prependToFirstPage,
     updateCategoryTree,
+	getCategoryPathVersion,
+	rebaseCategoryPaths,
     removeCategoryTree,
     invalidateAllPages,
     clear
@@ -2142,22 +2245,48 @@ if (requestState.page > 1) {
 }
 
 
+// ====================================================
+// 记录请求发出时的分类路径版本
+// ====================================================
+
+const requestCategoryPathVersion =
+    BookmarkCache.getCategoryPathVersion();
+
+
+// ====================================================
+// 请求后端列表
+// ====================================================
+
 const res = await fetch(fetchUrl);
+
 result = await res.json();
 
-            if (!result.success) {
-                throw new Error(result.error || '获取列表失败');
-            }
+if (!result.success) {
+    throw new Error(result.error || '获取列表失败');
+}
 
 
-            // 将后端数据写入共享书签缓存
-            // 返回值是合并后的共享书签对象
-            result.data = BookmarkCache.savePage(
-                requestState,
-                result.data || [],
-                result.total,
-                result.totalPages
-            );
+// ====================================================
+// 先修正旧请求返回的分类路径
+// ====================================================
+
+result.data = BookmarkCache.rebaseCategoryPaths(
+    result.data || [],
+    requestCategoryPathVersion
+);
+
+
+// ====================================================
+// 再将修正后的数据写入共享书签缓存
+// ====================================================
+
+// 返回值是合并后的共享书签对象
+result.data = BookmarkCache.savePage(
+    requestState,
+    result.data,
+    result.total,
+    result.totalPages
+);
         }
 
 
