@@ -1677,6 +1677,18 @@ function updateBookmarkFields(id, fields) {
         }
     }
 
+    // 如果仍然没有记录，但传入的是完整记录，则建立共享记录
+    if (!item && fields && typeof fields === 'object') {
+
+        if (
+            fields.id !== undefined &&
+            String(fields.id) === key
+        ) {
+            item = fields;
+            records.set(key, item);
+        }
+    }
+
     if (!item) return false;
 
     // 更新本地修改版本
@@ -1773,8 +1785,10 @@ function savePage(state, items, total, totalPages, requestToken = null) {
         for (const id of entry.ids) {
             const item = records.get(id);
 
-            if (!item) return null;
-
+            if (!item) {
+				entry.dirty = true;
+				return null;
+			}
             items.push(item);
         }
 
@@ -1855,6 +1869,8 @@ function invalidateDeletedBookmark(ids) {
         id !== undefined &&
         id !== ''
     );
+	// 没有有效 ID，不执行缓存失效
+    if (idList.length === 0) return;
 
     const affectedScopes = new Set();
     const affectedCategories = new Set();
