@@ -1401,6 +1401,10 @@ function markBookmarkDeleted(id) {
     records.delete(key);
 
     recordVersions.delete(key);
+
+    // 如果没有删除之前发出的旧请求，
+    // 立即清理不再需要的删除保护标记
+    pruneDeletedRecords();
 }
 	
     // ============================================================
@@ -2653,6 +2657,10 @@ async function loadCards(options = {}) {
 	// 强制刷新时，让当前页原有缓存失效
 	if (forceRefresh) {BookmarkCache.invalidatePage(requestState);}
 
+	// 全局列表请求令牌
+    // 只有真正请求 /api/list 时才创建
+    let requestToken = null;
+
     try {
 
         let result = null;
@@ -2728,6 +2736,14 @@ if (requestState.page > 1) {
 
 
 // ====================================================
+// 登记本次全局列表请求
+// 只有真正请求后端时才登记
+// ====================================================
+
+requestToken = BookmarkCache.beginListRequest();
+
+
+// ====================================================
 // 登记本次分类路径请求
 // ====================================================
 
@@ -2788,20 +2804,22 @@ if (categoryPathChanged) {
 
     // 分类路径已经变化：
     // 只合并共享书签记录，不再创建旧路径分页缓存
-    result.data = BookmarkCache.mergeRecords(
-        result.data || []
-    );
+result.data = BookmarkCache.mergeRecords(
+    result.data || [],
+    requestToken
+);
 
 } else {
 
     // 分类路径没有变化：
     // 正常保存分页缓存
-    result.data = BookmarkCache.savePage(
-        requestState,
-        result.data || [],
-        result.total,
-        result.totalPages
-    );
+result.data = BookmarkCache.savePage(
+    requestState,
+    result.data || [],
+    result.total,
+    result.totalPages,
+    requestToken
+);
 
 // 如果强制刷新的是第一页，
 // 让同一列表的第二页及以后缓存失效
@@ -3074,6 +3092,17 @@ try {
 
     cardsContainer.innerHTML =
         `<p class="text-red-400 col-span-full text-center py-8">加载失败：${e.message}</p>`;
+
+} finally {
+
+    // ====================================================
+    // 释放全局列表请求令牌
+    // 无论请求成功、失败还是提前 return，都会执行
+    // ====================================================
+
+    if (requestToken) {
+        BookmarkCache.endListRequest(requestToken);
+    }
 }
 }
 
