@@ -1648,6 +1648,16 @@ function mergeLocalRecords(items) {
     return mergedItems;
 }
 
+
+// 登记本地新增书签，并返回共享记录
+function registerLocalBookmark(record) {
+    const result = mergeLocalRecords([record]);
+    return result[0] || null;
+}
+
+
+	
+
 // 更新某条书签的指定字段
 function updateBookmarkFields(id, fields) {
 
@@ -1699,39 +1709,58 @@ function updateBookmarkFields(id, fields) {
     }
 
 
-    // ---------- 分页缓存管理 ----------
+// ---------- 分页缓存管理 ----------
 
-    // 保存一个分页
-    function savePage(state, items, total, totalPages, requestToken = null) {
-        const sharedItems = mergeRecords(items, requestToken);
+// 保存一个分页
+function savePage(state, items, total, totalPages, requestToken = null) {
 
-        const page = Number(state.page) || 1;
-        const pageSize = Number(state.pageSize) || 20;
+    // 请求来自缓存清空之前，禁止写入分页缓存
+    if (
+        requestToken &&
+        requestToken.epoch !== cacheEpoch
+    ) {
+        return mergeRecords(items, requestToken);
+    }
 
-        const entry = {
-            scope: state.scope,
-            category: state.category || '',
-            keyword: state.keyword || '',
-            page,
-            pageSize,
+    // 请求开始后发生过本地修改：
+    // 允许合并单条记录，但不允许旧请求覆盖分页缓存
+    const hasLocalMutation =
+        requestToken &&
+        requestToken.localMutationVersion < localMutationVersion;
 
-            ids: sharedItems.map(item => String(item.id)),
+    const sharedItems = mergeRecords(items, requestToken);
 
-            total: Number(total) || 0,
-            totalPages: Number(totalPages) || 0,
-
-            // 只有第一页可能存在溢出
-            overflowCount: page === 1
-                ? Math.max(0, sharedItems.length - pageSize)
-                : 0,
-
-            dirty: false
-        };
-
-        pages.set(makePageKey(entry), entry);
-
+    // 旧请求不再写入分页缓存
+    if (hasLocalMutation) {
         return sharedItems;
     }
+
+    const page = Number(state.page) || 1;
+    const pageSize = Number(state.pageSize) || 20;
+
+    const entry = {
+        scope: state.scope,
+        category: state.category || '',
+        keyword: state.keyword || '',
+        page,
+        pageSize,
+
+        ids: sharedItems.map(item => String(item.id)),
+
+        total: Number(total) || 0,
+        totalPages: Number(totalPages) || 0,
+
+        overflowCount: page === 1
+            ? Math.max(0, sharedItems.length - pageSize)
+            : 0,
+
+        dirty: false
+    };
+
+    pages.set(makePageKey(entry), entry);
+
+    return sharedItems;
+}
 
     // 获取一个分页
     function getPage(state) {
@@ -1939,8 +1968,7 @@ function invalidateOtherPageSizes(state) {
 
     // ---------- 新书签插入第一页 ----------
 
-function prependToFirstPage(state, items) {
-
+function prependToFirstPage(state, items, alreadyMerged = false) {
     const firstPageState = {
         ...state,
         page: 1
@@ -1965,8 +1993,9 @@ function prependToFirstPage(state, items) {
         };
     }
 
-    // 合并本地新增记录，并登记本地修改版本
-    const sharedItems = mergeLocalRecords(items);
+    const sharedItems = alreadyMerged
+    ? items.filter(Boolean)
+    : mergeLocalRecords(items);
 
     const existingIds = new Set(entry.ids);
     const newIds = [];
@@ -2276,6 +2305,7 @@ return {
     makePageKey, mergeRecords, savePage, getPage,
 	invalidatePage,
     updateBookmarkFields,
+	registerLocalBookmark,
     updateBookmarkFavorite,
     updateBookmarkStatus,
     updateBookmarkCategory,
@@ -4490,7 +4520,13 @@ renderTimeoutTasks();
 
 function cacheNewBookmark(record, invalidateKeywordCache = true) {
 
+    // 先检查新增记录是否合法
     if (!record || !record.id) return;
+
+    // 统一登记本地新增书签，只增加一次本地修改版本
+    const sharedRecord = BookmarkCache.registerLocalBookmark(record);
+
+    if (!sharedRecord) return;
 
     // ---------- 0. 按需让关键词搜索缓存失效 ----------
     if (invalidateKeywordCache) {
@@ -4500,7 +4536,7 @@ function cacheNewBookmark(record, invalidateKeywordCache = true) {
     const pageSize = Number(AppState.pageSize) || 20;
 
     // ---------- 1. 更新主页第一页缓存 ----------
-    if (record.status !== 'archived') {
+    if (sharedRecord.status !== 'archived') {
 
         const homeState = {
             scope: 'home',
@@ -4510,10 +4546,7 @@ function cacheNewBookmark(record, invalidateKeywordCache = true) {
             pageSize
         };
 
-        const homeResult = BookmarkCache.prependToFirstPage(
-            homeState,
-            [record]
-        );
+        const homeResult = BookmarkCache.prependToFirstPage(homeState, [sharedRecord], true);
 
         // 如果主页第一页没有可用缓存，
         // 也要让第二页及以后的缓存失效
@@ -4527,7 +4560,7 @@ function cacheNewBookmark(record, invalidateKeywordCache = true) {
 
 
     // ---------- 2. 更新目标分类第一页缓存 ----------
-    const categoryPath = record.category_path;
+    const categoryPath = sharedRecord.category_path;
 
     if (categoryPath) {
 
@@ -4539,10 +4572,7 @@ function cacheNewBookmark(record, invalidateKeywordCache = true) {
             pageSize
         };
 
-        const categoryResult = BookmarkCache.prependToFirstPage(
-            categoryState,
-            [record]
-        );
+        const categoryResult = BookmarkCache.prependToFirstPage(categoryState, [sharedRecord], true);
 
         // 如果目标分类第一页没有可用缓存，
         // 也要让第二页及以后的缓存失效
