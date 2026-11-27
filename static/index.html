@@ -2287,17 +2287,30 @@ title._scrollAnimation = title.animate(
 
 });
 
-		
-		
+// ====================================================
+// loadCards 请求序号管理
+// 按分页缓存键分别管理，避免同一分页的新旧请求互相覆盖
+// ====================================================
+
+const listRequestVersions = new Map();
+
+function createListRequest(requestKey) {
+    const version =
+        (listRequestVersions.get(requestKey) || 0) + 1;
+
+    listRequestVersions.set(requestKey, version);
+
+    return version;
+}
+
+function isLatestListRequest(requestKey, version) {
+    return listRequestVersions.get(requestKey) === version;
+}
+
 async function loadCards(options = {}) {
     const forceRefresh = options.forceRefresh === true;
-    // 显示加载中
-    cardsContainer.innerHTML = '<p class="text-slate-500 col-span-full text-center py-12 animate-pulse">⏳ 加载中...</p>';
-    paginationBar.classList.add('hidden');
-
 
     // 保存本次请求对应的状态快照
-    // 防止请求过程中用户切换了视图，旧请求又覆盖新视图
     const requestState = {
         scope: AppState.scope,
         category: AppState.category,
@@ -2307,6 +2320,13 @@ async function loadCards(options = {}) {
     };
 
     const requestKey = BookmarkCache.makePageKey(requestState);
+
+    // 为当前分页生成新的请求序号
+    const requestVersion = createListRequest(requestKey);
+
+    // 显示加载中
+    cardsContainer.innerHTML = '<p class="text-slate-500 col-span-full text-center py-12 animate-pulse">⏳ 加载中...</p>';
+    paginationBar.classList.add('hidden');
 
 	// 强制刷新时，让当前页原有缓存失效
 	if (forceRefresh) {BookmarkCache.invalidatePage(requestState);}
@@ -2398,23 +2418,33 @@ try {
     // 请求后端列表
     // ====================================================
 
-    const res = await fetch(fetchUrl);
+const res = await fetch(fetchUrl);
 
-    result = await res.json();
+result = await res.json();
 
-    if (!result.success) {
-        throw new Error(result.error || '获取列表失败');
-    }
+// ====================================================
+// 检查请求序号
+// 如果同一分页已经有更新的请求，
+// 当前请求属于旧请求，不再处理返回结果
+// ====================================================
+
+if (!isLatestListRequest(requestKey, requestVersion)) {
+    return;
+}
+
+if (!result.success) {
+    throw new Error(result.error || '获取列表失败');
+}
 
 
-    // ====================================================
-    // 先修正旧请求返回的分类路径
-    // ====================================================
+// ====================================================
+// 先修正旧请求返回的分类路径
+// ====================================================
 
-    result.data = BookmarkCache.rebaseCategoryPaths(
-        result.data || [],
-        categoryPathRequest.version
-    );
+result.data = BookmarkCache.rebaseCategoryPaths(
+    result.data || [],
+    categoryPathRequest.version
+);
 
 // ====================================================
 // 判断本次分类请求期间，分类路径是否发生过变化
@@ -2471,11 +2501,18 @@ if (forceRefresh && requestState.page === 1) {BookmarkCache.invalidatePagesAfter
         }
 
 
-        // 如果请求过程中用户切换了视图或分页，
-        // 就不再使用这次旧请求的结果更新页面
-        if (BookmarkCache.makePageKey(AppState) !== requestKey) {
-            return;
-        }
+// ====================================================
+// 更新页面前进行双重检查
+// 1. 当前页面是否仍然是本次请求对应的分页
+// 2. 本次请求是否仍然是该分页的最新请求
+// ====================================================
+
+if (
+    BookmarkCache.makePageKey(AppState) !== requestKey ||
+    !isLatestListRequest(requestKey, requestVersion)
+) {
+    return;
+}
 
 
         // ====================================================
@@ -2700,18 +2737,22 @@ try {
                 // 绑定卡片上的单条操作事件
                 bindCardEvents();
 
-    } catch (e) {
+} catch (e) {
 
-        // 如果已经切换了视图，不显示旧请求的错误
-        if (BookmarkCache.makePageKey(AppState) !== requestKey) {
-            return;
-        }
-
-        console.error("加载列表失败", e);
-
-        cardsContainer.innerHTML =
-            `<p class="text-red-400 col-span-full text-center py-8">加载失败：${e.message}</p>`;
+    // 如果已经切换了视图，或者当前请求已经过期，
+    // 就不显示旧请求的错误
+    if (
+        BookmarkCache.makePageKey(AppState) !== requestKey ||
+        !isLatestListRequest(requestKey, requestVersion)
+    ) {
+        return;
     }
+
+    console.error("加载列表失败", e);
+
+    cardsContainer.innerHTML =
+        `<p class="text-red-400 col-span-full text-center py-8">加载失败：${e.message}</p>`;
+}
 }
 
         /* ============================================================
