@@ -1162,6 +1162,35 @@ let nextCategoryPathRequestId = 0;
 // value：请求开始时的分类路径版本
 const activeCategoryPathRequests = new Map();
 
+// ============================================================
+// 书签共享记录并发保护
+// ============================================================
+
+// 列表请求 ID 递增计数器
+let nextListRequestId = 0;
+
+// 本地书签修改版本
+let localMutationVersion = 0;
+
+// 正在执行的列表请求
+// key：请求 ID
+// value：请求开始时的版本信息
+const activeListRequests = new Map();
+
+// 每条书签的版本信息
+// key：书签 ID
+// value：{ serverRequestId, localMutationVersion }
+const recordVersions = new Map();
+
+// 已删除书签保护标记
+// key：书签 ID
+// value：删除时的本地修改版本
+const deletedRecords = new Map();
+
+// 缓存代数
+// clear() 时递增，阻止清空前的旧请求重新写入
+let cacheEpoch = 0;	
+
 
     // ---------- 基础辅助方法 ----------
 
@@ -1261,6 +1290,119 @@ function pruneCategoryPathChanges() {
 }	
 
 
+
+// ============================================================
+// 登记一个列表请求
+// ============================================================
+
+function beginListRequest() {
+
+    const requestId = ++nextListRequestId;
+
+    const token = {
+        id: requestId,
+
+        // 请求开始时的本地修改版本
+        localMutationVersion,
+
+        // 请求开始时的缓存代数
+        epoch: cacheEpoch
+    };
+
+    activeListRequests.set(requestId, token);
+
+    return token;
+}
+
+
+// ============================================================
+// 请求结束后释放登记
+// ============================================================
+
+function endListRequest(requestToken) {
+
+    if (!requestToken) return;
+
+    if (!activeListRequests.has(requestToken.id)) {
+        return;
+    }
+
+    activeListRequests.delete(requestToken.id);
+
+    // 清理已经不再需要的删除保护标记
+    pruneDeletedRecords();
+}
+
+
+// ============================================================
+// 清理不再需要的删除保护标记
+// ============================================================
+
+function pruneDeletedRecords() {
+
+    for (const [deletedId, deletedVersion] of deletedRecords) {
+
+        let hasOlderRequest = false;
+
+        // 检查是否还有删除之前发出的请求没有结束
+        for (const request of activeListRequests.values()) {
+
+            if (
+                request.localMutationVersion < deletedVersion
+            ) {
+                hasOlderRequest = true;
+                break;
+            }
+        }
+
+        // 没有旧请求需要保护时，删除标记可以清理
+        if (!hasOlderRequest) {
+            deletedRecords.delete(deletedId);
+        }
+    }
+}
+
+
+// ============================================================
+// 登记单条书签的本地修改
+// ============================================================
+
+function markLocalBookmarkMutation(id) {
+
+    const key = String(id);
+
+    localMutationVersion++;
+
+    const meta = recordVersions.get(key) || {
+        serverRequestId: 0,
+        localMutationVersion: 0
+    };
+
+    meta.localMutationVersion = localMutationVersion;
+
+    recordVersions.set(key, meta);
+
+    return localMutationVersion;
+}
+
+
+// ============================================================
+// 登记单条书签删除
+// ============================================================
+
+function markBookmarkDeleted(id) {
+
+    const key = String(id);
+
+    localMutationVersion++;
+
+    deletedRecords.set(key, localMutationVersion);
+
+    records.delete(key);
+
+    recordVersions.delete(key);
+}
+	
     // ============================================================
     // 修正旧请求返回的书签分类路径
     // ============================================================
@@ -1341,46 +1483,195 @@ function hasCategoryPathChangedSince(path, requestVersion) {
     }
 
 
-    // ---------- 书签记录管理 ----------
+// ---------- 书签记录管理 ----------
 
-    // 将书签数据合并到共享记录中
-    function mergeRecords(items) {
-        return (items || []).map(item => {
-            const id = String(item.id);
-            const existing = records.get(id);
+// ============================================================
+// 将服务器书签数据合并到共享记录
+//
+// requestToken：
+//   传入列表请求令牌时，执行并发保护
+//   不传入时，兼容原有调用方式
+// ============================================================
 
-            if (existing) {
-                Object.assign(existing, item);
-                return existing;
-            }
+function mergeRecords(items, requestToken = null) {
 
-            records.set(id, item);
-            return item;
-        });
+    if (!Array.isArray(items) || items.length === 0) {
+        return [];
     }
 
-    // 更新某条书签的指定字段
-    function updateBookmarkFields(id, fields) {
-        const key = String(id);
+    // 请求来自缓存清空之前，禁止写入
+    if (
+        requestToken &&
+        requestToken.epoch !== cacheEpoch
+    ) {
+        return [];
+    }
 
-        let item = records.get(key);
+    const mergedItems = [];
 
-        // 如果缓存记录中没有，尝试从当前列表数据中获取
-        if (!item && Array.isArray(AppState.listData)) {
-            item = AppState.listData.find(
-                record => String(record.id) === key
-            );
+    for (const item of items) {
 
-            if (item) {
-                records.set(key, item);
+        if (!item || item.id === null || item.id === undefined) {
+            continue;
+        }
+
+        const id = String(item.id);
+
+        // 已删除的书签不能重新进入共享记录
+        if (deletedRecords.has(id)) {
+            continue;
+        }
+
+        const existing = records.get(id);
+
+        const meta = recordVersions.get(id) || {
+            serverRequestId: 0,
+            localMutationVersion: 0
+        };
+
+        // =====================================================
+        // 有请求令牌时，执行服务器请求并发保护
+        // =====================================================
+
+        if (requestToken) {
+
+            // 有更新的服务器请求已经写入过这条记录
+            if (
+                meta.serverRequestId > requestToken.id
+            ) {
+                if (existing) {
+                    mergedItems.push(existing);
+                }
+
+                continue;
+            }
+
+            // 请求发出后，本地已经修改过这条书签
+            if (
+                meta.localMutationVersion >
+                requestToken.localMutationVersion
+            ) {
+                if (existing) {
+                    mergedItems.push(existing);
+                }
+
+                continue;
             }
         }
 
-        if (!item) return false;
+        // =====================================================
+        // 合并记录
+        // =====================================================
 
-        Object.assign(item, fields);
-        return true;
+        let sharedItem;
+
+        if (existing) {
+
+            Object.assign(existing, item);
+
+            sharedItem = existing;
+
+        } else {
+
+            sharedItem = item;
+
+            records.set(id, sharedItem);
+        }
+
+        // 记录最近一次服务器请求写入版本
+        if (requestToken) {
+            meta.serverRequestId = requestToken.id;
+        }
+
+        recordVersions.set(id, meta);
+
+        mergedItems.push(sharedItem);
     }
+
+    return mergedItems;
+}
+
+
+// ============================================================
+// 本地新增书签合并
+// 用于新增书签成功后插入第一页缓存
+// ============================================================
+
+function mergeLocalRecords(items) {
+
+    if (!Array.isArray(items) || items.length === 0) {
+        return [];
+    }
+
+    const mergedItems = [];
+
+    for (const item of items) {
+
+        if (!item || item.id === null || item.id === undefined) {
+            continue;
+        }
+
+        const id = String(item.id);
+
+        // 删除保护期间不允许重新插入
+        if (deletedRecords.has(id)) {
+            continue;
+        }
+
+        const existing = records.get(id);
+
+        let sharedItem;
+
+        if (existing) {
+
+            Object.assign(existing, item);
+
+            sharedItem = existing;
+
+        } else {
+
+            sharedItem = item;
+
+            records.set(id, sharedItem);
+        }
+
+        // 将本地新增视为一次本地修改
+        markLocalBookmarkMutation(id);
+
+        mergedItems.push(sharedItem);
+    }
+
+    return mergedItems;
+}
+
+// 更新某条书签的指定字段
+function updateBookmarkFields(id, fields) {
+
+    const key = String(id);
+
+    let item = records.get(key);
+
+    // 如果缓存记录中没有，尝试从当前列表数据中获取
+    if (!item && Array.isArray(AppState.listData)) {
+
+        item = AppState.listData.find(
+            record => String(record.id) === key
+        );
+
+        if (item) {
+            records.set(key, item);
+        }
+    }
+
+    if (!item) return false;
+
+    // 更新本地修改版本
+    markLocalBookmarkMutation(key);
+
+    Object.assign(item, fields);
+
+    return true;
+}
 
     // 更新收藏状态
     function updateBookmarkFavorite(id, isFavorite) {
@@ -1407,8 +1698,8 @@ function hasCategoryPathChangedSince(path, requestVersion) {
     // ---------- 分页缓存管理 ----------
 
     // 保存一个分页
-    function savePage(state, items, total, totalPages) {
-        const sharedItems = mergeRecords(items);
+    function savePage(state, items, total, totalPages, requestToken = null) {
+        const sharedItems = mergeRecords(items, requestToken);
 
         const page = Number(state.page) || 1;
         const pageSize = Number(state.pageSize) || 20;
@@ -1524,7 +1815,13 @@ function invalidateCategoryPaths(paths) {
 function invalidateDeletedBookmark(ids) {
 
     // 兼容单条 ID 和批量 ID
-    const idList = (Array.isArray(ids) ? ids : [ids]).filter(id => id !== null && id !== undefined && id !== '');
+    const idList = (
+        Array.isArray(ids) ? ids : [ids]
+    ).filter(id =>
+        id !== null &&
+        id !== undefined &&
+        id !== ''
+    );
 
     const affectedScopes = new Set();
     const affectedCategories = new Set();
@@ -1538,8 +1835,12 @@ function invalidateDeletedBookmark(ids) {
 
         const record =
             records.get(key) ||
-            AppState.listData.find(
-                item => String(item.id) === key
+            (
+                Array.isArray(AppState.listData)
+                    ? AppState.listData.find(
+                        item => String(item.id) === key
+                    )
+                    : null
             );
 
         if (!record) {
@@ -1575,7 +1876,6 @@ function invalidateDeletedBookmark(ids) {
 
     } else {
 
-        // 一次遍历分页缓存，统一处理所有受影响的页面
         invalidatePages(entry => {
 
             // 所有关键词搜索缓存失效
@@ -1600,9 +1900,9 @@ function invalidateDeletedBookmark(ids) {
         });
     }
 
-    // ---------- 6. 从共享记录中删除书签 ----------
+    // ---------- 6. 设置删除保护标记 ----------
     for (const id of idList) {
-        records.delete(String(id));
+        markBookmarkDeleted(id);
     }
 }
 
@@ -1661,8 +1961,8 @@ function prependToFirstPage(state, items) {
         };
     }
 
-    // 合并新增记录，确保 records 中有完整书签数据
-    const sharedItems = mergeRecords(items);
+    // 合并本地新增记录，并登记本地修改版本
+    const sharedItems = mergeLocalRecords(items);
 
     const existingIds = new Set(entry.ids);
     const newIds = [];
@@ -1784,8 +2084,10 @@ function updateCategoryTree(oldPath, newPath) {
             continue;
         }
 
-        item.category_path =
-            newPath + oldCategoryPath.slice(oldPath.length);
+		// 更新分类路径
+        item.category_path = newPath + oldCategoryPath.slice(oldPath.length);
+		// 登记本地分类路径修改
+		markLocalBookmarkMutation(item.id);
 
         updatedCount++;
     }
@@ -1855,7 +2157,6 @@ function removeCategoryTree(deletedPath, result = {}) {
 
         if (isInsideTree(categoryPath, deletedPath)) {
             deletedIds.add(String(id));
-            records.delete(id);
         }
     }
 
@@ -1870,6 +2171,13 @@ function removeCategoryTree(deletedPath, result = {}) {
             }
         }
     }
+
+// ---------- 设置删除保护标记 ----------
+
+// 统一处理共享记录和当前页面中收集到的书签 ID
+for (const id of deletedIds) {
+    markBookmarkDeleted(id);
+}	
 
     // ---------- 3. 精准处理分页缓存 ----------
 
@@ -1936,17 +2244,31 @@ function removeCategoryTree(deletedPath, result = {}) {
         }
     }
 
-    // 清空全部缓存
-    function clear() {
-        records.clear();
-        pages.clear();
-    }
+// 清空全部缓存
+function clear() {
 
+    // 缓存代数递增
+    // 之前发出的请求即使返回，也不能再写入缓存
+    cacheEpoch++;
+
+    records.clear();
+    pages.clear();
+
+    // 清理书签版本和删除标记
+    recordVersions.clear();
+    deletedRecords.clear();
+
+    // 增加本地版本，确保旧请求不会与清空后的状态混淆
+    localMutationVersion++;
+}
 
     // ---------- 对外公开的方法 ----------
 
 return {
     records, pages,
+    // 列表请求并发保护
+    beginListRequest,
+    endListRequest,	
     makePageKey, mergeRecords, savePage, getPage,
 	invalidatePage,
     updateBookmarkFields,
