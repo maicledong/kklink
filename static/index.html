@@ -3678,8 +3678,8 @@ if (!res.ok || !result.success) {
 // ---------- 更新书签共享缓存 ----------
 if (result.data) {
 
-    // 登记本地编辑，防止旧列表请求覆盖编辑结果
-    BookmarkCache.updateBookmarkFields(
+    // 更新共享记录，并登记本地修改版本
+    const updated = BookmarkCache.updateBookmarkFields(
         result.data.id,
         result.data
     );
@@ -3687,9 +3687,14 @@ if (result.data) {
     // 编辑字段可能影响关键词搜索结果
     BookmarkCache.invalidateKeywordPages();
 
+    // 如果共享记录不存在，采用保守处理
+    if (!updated) {
+        BookmarkCache.invalidateAllPages();
+    }
+
 } else {
 
-    // 后端没有返回完整记录，采用保守处理
+    // 后端没有返回完整记录
     BookmarkCache.invalidateAllPages();
 }
 
