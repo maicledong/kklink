@@ -36,6 +36,9 @@ const CategoryStore = {
   // 当前分类树加载请求的 Promise
   loadPromise: null,
 
+  // 分类树请求版本号，用于阻止旧请求覆盖新缓存
+  loadRequestId: 0,
+
     // 各个分类树独立维护展开状态
     expandedPaths: {
         explorer: new Set(),
@@ -105,17 +108,25 @@ async function loadCategoryTree(force = false) {
         return CategoryStore.treeCache;
     }
 
-    // 如果已经有加载请求，直接共用当前 Promise
-    if (CategoryStore.loadPromise) {
+    // 非强制刷新时，如果已有请求，直接共用当前 Promise
+    if (!force && CategoryStore.loadPromise) {
         return CategoryStore.loadPromise;
     }
 
+    // 每次创建新请求，都递增请求版本号
+    const requestId = ++CategoryStore.loadRequestId;
+
     CategoryStore.loading = true;
 
-    // 创建唯一的加载请求
+    // 创建新的加载请求
     const request = (async () => {
 
         const data = await apiJson("/api/categories/tree");
+
+        // 如果请求已经过期，不允许覆盖当前缓存
+        if (requestId !== CategoryStore.loadRequestId) {
+            return CategoryStore.treeCache || [];
+        }
 
         CategoryStore.treeCache = Array.isArray(data.data)
             ? data.data
@@ -142,12 +153,14 @@ async function loadCategoryTree(force = false) {
 
     } finally {
 
-        // 只清理当前请求，避免误清理其他请求
-        if (CategoryStore.loadPromise === request) {
+        // 只有当前最新请求才能清理加载状态
+        if (
+            requestId === CategoryStore.loadRequestId &&
+            CategoryStore.loadPromise === request
+        ) {
             CategoryStore.loadPromise = null;
+            CategoryStore.loading = false;
         }
-
-        CategoryStore.loading = false;
     }
 }
 
@@ -155,11 +168,19 @@ async function loadCategoryTree(force = false) {
 // ---------- 使分类缓存失效 ----------
 function invalidateTree() {
 
+    // 让之前正在执行的请求全部失效
+    CategoryStore.loadRequestId++;
+
     CategoryStore.treeCache = null;
 
     CategoryStore.byParent = {};
 
     CategoryStore.loaded = false;
+
+    // 清除当前请求引用，允许重新发起请求
+    CategoryStore.loadPromise = null;
+
+    CategoryStore.loading = false;
 
     CategoryStore.version++;
 }
