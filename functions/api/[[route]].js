@@ -351,13 +351,16 @@ const rawName = name.trim();
 
 // 2. 检查父分类路径格式
 if (
-    !parentPath.startsWith('/') ||
-    (parentPath.length > 1 && parentPath.endsWith('/')) ||
-    parentPath.includes('//') ||
-    parentPath.split('/').slice(1).some(segment =>
-        !segment ||
-        segment === '.' ||
-        segment === '..'
+    parentPath !== '/' &&
+    (
+        !parentPath.startsWith('/') ||
+        parentPath.endsWith('/') ||
+        parentPath.includes('//') ||
+        parentPath.split('/').slice(1).some(segment =>
+            !segment ||
+            segment === '.' ||
+            segment === '..'
+        )
     )
 ) {
     return new Response(JSON.stringify({
