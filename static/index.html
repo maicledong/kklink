@@ -3678,16 +3678,18 @@ if (!res.ok || !result.success) {
 // ---------- 更新书签共享缓存 ----------
 if (result.data) {
 
-    // 使用后端返回的完整记录更新共享缓存
-    BookmarkCache.mergeRecords([result.data]);
+    // 登记本地编辑，防止旧列表请求覆盖编辑结果
+    BookmarkCache.updateBookmarkFields(
+        result.data.id,
+        result.data
+    );
 
-    // 编辑字段可能影响关键词搜索结果，
-    // 因此让所有关键词搜索分页缓存失效
+    // 编辑字段可能影响关键词搜索结果
     BookmarkCache.invalidateKeywordPages();
 
 } else {
 
-    // 兼容后端未返回完整记录的情况
+    // 后端没有返回完整记录，采用保守处理
     BookmarkCache.invalidateAllPages();
 }
 
