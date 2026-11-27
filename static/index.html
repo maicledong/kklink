@@ -618,11 +618,11 @@
 }
 			
 /* ==================================================
-   顶部搜索栏：搜索和按钮统一样式
+   顶部搜索栏：搜索和重置按钮统一样式
    ================================================== */
 
 /* 搜索按钮 */
-button[title="搜索"] {
+#searchBtn {
     width: 36px !important;
     height: 34px !important;
     padding: 0 !important;
@@ -644,8 +644,8 @@ button[title="搜索"] {
     transition: all 0.2s ease !important;
 }
 
-/* 按钮 */
-button[title=""] {
+/* 重置按钮 */
+#resetSearchBtn {
     width: 36px !important;
     height: 34px !important;
     padding: 0 !important;
@@ -665,27 +665,28 @@ button[title=""] {
     transition: all 0.2s ease !important;
 }
 
-/* 图标缩小并统一颜色 */
-button[title=""] svg {
+/* 重置按钮图标尺寸 */
+#resetSearchBtn svg {
     width: 21px !important;
     height: 21px !important;
 }
 
-button[title=""] svg path {
+/* 重置按钮图标颜色 */
+#resetSearchBtn svg path {
     fill: #cbd5e1 !important;
     opacity: 1 !important;
 }
 
 /* 两个按钮统一悬停效果 */
-button[title="搜索"]:hover,
-button[title=""]:hover {
+#searchBtn:hover,
+#resetSearchBtn:hover {
     background: #475569 !important;
     border-color: #64748b !important;
     color: #ffffff !important;
 }
 
 /* 搜索栏中间的分隔线 */
-button[title="搜索"] + div {
+#searchBtn + div {
     margin-left: 5px !important;
     margin-right: 5px !important;
     opacity: 0.5;
