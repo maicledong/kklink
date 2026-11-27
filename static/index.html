@@ -4116,6 +4116,50 @@ if (refreshCurrentPageBtn) {
     });
 }
 
+
+/* ============================================================
+ * 更多应用菜单：展开 / 收起
+ * ============================================================ */
+
+const appMenuBtn = document.getElementById('appMenuBtn');
+const appMenuDropdown = document.getElementById('appMenuDropdown');
+const appMenuWrap = document.getElementById('appMenuWrap');
+
+if (appMenuBtn && appMenuDropdown && appMenuWrap) {
+
+    // 点击按钮：切换菜单显示状态
+    appMenuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+
+        appMenuDropdown.classList.toggle('hidden');
+    });
+
+    // 点击菜单内部：不关闭菜单
+    appMenuDropdown.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+
+    // 点击页面其他位置：关闭菜单
+    document.addEventListener('click', (e) => {
+
+        if (!appMenuWrap.contains(e.target)) {
+            appMenuDropdown.classList.add('hidden');
+        }
+
+    });
+
+    // 按 ESC：关闭菜单
+    document.addEventListener('keydown', (e) => {
+
+        if (e.key === 'Escape') {
+            appMenuDropdown.classList.add('hidden');
+        }
+
+    });
+}
+
+		
+
         /* ============================================================
          * 联动 CategoryExplorer (第 3 批的组件)
          * ============================================================ */
