@@ -617,81 +617,7 @@
     height: 16px;
 }
 			
-/* ==================================================
-   顶部搜索栏：搜索和重置按钮统一样式
-   ================================================== */
-
-/* 搜索按钮 */
-#searchBtn {
-    width: 36px !important;
-    height: 34px !important;
-    padding: 0 !important;
-
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-
-    flex-shrink: 0 !important;
-
-    background: #334155 !important;
-    color: #cbd5e1 !important;
-
-    border: 1px solid #475569 !important;
-    border-radius: 7px !important;
-
-    font-size: 16px !important;
-
-    transition: all 0.2s ease !important;
-}
-
-/* 重置按钮 */
-#resetSearchBtn {
-    width: 36px !important;
-    height: 34px !important;
-    padding: 0 !important;
-
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-
-    flex-shrink: 0 !important;
-
-    background: #334155 !important;
-    color: #cbd5e1 !important;
-
-    border: 1px solid #475569 !important;
-    border-radius: 7px !important;
-
-    transition: all 0.2s ease !important;
-}
-
-/* 重置按钮图标尺寸 */
-#resetSearchBtn svg {
-    width: 21px !important;
-    height: 21px !important;
-}
-
-/* 重置按钮图标颜色 */
-#resetSearchBtn svg path {
-    fill: #cbd5e1 !important;
-    opacity: 1 !important;
-}
-
-/* 两个按钮统一悬停效果 */
-#searchBtn:hover,
-#resetSearchBtn:hover {
-    background: #475569 !important;
-    border-color: #64748b !important;
-    color: #ffffff !important;
-}
-
-/* 搜索栏中间的分隔线 */
-#searchBtn + div {
-    margin-left: 5px !important;
-    margin-right: 5px !important;
-    opacity: 0.5;
-}   
-            
+        
     </style>
 </head>
 <body class="pt-0 px-4 pb-4 md:pt-0 md:px-6 md:pb-6">
@@ -701,9 +627,14 @@
 			<!-- 搜索输入框 -->
             <input type="text" id="searchKeyword" placeholder="搜索标签、标题、文本、URL" class="flex-1 bg-transparent px-3 py-2 text-white placeholder-slate-400 focus:outline-none">
 			<!-- 搜索按钮 -->
-			<button id="searchBtn" type="button" class="px-3 py-2 text-slate-300 hover:text-white transition-colors bg-[#cbd5e1]" title="搜索">🔍</button>
+			<button id="searchBtn" type="button"
+    class="w-9 h-[34px] p-0 shrink-0 inline-flex items-center justify-center text-slate-300 hover:text-white transition-colors"
+    title="搜索">🔍</button>
+			
             <div class="w-px h-6 bg-slate-600"></div>
-            <button id="resetSearchBtn" class="px-3 py-2 text-slate-300 hover:text-white transition-colors flex items-center justify-center bg-[#cbd5e1]" title="重置">    
+            <button id="resetSearchBtn"
+    class="w-9 h-[34px] p-0 shrink-0 inline-flex items-center justify-center text-slate-300 hover:text-white transition-colors"
+    title="重置">    
                 <svg t="1792208764843" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" width="26" height="24">
                     <path d="M684.5 286c-1.9-1.6-4.1-2.3-6.4-2.3-2.6 0-5.1 1-7.1 2.9L495 462.5c-1.9 1.9-2.9 4.4-2.9 7.1 0 2.7 1 5.2 2.9 7.1l146.5 146.5L821.6 443c2.7-2.7 4.1-6.2 4.1-9.9 0-3.8-1.5-7.3-4.1-9.9L684.5 286z" fill="#44454A" opacity=".24"></path>
                     <path d="M849 845.7H434.4c4.2-2.6 8.2-5.6 11.7-9.2l96.1-96.1c7 2.5 14.3 4.1 22 4.1 17.1 0 33.1-6.6 45.2-18.7l247.4-247.4c12.1-12.1 18.7-28.1 18.7-45.3 0-17.1-6.7-33.1-18.7-45.2L616.3 147.2c-24.9-24.9-65.5-24.9-90.5 0L278.4 394.6c-18.2 18.1-22.9 44.6-14.6 67.2L167.6 558c-24.9 24.9-25.8 64.7-1.9 88.6l191.8 191.8c2.7 2.7 5.7 5.2 8.9 7.3H174.2c-13.8 0-25 11.2-25 25s11.2 25 25 25H849c13.8 0 25-11.2 25-25-0.1-13.9-11.2-25-25-25zM313.7 429.9l247.4-247.4c2.7-2.8 6.4-4.1 10-4.1s7.2 1.4 9.9 4.1l240.6 240.6c2.7 2.7 4.1 6.2 4.1 9.9s-1.5 7.3-4.1 9.9L574.2 690.4c-5.3 5.3-14.6 5.3-19.9 0L313.7 449.8c-2.7-2.7-4.1-6.2-4.1-9.9 0-3.8 1.4-7.3 4.1-10z" fill="#44454A"></path>
